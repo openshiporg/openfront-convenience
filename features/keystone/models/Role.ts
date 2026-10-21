@@ -1,41 +1,61 @@
-import { list } from '@keystone-6/core'
-import { allOperations } from '@keystone-6/core/access'
-import { checkbox, relationship, text } from '@keystone-6/core/fields'
+import { list } from "@keystone-6/core";
+import { relationship, text } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from '../access'
+import {
+  canAccessBusiness,
+  isHumanPlatformAdmin,
+  permissionKeys,
+  permissions,
+  tenantAccess,
+  type Session,
+} from "../access";
+import { permissionFields } from "./permissionFields";
+import { trackingFields } from "./trackingFields";
+import { requiredRelationshipHooks } from "./validation";
+
+const roleRelationshipHooks = requiredRelationshipHooks("business");
 
 export const Role = list({
-  access: {
-    operation: {
-      ...allOperations(permissions.canManageRoles),
-      query: isSignedIn,
+  access: tenantAccess("canManageRoles", "canManageRoles", { delete: false }),
+  hooks: {
+    ...roleRelationshipHooks,
+    async validateInput(args) {
+      await roleRelationshipHooks.validateInput?.(args);
+      const session = args.context.session as Session | undefined;
+      if (session?.apiKeyId) {
+        args.addValidationError("Machine sessions cannot mutate human authorization roles");
+        return;
+      }
+      if (isHumanPlatformAdmin(session)) return;
+      const resolved = args.resolvedData as Record<string, unknown>;
+      const item = args.item as { businessId?: string | null } | undefined;
+      const businessInput = resolved.business as { connect?: { id?: string } | null } | undefined;
+      const businessId = businessInput?.connect?.id ?? item?.businessId ?? null;
+      if (!businessId) return;
+      for (const permission of permissionKeys) {
+        if (resolved[permission] === true && !canAccessBusiness(session, businessId, permission)) {
+          args.addValidationError(`A role cannot grant ${permission} beyond the role manager's own permissions`);
+        }
+      }
     },
   },
   ui: {
-    hideCreate: args => !permissions.canManageRoles(args),
-    hideDelete: args => !permissions.canManageRoles(args),
-    listView: {
-      initialColumns: ['name', 'assignedTo'],
-    },
-    itemView: {
-      defaultFieldMode: args => (permissions.canManageRoles(args) ? 'edit' : 'read'),
-    },
+    hideCreate: (args) => !permissions.canManageRoles(args),
+    hideDelete: true,
+    labelField: "name",
+    listView: { initialColumns: ["name", "business", "employees"] },
   },
   fields: {
     name: text({ validation: { isRequired: true } }),
-    canCreateTodos: checkbox({ defaultValue: false }),
-    canManageAllTodos: checkbox({ defaultValue: false }),
-    canSeeOtherPeople: checkbox({ defaultValue: false }),
-    canEditOtherPeople: checkbox({ defaultValue: false }),
-    canManagePeople: checkbox({ defaultValue: false }),
-    canManageRoles: checkbox({ defaultValue: false }),
-    canAccessDashboard: checkbox({ defaultValue: false }),
-    assignedTo: relationship({
-      ref: 'User.role',
+    description: text({ ui: { displayMode: "textarea" } }),
+    business: relationship({ ref: "Business.roles", access: { update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    ...permissionFields,
+    employees: relationship({
+      ref: "Employee.role",
       many: true,
-      ui: {
-        itemView: { fieldMode: 'read' },
-      },
+      access: { create: () => false, update: () => false },
+      ui: { itemView: { fieldMode: "read" } },
     }),
+    ...trackingFields,
   },
 });

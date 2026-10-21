@@ -1,3 +1,5 @@
+BEGIN;
+
 -- CreateTable
 CREATE TABLE "TodoImage" (
     "id" TEXT NOT NULL,
@@ -30,3 +32,5 @@ ALTER TABLE "_Todo_todoImages" ADD CONSTRAINT "_Todo_todoImages_A_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "_Todo_todoImages" ADD CONSTRAINT "_Todo_todoImages_B_fkey" FOREIGN KEY ("B") REFERENCES "TodoImage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+COMMIT;

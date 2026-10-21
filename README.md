@@ -1,163 +1,206 @@
-# Next.js + KeystoneJS Starter
+# Openfront Convenience
 
-A modern full-stack application combining Next.js 15 with KeystoneJS 6, featuring admin dashboard implementation and sophisticated role-based permissions.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-convenience&env=DATABASE_URL%2CSESSION_SECRET)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjunaid33%2Fnext-keystone-starter%2F&stores=[{"type"%3A"postgres"}])
+Openfront Convenience is a self-hostable convenience-store retail and operations application. Customers can browse a local catalog and prepare a basket, while staff manage POS, registers, cash, pricing, purchasing, inventory, prepared food, restricted sales, reconciliation, and reporting.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TK5wC1?referralCode=I_tWSs)
+## Demo
 
-## Architecture Overview
+Explore the application locally using the setup instructions below.
 
-This project features a **modern admin architecture** with:
+| | |
+|---|---|
+| **Public application** | `/` on your development URL |
+| **Dashboard** | `/dashboard` on your development URL |
 
-- **Backend**: KeystoneJS 6 providing GraphQL API, authentication, and database operations
-- **Frontend**: Custom Next.js admin dashboard with enhanced UI components
-- **Image Support**: S3-compatible image storage and management 
+[Learn more →](https://openship.org/products/openfront-convenience)
 
-## Tech Stack
+[Documentation →](https://docs.openship.org/docs/openfront/convenience/)
 
-### Frontend
-- **Next.js 15** with App Router
-- **React 19** with TypeScript
-- **Radix UI** primitives for accessible components
-- **Tailwind CSS 4** for styling
-- **Remix Icons** (@remixicon/react) for icons
-- **SWR** for client-side data fetching
-- **TipTap** for rich text editing
-- **React Hook Form** for form management
-- **Zod** for schema validation
+## The Openfront Ecosystem
 
-### Backend
-- **KeystoneJS 6** for GraphQL API and admin interface
-- **Prisma ORM** for database operations
-- **GraphQL Yoga** for GraphQL server
-- **PostgreSQL** database
-- **S3-compatible storage** for image management
+Openfront is part of an ecosystem of open-source commerce tools:
 
-### Key Features
-- **Role-based access control** with granular permissions
-- **Dynamic field controllers** with conditional behavior
-- **Rich text editing** with document fields
-- **Relationship management** with inline editing capabilities
-- **Image upload and management** with S3 storage
-- **Inline create/edit components** for seamless UX
-- **Advanced filtering system** for all field types
-- **Responsive design** with mobile support
+- **[Openfront E-commerce](https://github.com/openshiporg/openfront)**: Headless e-commerce for retail.
+- **[Openfront Restaurant](https://github.com/openshiporg/openfront-restaurant)**: Restaurant ordering, point of sale, and kitchen operations.
+- **[Openship](https://github.com/openshiporg/openship)**: Order routing for multi-channel fulfillment.
+- **Openfront Convenience**: (This repository) a self-hostable convenience-store retail and operations application.
+
+## Core Features
+
+### Admin Dashboard
+Manage platform through dedicated dashboard workspaces and permission-controlled data screens.
+
+### Storefront
+The local shopping surface includes `/shop`, product detail, `/basket`, `/checkout`, and `/account`. Catalog publication and checkout operate alongside the store's product, stock, and restricted-sale rules.
+
+### Store Retail & Cash
+Manage POS sales, tenders, refunds, registers, shifts, cash movements, store-day records, bank deposits, and reconciliation.
+
+### Catalog, Purchasing & Inventory
+Maintain products, variants, barcodes, tax categories, price books, promotions, loyalty, vendors, purchase orders, receiving, lots, counts, transfers, and waste.
+
+### Specialized Store Operations
+Dedicated workspaces cover prepared food, restricted sales, fuel, lottery, money services, exports, exceptions, and recovery. Provider and hardware activation require separate operator configuration; these workspaces are not certifications for regulated services.
+
+## Architecture
+
+### Technology Stack
+- **Frontend**: Next.js 16 with App Router and React 19.
+- **Backend**: KeystoneJS 6 with a GraphQL API.
+- **Database**: PostgreSQL with Prisma ORM.
+- **Styling**: Tailwind CSS 4 and shared shadcn/ui components.
+- **Authentication**: Password-based user accounts and session-based access with role capabilities.
+
+### Application Structure
+```text
+openfront-convenience/
+├── app/                    # Public pages, dashboard routes, and HTTP endpoints
+├── features/
+│   ├── keystone/           # Backend models, access rules, and GraphQL workflows
+│   ├── platform/           # Operator workspaces and onboarding
+│   ├── storefront/         # Public application components and screens
+│   └── dashboard/          # Authentication and shared dashboard shell
+└── components/             # Shared UI components
+```
+
+### Data Models
+The [model registry](features/keystone/models/index.ts) and [Prisma schema](schema.prisma) cover:
+
+- Businesses, employees, roles, stores, registers, sessions, and shifts.
+- Products, variants, barcodes, pricing, taxes, promotions, and loyalty.
+- Inventory lots, ledgers, counts, transfers, vendors, purchasing, and receiving.
+- Sales, tenders, refunds, cash movements, reconciliation, prepared food, fuel, and operational events.
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- PostgreSQL database
+- Node.js 22, compatible with the [package requirements](package.json) and Next.js 16.
+- A PostgreSQL database you can migrate.
+- npm.
 
 ### Setup
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone https://github.com/junaid33/next-keystone-starter
-   cd next-keystone-starter
+   git clone https://github.com/openshiporg/openfront-convenience.git
+   cd openfront-convenience
    npm install
    ```
 
 2. **Configure environment variables:**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Update `.env` with your database configuration:
+   Create a local `.env` file using the [runtime configuration](features/keystone/index.ts) as the authority.
+
    ```env
-   DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-   SESSION_SECRET=your-super-secret-session-key-change-this-in-production
+   DATABASE_URL=postgresql://user:password@host/database
+   SESSION_SECRET=replace-with-a-new-private-random-secret
    ```
+
+   Generate the session secret with `openssl rand -hex 32`; use the generated value, not the placeholder. Never commit `.env`.
+
+   Review [runtime configuration](features/keystone/index.ts) for additional application settings before building or deploying. Configure enabled integrations separately; the two values above are not a complete production configuration.
 
 3. **Start development server:**
    ```bash
    npm run dev
    ```
 
-   This will:
-   - Build KeystoneJS schema
-   - Run database migrations
-   - Start Next.js development server with Turbopack
+   The development script prepares the backend schema, applies checked-in migrations, and starts Next.js.
 
 4. **Access the application:**
-   - Frontend: [http://localhost:3000](http://localhost:3000)
-   - Dashboard: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
-   - GraphQL API: [http://localhost:3000/api/graphql](http://localhost:3000/api/graphql)
+   Open the URL `npm run dev` prints, then use these paths:
+
+   - **Public application**: `/`
+   - **Admin dashboard**: `/dashboard`
+   - **GraphQL API**: `/api/graphql`
+
+5. **Create your first admin user:**
+   Provision the first approved administrator with `npm run bootstrap:admin`, following the owner-approval and credential requirements in [the bootstrap script](scripts/bootstrapProductionAdmin.ts). The ordinary `/dashboard/init` flow is development-only and explicitly gated.
+
+6. **Run application onboarding:**
+   After administrator bootstrap, run business onboarding and review stores, employees, registers, catalog, pricing, and permitted operating capabilities.
 
 ## Development Commands
 
-- `npm run dev` - Build Keystone + migrate + start Next.js dev server
-- `npm run build` - Build Keystone + migrate + build Next.js for production
-- `npm run migrate:gen` - Generate and apply new database migrations
-- `npm run migrate` - Deploy existing migrations to database
-- `npm run lint` - Run ESLint
+- `npm run dev` - Prepare the backend schema, apply migrations, and start Next.js development.
+- `npm run build` - Build the backend and Next.js for production; does not apply migrations.
+- `npm start` - Start the production Next.js server.
+- `npm run migrate:gen` - Run the guarded disposable-database migration generator; review its approval and database requirements first.
+- `npm run migrate` - Run migration preflight, apply checked-in migrations, and check post-migration integrity.
+- `npm run lint` - Run the repository's ESLint script.
+- `npm run typecheck` - Run the configured TypeScript check.
+- `npm run test` - Run the repository's configured test suite.
+- `npm run bootstrap:admin` - Run the owner-approved first-administrator bootstrap.
+- `npm run worker:outbox` - Run the configured outbox delivery entry point.
+- `npm run worker:alerts` - Run operational alert processing.
 
-## API Endpoints
+Use a disposable development database for migration generation. Review the script before running it against any existing data.
 
-### GraphQL API
-- **Endpoint**: `/api/graphql`
-- **Features**: Full CRUD operations, relationships, authentication
-- **Playground**: Available in development mode
+### Operational Delivery
+The registered [workflow commands](features/keystone/mutations/index.ts) cover payment events, integrations, restricted sales, offline replay, and operational recovery. Run outbox and alert workers separately when those workflows are enabled.
 
-## Data Models
+## Documentation
 
-### Core Models
-- **User** - Authentication and user management
-- **Role** - Role-based access control
-- **Todo** - Example content model with relationships
-- **TodoImage** - Image management for Todo items with S3 storage
+See the [Openfront Convenience documentation](https://docs.openship.org/docs/openfront/convenience/) for the application guide. The [backend models](features/keystone/models), [registered business workflows](features/keystone/mutations/index.ts), [access rules](features/keystone/access.ts), and [application routes](app) document the implementation in this repository.
 
-### Permission System
-Sophisticated role-based permissions including:
-- `canAccessDashboard`, `canManagePeople`, `canManageRoles`
-- `canCreateTodos`, `canManageAllTodos`
-- `canSeeOtherPeople`, `canEditOtherPeople`
+## Security & Permissions
 
-## Project Structure
+### Role-Based Access Control
+- `canAccessDashboard` - Access dashboard.
+- `canManageCatalog` - Manage catalog.
+- `canManageInventory` - Manage inventory.
+- `canManageSales` - Manage sales.
+- `canManageCash` - Manage cash.
+- `canManagePurchasing` - Manage purchasing.
+- `canManageCompliance` - Manage compliance.
 
-```
-├── app/                    # Next.js App Router
-│   ├── api/
-│   │   └── graphql.ts     # GraphQL API endpoint
-│   └── dashboard/         # Admin dashboard pages
-├── features/
-│   ├── keystone/          # Backend configuration
-│   │   ├── models/        # Keystone list definitions
-│   │   ├── access.ts      # Permission logic
-│   │   └── mutations/     # Custom GraphQL mutations
-│   └── dashboard/         # Admin interface implementation
-│       ├── actions/       # Server actions
-│       ├── components/    # Reusable UI components
-│       ├── screens/       # Page-level components
-│       └── views/         # Field type implementations
-├── keystone.ts            # KeystoneJS configuration
-└── schema.prisma          # Database schema
-```
+### Security Features
+- Session-based authentication for signed-in users.
+- Backend list access and workflow authorization, rather than dashboard visibility alone.
+- Employee permissions are tied to an active business, business-owned role, and permitted stores. Platform administrators require explicit approval; machine credentials narrow access by business, store, and scope.
 
-## Development Notes
+Review the [access implementation](features/keystone/access.ts) and individual workflow checks before extending permissions.
 
-- **GraphQL endpoint** available at `/api/graphql`
-- **Field implementations** follow KeystoneJS controller patterns
-- **Permission checks** are integrated throughout the UI layer
-- **Server actions** used for data mutations in dashboard components
-- **Inline editing** components provide seamless UX for relationship management
-- **Image uploads** configured for S3-compatible storage
-- **Advanced filtering** supports all field types including documents, JSON, and images
+## Platform Components
+
+### Admin Platform (`/dashboard`)
+- **Platform**: `/dashboard/platform`.
+
+### Storefront Experience
+The local shopping surface includes `/shop`, product detail, `/basket`, `/checkout`, and `/account`. Catalog publication and checkout operate alongside the store's product, stock, and restricted-sale rules.
+
+Manage POS sales, tenders, refunds, registers, shifts, cash movements, store-day records, bank deposits, and reconciliation.
 
 ## Deployment
 
-The application can be deployed to any platform supporting Node.js and PostgreSQL:
+### Production Deployment
+The Vercel button imports this application's own repository. Provision PostgreSQL and configure the application's complete runtime requirements, storage, mail, and enabled providers before building. Importing the source does not configure these services.
 
-1. Set up PostgreSQL database
-2. Configure environment variables
-3. Run `npm run build`
-4. Run `npm start`
+Build the application and apply checked-in migrations as a release step before starting the server. Back up existing data before migration.
+
+```bash
+npm run build
+npm run migrate
+npm start
+```
+
+### Scaling Considerations
+Schedule `npm run worker:outbox` and `npm run worker:alerts` for enabled delivery and alert workflows. Preserve business/store scope across processes and review offline replay and reconciliation before adding registers.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+Use the development commands above when preparing changes. Keep model changes and their migrations together, and describe workflow and permission changes in pull requests.
+
+## License
+
+No top-level license file or package license declaration is included in this repository.
+
+## Support
+
+- **Documentation**: [Openfront Convenience guide](https://docs.openship.org/docs/openfront/convenience/).
+- **Issues**: [Report bugs and feature requests](https://github.com/openshiporg/openfront-convenience/issues).
+- **Product**: [Learn more about Openfront Convenience](https://openship.org/products/openfront-convenience).
+
+---
+
+Built with [Next.js](https://nextjs.org) and [KeystoneJS](https://keystonejs.com).

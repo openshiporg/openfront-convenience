@@ -3,10 +3,11 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ['graphql'],
-  // Workaround since we diverged from Keystone reltionship and document views
-  // typescript: {
-  //   ignoreBuildErrors: true,
-  // },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   images: {
     remotePatterns: [
       {

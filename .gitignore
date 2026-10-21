@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# Goal-owned local runtime (private auth, native PostgreSQL, logs)
+/.runtime/
+
 # testing
 /coverage
 

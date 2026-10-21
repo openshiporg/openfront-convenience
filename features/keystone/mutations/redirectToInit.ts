@@ -1,7 +1,6 @@
 import type { Context } from '.keystone/types';
 
-async function redirectToInit(root: any, args: any, context: Context) {
-  // 1. Query the current user see if they are signed in
+async function redirectToInit(_root: unknown, _args: Record<string, never>, context: Context) {
   const userCount = await context.sudo().query.User.count({});
 
   if (userCount === 0) {

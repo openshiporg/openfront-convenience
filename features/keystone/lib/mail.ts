@@ -1,5 +1,3 @@
-'use server' 
-
 import { createTransport, getTestMessageUrl } from "nodemailer";
 
 // Utility function to get base URL for emails
@@ -13,14 +11,23 @@ function getBaseUrlForEmails(): string {
   return '';
 }
 
+const configuredPort = Number(process.env.SMTP_PORT ?? 587);
+const smtpPort = Number.isSafeInteger(configuredPort) && configuredPort > 0
+  ? configuredPort
+  : 587;
+
 const transport = createTransport({
-  // @ts-ignore
   host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
+  port: smtpPort,
+  secure: smtpPort === 465,
+  disableFileAccess: true,
+  disableUrlAccess: true,
+  auth: process.env.SMTP_USER
+    ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      }
+    : undefined,
 });
 
 function passwordResetEmail({ url }: { url: string }): string {
@@ -68,10 +75,10 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
     from: process.env.SMTP_FROM,
     subject: "Your password reset token!",
     html: passwordResetEmail({
-      url: `${frontendUrl}/dashboard/reset?token=${resetToken}`,
+      url: `${frontendUrl}/dashboard/reset?token=${encodeURIComponent(resetToken)}`,
     }),
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
-    console.log(`📧 Message Sent!  Preview it at ${getTestMessageUrl(info as any)}`);
+    console.log(`Message sent. Preview: ${getTestMessageUrl(info)}`);
   }
 }

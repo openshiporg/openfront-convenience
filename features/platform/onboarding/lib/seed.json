@@ -1,0 +1,157 @@
+{
+  "version": 4,
+  "storefront": {
+    "mode": "live",
+    "status": "draft",
+    "name": "Cedar & Main Market",
+    "tagline": "Everyday essentials, good coffee, and a quick bite",
+    "mark": "CM",
+    "themePreset": "navy-coral",
+    "contact": {
+      "addressLine1": "1847 Cedar Avenue",
+      "city": "Brookfield",
+      "stateProvince": "NY",
+      "postalCode": "10000",
+      "countryCode": "US",
+      "phone": "(212) 555-0184"
+    },
+    "hours": {
+      "monday": "6:00 AM – 10:00 PM",
+      "tuesday": "6:00 AM – 10:00 PM",
+      "wednesday": "6:00 AM – 10:00 PM",
+      "thursday": "6:00 AM – 10:00 PM",
+      "friday": "6:00 AM – 11:00 PM",
+      "saturday": "7:00 AM – 11:00 PM",
+      "sunday": "7:00 AM – 9:00 PM"
+    }
+  },
+  "inventoryLocations": [
+    { "name": "Sales Floor", "code": "sales-floor", "type": "sales_floor" },
+    { "name": "Back Room", "code": "back-room", "type": "back_room" }
+  ],
+  "register": { "name": "Register 1", "code": "register-1" },
+  "priceBook": { "name": "Default Retail", "code": "default-retail", "priority": 100 },
+  "taxCategories": [
+    { "name": "Standard", "code": "standard" },
+    { "name": "Exempt", "code": "exempt" }
+  ],
+  "demoCategories": [
+    {
+      "name": "Cold Drinks",
+      "code": "cold-drinks",
+      "description": "Chilled, ready-to-go drinks."
+    },
+    {
+      "name": "Snacks & Pantry",
+      "code": "snacks-pantry",
+      "description": "Savory snacks and pantry basics."
+    },
+    {
+      "name": "Coffee Bar",
+      "code": "coffee-bar",
+      "description": "Coffee-counter favorites."
+    },
+    {
+      "name": "Prepared Food",
+      "code": "prepared-food",
+      "description": "Grab-and-go breakfast and lunch."
+    },
+    {
+      "name": "Everyday Essentials",
+      "code": "everyday-essentials",
+      "description": "Household staples."
+    }
+  ],
+  "demoProducts": [
+    {
+      "title": "Sparkling Lime Water",
+      "summary": "A crisp, unsweetened sparkling water with lime.",
+      "handle": "sparkling-lime-water",
+      "categoryCode": "cold-drinks",
+      "variantTitle": "12 fl oz can",
+      "sku": "BEV-LIME-SPARK-12",
+      "barcode": "2000000000013",
+      "defaultPriceCents": 179,
+      "preparedFood": false
+    },
+    {
+      "title": "Sea Salt Kettle Chips",
+      "summary": "Crunchy kettle-cooked potato chips with sea salt.",
+      "handle": "sea-salt-kettle-chips",
+      "categoryCode": "snacks-pantry",
+      "variantTitle": "2 oz bag",
+      "sku": "SNK-KETTLE-SEA-2",
+      "barcode": "2000000000022",
+      "defaultPriceCents": 249,
+      "preparedFood": false
+    },
+    {
+      "title": "House Drip Coffee",
+      "summary": "Freshly brewed medium-roast coffee from the counter.",
+      "handle": "house-drip-coffee",
+      "categoryCode": "coffee-bar",
+      "variantTitle": "12 fl oz cup",
+      "sku": "CAF-DRIP-12",
+      "barcode": "2000000000031",
+      "defaultPriceCents": 229,
+      "preparedFood": true
+    },
+    {
+      "title": "Egg & Cheddar Breakfast Sandwich",
+      "summary": "Egg and cheddar on a toasted English muffin.",
+      "handle": "egg-cheddar-breakfast-sandwich",
+      "categoryCode": "prepared-food",
+      "variantTitle": "One sandwich",
+      "sku": "FOOD-EGG-CHED",
+      "barcode": "2000000000040",
+      "defaultPriceCents": 499,
+      "preparedFood": true
+    },
+    {
+      "title": "Turkey & Provolone Wrap",
+      "summary": "Turkey, provolone, greens, and mustard in a flour wrap.",
+      "handle": "turkey-provolone-wrap",
+      "categoryCode": "prepared-food",
+      "variantTitle": "One wrap",
+      "sku": "FOOD-TURKEY-WRAP",
+      "barcode": "2000000000059",
+      "defaultPriceCents": 699,
+      "preparedFood": true
+    },
+    {
+      "title": "Whole Milk",
+      "summary": "A one-quart carton of whole milk.",
+      "handle": "whole-milk-quart",
+      "categoryCode": "everyday-essentials",
+      "variantTitle": "1 quart",
+      "sku": "DAIRY-MILK-QT",
+      "barcode": "2000000000068",
+      "defaultPriceCents": 329,
+      "preparedFood": false
+    }
+  ],
+  "paymentProvider": {
+    "name": "External Terminal",
+    "code": "external-terminal",
+    "adapterKey": "manual_external"
+  },
+  "loyaltyProgram": {
+    "name": "Store Rewards",
+    "code": "store-rewards",
+    "pointsPerDollar": 1,
+    "redemptionValueCentsPerPoint": 1,
+    "minimumRedemptionPoints": 100
+  },
+  "fuelSite": {
+    "name": "Main Fuel Site",
+    "siteCode": "main-fuel",
+    "controllerAdapterKey": "manual_external",
+    "gradeName": "Regular Unleaded",
+    "gradeCode": "regular",
+    "octaneRating": 87,
+    "tankNumber": "1",
+    "tankCapacityGallons": "10000.0000",
+    "pumpNumber": "1",
+    "nozzleNumber": "1"
+  }
+}

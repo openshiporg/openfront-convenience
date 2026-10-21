@@ -1,0 +1,12 @@
+[
+  {
+    "date": "2026-08-11",
+    "macrostructure": "Map / Diagram",
+    "theme": "Garden (brand-green accent override)",
+    "enrichment": "E5 hand-built SVG floor plan (tier-B)",
+    "nav": "N6 Newspaper masthead",
+    "footer": "Ft4 Dense colophon",
+    "scope": "public storefront (app/page.tsx) only",
+    "brief": "Openfront Convenience storefront redesign — from generic platform one-pager to a credible customer-facing store-floor experience"
+  }
+]
