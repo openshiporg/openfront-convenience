@@ -54,7 +54,7 @@ export async function OverviewPage({ searchParams }: { searchParams: PlatformSea
               })}
             </div>
           </section>
-          <EvidenceTable rows={state.projection.rows} title="Store days" />
+          <EvidenceTable rows={state.projection.rows} timeZone={state.projection.timezone} title="Store days" />
         </>
       ) : null}
     </PlatformPage>

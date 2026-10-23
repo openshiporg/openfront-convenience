@@ -52,7 +52,7 @@ export async function InventoryPage({ searchParams }: { searchParams: PlatformSe
             label: "Stock",
             count: projection.rows.length,
             content: (
-              <EvidenceTable rows={projection.rows} title="Stock positions" />
+              <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Stock positions" />
             ),
           },
           {

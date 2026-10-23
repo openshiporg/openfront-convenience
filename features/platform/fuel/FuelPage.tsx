@@ -21,6 +21,8 @@ import {
 } from "../components/PlatformPage";
 import { PanelGrid } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
+import { zonedNowInput } from "../lib/form-values";
+import { FuelPriceBoard } from "./FuelPriceBoard";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 
 const path = "/dashboard/platform/fuel";
@@ -216,6 +218,8 @@ export async function FuelPage({
               id: "prices",
               label: "Prices",
               content: (
+                <>
+                <FuelPriceBoard prices={controls.fuelPriceBoard ?? []} timeZone={projection.timezone} />
                 <PanelGrid>
                   <ActionPanel title="Authorize price">
                     <FormGrid action={setFuelPriceAction} submit="Authorize price">
@@ -254,14 +258,15 @@ export async function FuelPage({
                         required
                       />
                       <TextField
-                        label="Effective at (ISO + offset)"
+                        label="Effective at"
                         name="effectiveAt"
-                        placeholder="2026-07-29T14:00:00-04:00"
+                        defaultValue={zonedNowInput(projection.timezone)}
                         required
                       />
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
+                </>
               ),
             },
             {
@@ -313,9 +318,9 @@ export async function FuelPage({
                         defaultValue="0"
                       />
                       <TextField
-                        label="Measured at (ISO + offset)"
+                        label="Measured at"
                         name="measuredAt"
-                        placeholder="2026-07-29T14:00:00-04:00"
+                        defaultValue={zonedNowInput(projection.timezone)}
                         required
                       />
                       <TextField
@@ -475,6 +480,7 @@ export async function FuelPage({
                   </PanelGrid>
                   <EvidenceTable
                     rows={projection.rows}
+                    timeZone={projection.timezone}
                     title="Wet-stock reconciliations"
                   />
                 </>

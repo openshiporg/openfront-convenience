@@ -17,6 +17,7 @@ export const VIEW_ORDER = [
   "checkbox",
   "password",
   "integer",
+  "virtual",
   "decimal",
   "document"
 ];

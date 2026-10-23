@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { HoursList, TodayLine } from "../components/TodayHours";
+import { addressParts } from "../lib/address";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -59,9 +60,9 @@ export async function StorefrontPage() {
               </div>
               {mapsQuery ? (
                 <address>
-                  {[location.addressLine1, location.addressLine2].filter(Boolean).join(", ")}
+                  {addressParts(location).street}
                   <br />
-                  {[location.city, location.stateProvince, location.postalCode].filter(Boolean).join(" ")}
+                  {addressParts(location).locality}
                 </address>
               ) : null}
               {location.phone ? (

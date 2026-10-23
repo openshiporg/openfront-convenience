@@ -1,1 +1,1 @@
-export { ShopPage as default } from "@/features/storefront/screens/ShopPages";
+export { ShopPage as default, shopMetadata as generateMetadata } from "@/features/storefront/screens/ShopPages";

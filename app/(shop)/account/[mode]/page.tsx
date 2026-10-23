@@ -1,1 +1,1 @@
-export { AccountAuthPage as default } from "@/features/storefront/screens/ShopPages";
+export { AccountAuthPage as default, accountAuthMetadata as generateMetadata } from "@/features/storefront/screens/ShopPages";

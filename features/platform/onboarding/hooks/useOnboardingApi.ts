@@ -18,5 +18,6 @@ export function useOnboardingApi(onSuccess?: () => void) {
       router.refresh();
     }
   }, [onSuccess, router, state.success]);
-  return { state, action, pending, idempotencyKey };
+  // A new key per attempt: a corrected retry is a different request.
+  return { state, action, pending, idempotencyKey: `${idempotencyKey}-${state.attempt}` };
 }

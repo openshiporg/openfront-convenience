@@ -55,13 +55,12 @@ InfoCardContent.displayName = "InfoCardContent";
 const InfoCardFooter = ({
   children,
   className,
-  isHovered,
 }: CommonCardProps & { isHovered: boolean }) => {
   return (
     <div
       className={cn(
-        "flex justify-between text-xs text-muted-foreground mt-2 overflow-hidden transition-all duration-300 ease-spring",
-        isHovered ? "max-h-[60px] opacity-100" : "max-h-0 opacity-0",
+        // Always shown: touch and keyboard users have no hover to reveal it.
+        "flex justify-between text-xs text-muted-foreground mt-2",
         className
       )}
     >

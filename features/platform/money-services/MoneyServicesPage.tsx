@@ -158,6 +158,7 @@ export async function MoneyServicesPage({
                   </PanelGrid>
                   <EvidenceTable
                     rows={projection.rows}
+                    timeZone={projection.timezone}
                     title="Externally confirmed transactions"
                   />
                 </>

@@ -33,6 +33,8 @@ import {
   type PermissionKey,
   type Session,
 } from "../access";
+import { quantityText, shortRef } from "../../platform/lib/labels";
+import { zonedIso, zonedNowInput } from "../../platform/lib/form-values";
 
 export const platformSurfaces = [
   "overview",
@@ -74,6 +76,8 @@ type Projection = {
   storeId: string | null;
   generatedAt: string;
   limit: number;
+  timezone: string | null;
+  currencyCode: string | null;
   brand: {
     name: string;
     tagline: string;
@@ -147,6 +151,29 @@ const surfacePermissions: Record<PlatformSurface, readonly PermissionKey[]> = {
   ],
   exceptions: ["canReadAlerts", "canReadPeople"],
 };
+
+/** "Whole Milk — 1 quart": the product name first, so cashiers can tell items apart. */
+function formatCents(cents: number | bigint | string, currency: string): string {
+  const value = Number(cents);
+  if (!Number.isFinite(value)) return String(cents);
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value / 100);
+  } catch {
+    return (value / 100).toFixed(2);
+  }
+}
+
+function humanStatus(status: string | null | undefined): string {
+  const text = (status ?? "").replaceAll("_", " ").trim();
+  return text ? text[0].toUpperCase() + text.slice(1) : "";
+}
+
+function variantLabel(entry: { title: string; product?: { title: string } | null }): string {
+  const product = entry.product?.title?.trim();
+  if (!product) return entry.title;
+  if (!entry.title.trim() || entry.title.trim().toLowerCase() === product.toLowerCase()) return product;
+  return `${product} — ${entry.title}`;
+}
 
 function intersection(groups: string[][]): string[] {
   if (!groups.length) return [];
@@ -529,6 +556,8 @@ export async function conveniencePlatformProjection(
       storeId: null,
       generatedAt: new Date().toISOString(),
       limit,
+      timezone: null,
+      currencyCode: null,
       brand: null,
       businesses: [],
       stores: [],
@@ -565,7 +594,7 @@ export async function conveniencePlatformProjection(
       status: "active",
       ...(allowedStoreIds ? { id: { in: allowedStoreIds } } : {}),
     },
-    select: { id: true, name: true, code: true, timezone: true },
+    select: { id: true, name: true, code: true, timezone: true, currencyCode: true },
     orderBy: { name: "asc" },
     take: 50,
   });
@@ -584,6 +613,9 @@ export async function conveniencePlatformProjection(
     }
   }
   const scope = { businessId, storeId: storeId ?? "" };
+  const selectedStore = stores.find((store) => store.id === storeId) ?? stores[0] ?? null;
+  const cents = (value: number | bigint | string | null | undefined) =>
+    formatCents(value ?? 0, selectedStore?.currencyCode ?? "USD");
   const controls: Record<string, Option[]> = {};
   const canReadPosPeople =
     surface !== "pos" ||
@@ -620,7 +652,7 @@ export async function conveniencePlatformProjection(
     ).map((employee) => ({
       id: employee.id,
       label: employee.user?.name?.trim() || employee.employeeNumber,
-      detail: employee.employeeNumber,
+      detail: employee.user?.name?.trim() ? "" : employee.employeeNumber,
     }));
   } else if (surface === "pos") {
     const ownEmployee = session?.data.employees?.find(
@@ -644,6 +676,19 @@ export async function conveniencePlatformProjection(
   let rows: Row[] = [];
 
   if (surface === "overview") {
+    // Live figures for an owner checking mid-shift, before the day is closed.
+    const timeZone = selectedStore?.timezone || "UTC";
+    const todayStart = new Date(zonedIso(`${zonedNowInput(timeZone).slice(0, 10)}T00:00`, timeZone));
+    const todaySales = await context.prisma.sale.aggregate({
+      where: {
+        ...scope,
+        // Gross sales: refunds are shown at reconciliation, voids never counted.
+        status: { in: ["completed", "partially_refunded", "refunded"] },
+        completedAt: { gte: todayStart },
+      },
+      _sum: { totalCents: true },
+      _count: { _all: true },
+    });
     const [openRegisters, openShifts, reviewDays, lockedDays] =
       await Promise.all([
         context.prisma.registerSession.count({
@@ -660,6 +705,8 @@ export async function conveniencePlatformProjection(
         }),
       ]);
     metrics = [
+      metric("Sales today", cents(todaySales._sum.totalCents ?? 0), "Completed sales since midnight", "neutral"),
+      metric("Transactions today", todaySales._count._all, "Completed sales since midnight"),
       metric(
         "Registers open",
         openRegisters,
@@ -693,7 +740,7 @@ export async function conveniencePlatformProjection(
       title: day.tradingDate,
       detail: `${day.exceptionCount} exception${day.exceptionCount === 1 ? "" : "s"}`,
       status: day.status,
-      metric: `${day.netReceiptsCents} cents net`,
+      metric: `${cents(day.netReceiptsCents)} net`,
       occurredAt: date(day.generatedAt),
     }));
   }
@@ -917,6 +964,11 @@ export async function conveniencePlatformProjection(
                         },
                       },
                       {
+                        product: {
+                          is: { title: { contains: posVariantSearch, mode: "insensitive" as const } },
+                        },
+                      },
+                      {
                         sku: {
                           contains: posVariantSearch,
                           mode: "insensitive" as const,
@@ -927,6 +979,7 @@ export async function conveniencePlatformProjection(
                 : {}),
             },
             select: {
+              product: { select: { title: true } },
               id: true,
               title: true,
               sku: true,
@@ -1137,20 +1190,20 @@ export async function conveniencePlatformProjection(
       .filter((entry) => entry.status === "open")
       .map((entry) => ({
         id: entry.id,
-        label: entry.sessionNumber,
-        detail: entry.register?.name ?? "Register",
+        label: entry.register?.name ?? "Till",
+        detail: shortRef(entry.sessionNumber),
       }));
     controls.shifts = shifts
       .filter((entry) => ["clocked_in", "on_break"].includes(entry.status))
       .map((entry) => ({
         id: entry.id,
-        label: entry.shiftNumber,
-        detail: entry.status,
+        label: shortRef(entry.shiftNumber),
+        detail: humanStatus(entry.status),
       }));
     controls.carts = carts.map((entry) => ({
       id: entry.id,
-      label: entry.cartNumber,
-      detail: `${entry.totalCents} cents · ${entry.status}`,
+      label: shortRef(entry.cartNumber),
+      detail: `${cents(entry.totalCents)} · ${humanStatus(entry.status)}`,
     }));
     controls.posCartLookup = posCartSearchRecord
       ? [
@@ -1164,11 +1217,11 @@ export async function conveniencePlatformProjection(
     controls.cartLines = cartLines.map((entry) => ({
       id: entry.id,
       label: entry.titleSnapshot,
-      detail: `${entry.quantity} · ${entry.totalCents} cents · ${entry.cartId ?? ""}`,
+      detail: `Qty ${quantityText(entry.quantity)} · ${cents(entry.totalCents)}`,
     }));
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
-      label: entry.title,
+      label: variantLabel(entry),
       detail: [entry.sku, ...entry.barcodes.map((barcode) => barcode.value)]
         .filter(Boolean)
         .join(" · "),
@@ -1181,7 +1234,7 @@ export async function conveniencePlatformProjection(
     controls.sales = sales.map((entry) => ({
       id: entry.id,
       label: entry.receiptNumber,
-      detail: `${entry.totalCents} cents · ${entry.status}`,
+      detail: `${cents(entry.totalCents)} · ${entry.status}`,
     }));
     controls.posVoidHistorySales = voidReceiptHistorySale
       ? [
@@ -1206,7 +1259,7 @@ export async function conveniencePlatformProjection(
     controls.refundSales = refundSales.map((entry) => ({
       id: entry.id,
       label: entry.receiptNumber,
-      detail: `${entry.totalCents} cents · ${entry.status}`,
+      detail: `${cents(entry.totalCents)} · ${entry.status}`,
     }));
     controls.receiptLookupSales = receiptLookupSales.map((entry) => ({
       id: entry.id,
@@ -1216,7 +1269,7 @@ export async function conveniencePlatformProjection(
     controls.refundSaleLines = refundSaleLines.map((entry) => ({
       id: entry.id,
       label: entry.titleSnapshot,
-      detail: `${entry.quantity} · ${entry.totalCents} cents · ${entry.saleId ?? ""}`,
+      detail: `Qty ${quantityText(entry.quantity)} · ${cents(entry.totalCents)}`,
     }));
     controls.tenders = tenders
       .map((entry) => {
@@ -1235,8 +1288,8 @@ export async function conveniencePlatformProjection(
       .filter((entry) => entry.availableCents > 0)
       .map((entry) => ({
         id: entry.id,
-        label: `${entry.method} · ${entry.availableCents} cents available`,
-        detail: entry.saleId ?? "",
+        label: `${humanStatus(entry.method)} · ${cents(entry.availableCents)} available`,
+        detail: "",
       }));
     controls.refundTenders = refundTenders
       .map((entry) => {
@@ -1255,13 +1308,13 @@ export async function conveniencePlatformProjection(
       .filter((entry) => entry.availableCents > 0)
       .map((entry) => ({
         id: entry.id,
-        label: `${entry.method} · ${entry.availableCents} cents available`,
-        detail: entry.saleId ?? "",
+        label: `${humanStatus(entry.method)} · ${cents(entry.availableCents)} available`,
+        detail: "",
       }));
     controls.saleLines = saleLines.map((entry) => ({
       id: entry.id,
       label: entry.titleSnapshot,
-      detail: `${entry.quantity} · ${entry.totalCents} cents · ${entry.saleId ?? ""}`,
+      detail: `Qty ${quantityText(entry.quantity)} · ${cents(entry.totalCents)}`,
     }));
     controls.promotions = promotions.map((entry) => ({
       id: entry.id,
@@ -1298,7 +1351,7 @@ export async function conveniencePlatformProjection(
       title: entry.receiptNumber,
       detail: "Immutable sale receipt",
       status: entry.status,
-      metric: `${entry.totalCents} cents total`,
+      metric: `${cents(entry.totalCents)}`,
       occurredAt: date(entry.completedAt),
     }));
   }
@@ -1432,6 +1485,29 @@ export async function conveniencePlatformProjection(
         take: 1_000,
       }),
     ]);
+    // Price board: what each grade and tier sells at now, and what is scheduled next.
+    const priceBoard = await context.prisma.fuelPrice.findMany({
+      where: { ...scope, status: { in: ["active", "scheduled"] } },
+      select: {
+        id: true,
+        priceTier: true,
+        priceMillsPerGallon: true,
+        status: true,
+        startsAt: true,
+        grade: { select: { name: true } },
+      },
+      orderBy: [{ startsAt: "desc" }],
+      take: 50,
+    });
+    controls.fuelPriceBoard = priceBoard.map((entry) => ({
+      id: entry.id,
+      label: `${entry.grade?.name ?? "Grade"} · ${humanStatus(entry.priceTier)}`,
+      detail: [
+        `$${(entry.priceMillsPerGallon / 1000).toFixed(3)}/gal`,
+        entry.status === "active" ? "Current" : "Scheduled",
+        entry.startsAt.toISOString(),
+      ].join("|"),
+    }));
     controls.fuelSites = sites.map((entry) => ({
       id: entry.id,
       label: entry.name,
@@ -1440,7 +1516,7 @@ export async function conveniencePlatformProjection(
     controls.fuelGrades = grades.map((entry) => ({
       id: entry.id,
       label: entry.name,
-      detail: entry.siteId ?? "",
+      detail: "",
     }));
     controls.fuelTanks = tanks.map((entry) => ({
       id: entry.id,
@@ -1467,7 +1543,7 @@ export async function conveniencePlatformProjection(
     controls.fuelNozzles = nozzles.map((entry) => ({
       id: entry.id,
       label: `Nozzle ${entry.nozzleNumber}`,
-      detail: `${entry.status} · ${entry.pumpId ?? ""}`,
+      detail: humanStatus(entry.status),
     }));
     controls.vendors = vendors.map((entry) => ({
       id: entry.id,
@@ -1476,8 +1552,8 @@ export async function conveniencePlatformProjection(
     }));
     controls.registerSessions = registerSessions.map((entry) => ({
       id: entry.id,
-      label: entry.sessionNumber,
-      detail: `${entry.expectedCashCents} cents expected`,
+      label: shortRef(entry.sessionNumber),
+      detail: `${cents(entry.expectedCashCents)} expected`,
     }));
     controls.paymentProviders = paymentProviders.map((entry) => ({
       id: entry.id,
@@ -1513,12 +1589,12 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.receiptNumber,
-        detail: `${entry.totalCents} cents`,
+        detail: `${cents(entry.totalCents)}`,
       }));
     controls.fuelTenders = availableTenders.map((entry) => ({
       id: entry.id,
-      label: `${entry.method} · ${entry.amountCents} cents`,
-      detail: entry.saleId ?? "",
+      label: `${humanStatus(entry.method)} · ${cents(entry.amountCents)}`,
+      detail: "",
     }));
     metrics = [
       metric("Fuel sites", sites.length, "Enabled controller boundaries"),
@@ -1646,6 +1722,11 @@ export async function conveniencePlatformProjection(
                       },
                     },
                     {
+                      product: {
+                        is: { title: { contains: inventoryVariantSearch, mode: "insensitive" as const } },
+                      },
+                    },
+                    {
                       sku: {
                         contains: inventoryVariantSearch,
                         mode: "insensitive" as const,
@@ -1655,7 +1736,7 @@ export async function conveniencePlatformProjection(
                 }
               : {}),
           },
-          select: { id: true, title: true, sku: true },
+          select: { id: true, title: true, sku: true, product: { select: { title: true } } },
           orderBy: inventoryVariantSearch
             ? [{ title: "asc" }, { sku: "asc" }, { id: "asc" }]
             : { title: "asc" },
@@ -1748,7 +1829,7 @@ export async function conveniencePlatformProjection(
     }));
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
-      label: entry.title,
+      label: variantLabel(entry),
       detail: entry.sku,
     }));
     const actionableCounts = counts.filter((entry) =>
@@ -1953,6 +2034,11 @@ export async function conveniencePlatformProjection(
                     },
                   },
                   {
+                    product: {
+                      is: { title: { contains: variantSearch, mode: "insensitive" as const } },
+                    },
+                  },
+                  {
                     sku: {
                       contains: variantSearch,
                       mode: "insensitive" as const,
@@ -1962,7 +2048,7 @@ export async function conveniencePlatformProjection(
               }
             : {}),
         },
-        select: { id: true, title: true, sku: true },
+        select: { id: true, title: true, sku: true, product: { select: { title: true } } },
         orderBy: [{ title: "asc" }, { sku: "asc" }, { id: "asc" }],
         take: 100,
       }),
@@ -2079,13 +2165,13 @@ export async function conveniencePlatformProjection(
     );
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
-      label: entry.title,
+      label: variantLabel(entry),
       detail: entry.sku,
     }));
     controls.vendorItems = vendorItems.map((entry) => ({
       id: entry.id,
       label: entry.vendorSku,
-      detail: `${entry.unitCostCents} cents · vendor ${entry.vendorId ?? ""} · variant ${entry.variantId ?? ""}`,
+      detail: cents(entry.unitCostCents),
     }));
     controls.purchaseOrderLines = purchaseOrderLines.map((entry) => ({
       id: entry.id,
@@ -2120,7 +2206,7 @@ export async function conveniencePlatformProjection(
       title: entry.poNumber,
       detail: entry.vendor?.name ?? "No vendor",
       status: entry.status,
-      metric: `${entry.totalCents} cents`,
+      metric: `${cents(entry.totalCents)}`,
       occurredAt: date(entry.orderedAt ?? entry.createdAt),
     }));
   }
@@ -2175,7 +2261,7 @@ export async function conveniencePlatformProjection(
       }),
       context.prisma.productVariant.findMany({
         where: { businessId, status: "active" },
-        select: { id: true, title: true, sku: true },
+        select: { id: true, title: true, sku: true, product: { select: { title: true } } },
         orderBy: { title: "asc" },
         take: 100,
       }),
@@ -2212,7 +2298,7 @@ export async function conveniencePlatformProjection(
       title: entry.variant?.title ?? "Price entry",
       detail: `${entry.priceBook?.name ?? "Price book"} · ${entry.variant?.sku ?? ""}`,
       status: entry.status,
-      metric: `${entry.amountCents} cents`,
+      metric: `${cents(entry.amountCents)}`,
       occurredAt: date(entry.updatedAt),
     }));
     controls.promotions = promotions
@@ -2231,7 +2317,7 @@ export async function conveniencePlatformProjection(
       }));
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
-      label: entry.title,
+      label: variantLabel(entry),
       detail: entry.sku,
     }));
     controls.taxCategories = taxCategories.map((entry) => ({
@@ -2413,6 +2499,7 @@ export async function conveniencePlatformProjection(
       context.prisma.productVariant.findMany({
         where: { businessId, status: "active", trackInventory: true },
         select: {
+          product: { select: { title: true } },
           id: true,
           title: true,
           sku: true,
@@ -2478,6 +2565,7 @@ export async function conveniencePlatformProjection(
               sku: { equals: foodserviceSkuSearch },
             },
             select: {
+              product: { select: { title: true } },
               id: true,
               title: true,
               sku: true,
@@ -2580,7 +2668,7 @@ export async function conveniencePlatformProjection(
         : [];
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
-      label: entry.title,
+      label: variantLabel(entry),
       detail: `${entry.sku} · unit ${entry.unitOfMeasure}`,
     }));
     controls.foodserviceVariantLookup =
@@ -2853,7 +2941,7 @@ export async function conveniencePlatformProjection(
           title: entry.reconciliationNumber,
           detail: "Provider settlement reconciliation",
           status: entry.status,
-          metric: `${entry.varianceCents} cents variance`,
+          metric: `${cents(entry.varianceCents)} variance`,
           occurredAt: date(entry.periodEndedAt),
         }))
       : webhookEvents.map((entry) => ({
@@ -2957,7 +3045,7 @@ export async function conveniencePlatformProjection(
       title: entry.packNumber,
       detail: `${entry.game?.name ?? "Lottery game"} · ${entry.ticketsSold}/${entry.ticketsReceived} sold`,
       status: entry.status,
-      metric: `${entry.varianceCents} cents variance`,
+      metric: `${cents(entry.varianceCents)} variance`,
       occurredAt: date(entry.updatedAt),
     }));
   }
@@ -3017,7 +3105,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.transactionNumber,
-        detail: `${entry.serviceType} · ${entry.faceAmountCents} cents`,
+        detail: `${entry.serviceType} · ${cents(entry.faceAmountCents)}`,
       }));
     controls.moneyServiceSettlements = settlements
       .filter((entry) => ["in_review", "disputed"].includes(entry.status))
@@ -3055,7 +3143,7 @@ export async function conveniencePlatformProjection(
       title: entry.transactionNumber,
       detail: entry.serviceType.replaceAll("_", " "),
       status: entry.status,
-      metric: `${entry.faceAmountCents} cents face`,
+      metric: `${cents(entry.faceAmountCents)} face`,
       occurredAt: date(entry.occurredAt),
     }));
   }
@@ -3318,7 +3406,7 @@ export async function conveniencePlatformProjection(
       title: entry.tradingDate,
       detail: `${entry.exceptionCount} exceptions`,
       status: entry.status,
-      metric: `${entry.netReceiptsCents} cents net`,
+      metric: `${cents(entry.netReceiptsCents)} net`,
       occurredAt: date(entry.generatedAt),
     }));
   }
@@ -3381,6 +3469,8 @@ export async function conveniencePlatformProjection(
     storeId,
     generatedAt: new Date().toISOString(),
     limit,
+    timezone: selectedStore?.timezone ?? null,
+    currencyCode: selectedStore?.currencyCode ?? null,
     brand: {
       name: selectedBusiness.brandName,
       tagline: selectedBusiness.brandTagline,

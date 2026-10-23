@@ -8,6 +8,16 @@ import {
   type DurableOfflineOperation,
 } from "./offline-actions";
 import { buttonClass, dangerButtonClass, inputClass, panelClass, primaryButtonClass } from "../components/cv-ui";
+import { centsFromInput } from "../lib/form-values";
+
+// Typed in dollars; an unreadable amount becomes NaN so the operation is rejected, not mis-entered.
+const safeCents = (value: string) => {
+  try {
+    return centsFromInput(value);
+  } catch {
+    return Number.NaN;
+  }
+};
 
 type Option = { id: string; label: string; detail?: string | null };
 type StoredOperation = DurableOfflineOperation & { id: string; scope: string };
@@ -450,12 +460,13 @@ export function DurableOfflineQueue({
           />
         </label>
         <label className="text-xs font-medium">
-          Cash sale total (cents)
+          Cash sale total
           <input
-            className={controlClass}
+            className={`${controlClass} font-mono`}
             value={amountCents}
             onChange={(event) => setAmountCents(event.target.value)}
-            inputMode="numeric"
+            inputMode="decimal"
+            placeholder="0.00"
           />
         </label>
         <label className="text-xs font-medium">
@@ -561,8 +572,8 @@ export function DurableOfflineQueue({
               tenders: [
                 {
                   method: "cash",
-                  amountCents: Number(amountCents),
-                  tenderedCents: Number(amountCents),
+                  amountCents: safeCents(amountCents),
+                  tenderedCents: safeCents(amountCents),
                 },
               ],
             })

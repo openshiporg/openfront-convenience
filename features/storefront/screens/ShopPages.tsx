@@ -1,11 +1,24 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { Price } from "../components/Price";
-import { catalog, basket, customer, history, money } from "../lib/data";
-import { changeBasket, customerAuth, customerSignout } from "../actions";
+import { catalog, customer, history, money } from "../lib/data";
+import { customerAuth, customerSignout } from "../actions";
+import { storefrontTitle } from "../lib/metadata";
+
+export const shopMetadata = () => storefrontTitle("Shop");
+export const accountMetadata = () => storefrontTitle("Account");
+export async function accountAuthMetadata({ params }: { params: Promise<{ mode: string }> }) {
+  const { mode } = await params;
+  return storefrontTitle(mode === "signup" ? "Create account" : "Sign in");
+}
+export async function productMetadata({ params }: { params: Promise<{ productId: string }> }) {
+  const { productId } = await params;
+  const data = await catalog({ productId });
+  return storefrontTitle(data?.products[0]?.title ?? "Product");
+}
 
 type Search = Promise<{ q?: string; category?: string; page?: string; error?: string }>;
 // Error codes map to fixed text; the query string is never rendered.
@@ -170,232 +183,34 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
           <p className="sf-eyebrow">{product.category}</p>
           <h1 className="sf-display sf-display--product">{product.title}</h1>
           {product.description ? <p className="sf-product__description">{product.description}</p> : null}
-          <form action={changeBasket} className="sf-form sf-product__form">
-            {single ? (
-              <input type="hidden" name="variantId" value={single.id} />
-            ) : (
-              <fieldset className="sf-field">
-                <legend>Option</legend>
-                <div className="sf-options">
-                  {product.variants.map((variant, index) => (
-                    <label key={variant.id} className="sf-option">
-                      <input type="radio" name="variantId" value={variant.id} defaultChecked={index === 0} required />
-                      <span className="sf-option__title">{variant.title}</span>
-                      <span className="sf-option__price">{money(variant.priceCents, data.currency)}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-            <div className="sf-buyrow">
-              <label className="sf-field sf-qty">
-                <span>Qty</span>
-                <input name="quantity" type="number" inputMode="numeric" min="1" max="99" defaultValue="1" required />
-              </label>
-              <button className="sf-btn sf-btn--signal sf-btn--wide">Add to basket</button>
-            </div>
-          </form>
+          <p className="sf-state sf-product__state">
+            <span className="sf-dot" data-tone="ok" aria-hidden="true" />
+            In store
+          </p>
+          {single ? null : (
+            <ul className="sf-options sf-product__form" aria-label="Options">
+              {product.variants.map((variant) => (
+                <li key={variant.id} className="sf-option sf-option--static">
+                  <span className="sf-option__title">{variant.title}</span>
+                  <span className="sf-option__price">{money(variant.priceCents, data.currency)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
     </ShopShell>
   );
 }
 
-export async function BasketPage({ searchParams }: { searchParams: Search }) {
-  const [cart, search] = await Promise.all([basket(), searchParams]);
-  const count = Math.round((cart?.lines ?? []).reduce((sum, line) => sum + Number(line.quantity || 0), 0));
-  return (
-    <ShopShell>
-      <div className="sf-pagehead">
-        <div className="sf-titleline">
-          <h1 className="sf-display sf-display--page">Basket</h1>
-          {cart?.lines.length ? <span className="sf-count">{itemCount(count)}</span> : null}
-        </div>
-      </div>
-      <Alert message={errorMessage(search.error)} />
-      {cart?.lines.length ? (
-        <div className="sf-split">
-          <ul className="sf-band" aria-label="Basket items">
-            {cart.lines.map((line) => (
-              <li key={line.id} className="sf-line">
-                <div className="sf-line__text">
-                  <p className="sf-line__title">{line.titleSnapshot}</p>
-                  <p className="sf-line__meta">
-                    {line.variantTitleSnapshot ? `${line.variantTitleSnapshot} · ` : ""}
-                    <span className="sf-mono">{money(line.unitPriceCents, cart.currencyCode)}</span> each
-                  </p>
-                </div>
-                <div className="sf-line__controls">
-                  <form action={changeBasket} className="sf-qtyform">
-                    <input type="hidden" name="lineId" value={line.id} />
-                    <label className="sf-sr" htmlFor={`qty-${line.id}`}>
-                      Quantity for {line.titleSnapshot}
-                    </label>
-                    <input
-                      id={`qty-${line.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      name="quantity"
-                      min="0"
-                      max="99"
-                      defaultValue={Number(line.quantity)}
-                      required
-                    />
-                    <button className="sf-pill sf-pill--raised">Update</button>
-                  </form>
-                  <form action={changeBasket}>
-                    <input type="hidden" name="lineId" value={line.id} />
-                    <input type="hidden" name="quantity" value="0" />
-                    <button className="sf-iconbtn" aria-label={`Remove ${line.titleSnapshot}`}>
-                      <Trash2 aria-hidden="true" className="sf-icon" />
-                    </button>
-                  </form>
-                </div>
-                <p className="sf-line__total sf-mono">{money(line.totalCents, cart.currencyCode)}</p>
-              </li>
-            ))}
-          </ul>
-          <aside className="sf-tape" aria-label="Basket total">
-            <dl>
-              <div>
-                <dt>Subtotal</dt>
-                <dd>{money(cart.subtotalCents, cart.currencyCode)}</dd>
-              </div>
-              <div>
-                <dt>Tax</dt>
-                <dd>{money(cart.taxCents, cart.currencyCode)}</dd>
-              </div>
-              <div className="sf-tape__total">
-                <dt>Total</dt>
-                <dd>{money(cart.totalCents, cart.currencyCode)}</dd>
-              </div>
-            </dl>
-            <Link className="sf-btn sf-btn--signal sf-btn--wide" href="/checkout">
-              Checkout
-            </Link>
-            <Link className="sf-link sf-tape__more" href="/shop">
-              Keep shopping
-            </Link>
-          </aside>
-          <div className="sf-stickybar">
-            <span>
-              <span className="sf-stickybar__label">Total</span>
-              <span className="sf-mono">{money(cart.totalCents, cart.currencyCode)}</span>
-            </span>
-            <Link className="sf-btn sf-btn--signal" href="/checkout">
-              Checkout
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <EmptyBasket />
-      )}
-    </ShopShell>
-  );
-}
-
-function EmptyBasket() {
-  return (
-    <div className="sf-emptycard">
-      <p className="sf-empty">
-        <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-        Your basket is empty
-      </p>
-      <Link className="sf-btn" href="/shop">
-        Shop the store
-      </Link>
-    </div>
-  );
+// The storefront is a catalog: orders are paid at the counter, and there is no
+// online payment provider, so the basket and checkout routes lead back to the shop.
+export async function BasketPage() {
+  redirect("/shop");
 }
 
 export async function CheckoutPage() {
-  const [cart, user] = await Promise.all([basket(), customer()]);
-  return (
-    <ShopShell>
-      <div className="sf-pagehead">
-        <h1 className="sf-display sf-display--page">Checkout</h1>
-      </div>
-      {cart?.lines.length ? (
-        <div className="sf-split">
-          <ol className="sf-steps">
-            <li className="sf-step">
-              <div className="sf-titleline">
-                <h2>
-                  <span className="sf-step__n">1</span>Account
-                </h2>
-                <span className="sf-state">
-                  <span className="sf-dot" data-tone={user ? "ok" : "muted"} aria-hidden="true" />
-                  {user ? "Signed in" : "Guest"}
-                </span>
-              </div>
-              {user ? (
-                <p className="sf-step__body">
-                  {user.name}
-                  <span className="sf-muted"> · {user.email}</span>
-                </p>
-              ) : (
-                <div className="sf-step__body sf-actions">
-                  <Link href="/account/signin" className="sf-btn sf-btn--quiet">
-                    Sign in
-                  </Link>
-                  <Link href="/account/signup" className="sf-link">
-                    Create account
-                  </Link>
-                </div>
-              )}
-            </li>
-            <li className="sf-step">
-              <div className="sf-titleline">
-                <h2>
-                  <span className="sf-step__n">2</span>Payment
-                </h2>
-                <span className="sf-state">
-                  <span className="sf-dot" data-tone="warn" aria-hidden="true" />
-                  Online payment unavailable
-                </span>
-              </div>
-              <div className="sf-step__body">
-                <button className="sf-btn sf-btn--wide" disabled aria-disabled="true">
-                  Pay {money(cart.totalCents, cart.currencyCode)}
-                </button>
-              </div>
-            </li>
-          </ol>
-          <aside className="sf-tape" aria-label="Order summary">
-            <ul className="sf-tape__lines">
-              {cart.lines.map((line) => (
-                <li key={line.id}>
-                  <span>
-                    <span className="sf-mono sf-muted">{Number(line.quantity)}×</span> {line.titleSnapshot}
-                  </span>
-                  <span className="sf-mono">{money(line.totalCents, cart.currencyCode)}</span>
-                </li>
-              ))}
-            </ul>
-            <dl>
-              <div>
-                <dt>Subtotal</dt>
-                <dd>{money(cart.subtotalCents, cart.currencyCode)}</dd>
-              </div>
-              <div>
-                <dt>Tax</dt>
-                <dd>{money(cart.taxCents, cart.currencyCode)}</dd>
-              </div>
-              <div className="sf-tape__total">
-                <dt>Total</dt>
-                <dd>{money(cart.totalCents, cart.currencyCode)}</dd>
-              </div>
-            </dl>
-            <Link className="sf-link sf-tape__more" href="/basket">
-              Edit basket
-            </Link>
-          </aside>
-        </div>
-      ) : (
-        <EmptyBasket />
-      )}
-    </ShopShell>
-  );
+  redirect("/shop");
 }
 
 export async function AccountPage() {
@@ -499,6 +314,14 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
         </nav>
         <h1 className="sf-display sf-display--page">{signup ? "Create account" : "Sign in"}</h1>
         <Alert message={errorMessage(search.error)} />
+        {signup && search.error === "signup" ? (
+          <p className="sf-filterline">
+            Already have an account?
+            <Link href="/account/signin" className="sf-link">
+              Sign in
+            </Link>
+          </p>
+        ) : null}
         <form className="sf-form sf-card" action={customerAuth}>
           <input type="hidden" name="mode" value={mode} />
           {signup ? (

@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 
 import { normalizeStoreLogoColor } from "@/features/platform/store-settings/lib/store-logo";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
-import { basket } from "../lib/data";
+import { addressParts } from "../lib/address";
 import { StoreLogo } from "./StoreLogo";
 import { MobileMenu, StoreNav } from "./StoreNav";
 import { HoursList, TodayLine } from "./TodayHours";
@@ -40,15 +40,11 @@ export async function ShopShell({ children }: { children: ReactNode }) {
       </main>
     );
   }
-  const cart = await basket();
-  const basketCount = Math.round((cart?.lines ?? []).reduce((sum, line) => sum + Number(line.quantity || 0), 0));
   // Same hue the projection derives the brand colours from, so the whole storefront follows the logo.
   const theme = { "--sf-h": String((260 + Number(normalizeStoreLogoColor(identity.logoColor))) % 360) } as CSSProperties;
   const location = projection.location;
-  const address = location ? [location.addressLine1, location.city].filter(Boolean).join(", ") : "";
-  const fullAddress = location
-    ? [location.addressLine1, location.addressLine2, location.city, location.stateProvince, location.postalCode].filter(Boolean).join(", ")
-    : "";
+  const fullAddress = location ? addressParts(location).full : "";
+  const address = fullAddress;
   const hasHours = location ? Object.values(location.hours).some(Boolean) : false;
 
   return (
@@ -74,8 +70,8 @@ export async function ShopShell({ children }: { children: ReactNode }) {
           <div className="sf-bar__search">
             <SearchForm id="sf-search-desktop" />
           </div>
-          <StoreNav basketCount={basketCount} />
-          <MobileMenu basketCount={basketCount}>
+          <StoreNav />
+          <MobileMenu>
             <SearchForm id="sf-search-mobile" />
           </MobileMenu>
         </div>
@@ -103,7 +99,6 @@ export async function ShopShell({ children }: { children: ReactNode }) {
           <nav className="sf-foot__col" aria-label="Footer">
             <h2>Store</h2>
             <Link href="/shop">Shop</Link>
-            <Link href="/basket">Basket</Link>
             <Link href="/account">Account</Link>
           </nav>
         </div>

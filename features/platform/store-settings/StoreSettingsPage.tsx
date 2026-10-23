@@ -86,8 +86,8 @@ export async function StoreSettingsPage({
                     name={`hours${day[0].toUpperCase()}${day.slice(1)}`}
                     defaultValue={store?.hours[day] ?? ""}
                     maxLength={40}
-                    placeholder="6am – 11pm"
-                    className="font-mono"
+                    placeholder="e.g. 6am – 11pm, or Closed"
+                    className="font-mono placeholder:font-sans"
                   />
                 ))}
               </div>

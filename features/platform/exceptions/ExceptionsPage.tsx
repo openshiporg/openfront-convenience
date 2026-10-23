@@ -30,7 +30,7 @@ export async function ExceptionsPage({ searchParams }: { searchParams: PlatformS
             count: projection.rows.length,
             content: (
               <>
-                <EvidenceTable rows={projection.rows} title="Exception queue" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Exception queue" />
                 <PanelGrid>
                   <ActionPanel title="Own or resolve alert">
                     <FormGrid action={transitionAlertAction} submit="Apply disposition">

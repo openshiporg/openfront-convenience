@@ -16,6 +16,7 @@ import {
 } from "../components/PlatformPage";
 import { PanelGrid } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
+import { zonedNowInput } from "../lib/form-values";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 
 const path = "/dashboard/platform/reconciliation";
@@ -39,9 +40,9 @@ export async function ReconciliationPage({ searchParams }: { searchParams: Platf
                   <ActionPanel title="Generate store day">
                     <FormGrid action={generateStoreDayAction} submit="Generate close package">
                       <HiddenScope projection={projection} returnPath={path} />
-                      <TextField label="Trading date" name="tradingDate" type="date" required />
-                      <TextField label="Period start (ISO + offset)" name="periodStartedAt" placeholder="2026-07-19T00:00:00-04:00" required />
-                      <TextField label="Period end (ISO + offset)" name="periodEndedAt" placeholder="2026-07-20T00:00:00-04:00" required />
+                      <TextField label="Trading date" name="tradingDate" type="date" defaultValue={zonedNowInput(projection.timezone).slice(0, 10)} required />
+                      <TextField label="Period start" name="periodStartedAt" defaultValue={`${zonedNowInput(projection.timezone).slice(0, 10)}T00:00`} required />
+                      <TextField label="Period end" name="periodEndedAt" defaultValue={zonedNowInput(projection.timezone)} required />
                     </FormGrid>
                   </ActionPanel>
                   <ActionPanel title="Approve or lock">
@@ -54,7 +55,7 @@ export async function ReconciliationPage({ searchParams }: { searchParams: Platf
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="Store-day close history" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Store-day close history" />
               </>
             ),
           },

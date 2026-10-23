@@ -57,7 +57,7 @@ export async function RestrictedSalesPage({ searchParams }: { searchParams: Plat
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="ID checks and incidents" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="ID checks and incidents" />
               </>
             ),
           },

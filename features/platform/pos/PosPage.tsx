@@ -33,6 +33,7 @@ import { ReceiptLookup } from "./ReceiptLookup";
 import { DurableRegisterClose } from "./DurableRegisterClose";
 import { DurableRetailForm } from "./DurableRetailForm";
 import { registerCloseActorId } from "./register-close-actions";
+import { zonedNowInput } from "../lib/form-values";
 
 const path = "/dashboard/platform/pos";
 
@@ -102,6 +103,7 @@ export async function PosPage({
                     registerSessions={controls.registerSessions ?? []}
                     employees={controls.employees ?? []}
                     variants={controls.productVariants ?? []}
+                    currencyCode={projection.currencyCode ?? "USD"}
                   />
                 </>
               ),
@@ -454,15 +456,15 @@ export async function PosPage({
                         placeholder="Shift lead"
                       />
                       <TextField
-                        label="Starts at (ISO + offset)"
+                        label="Starts at"
                         name="startsAt"
-                        placeholder="2026-07-29T08:00:00-04:00"
+                        defaultValue={zonedNowInput(projection.timezone)}
                         required
                       />
                       <TextField
-                        label="Ends at (ISO + offset)"
+                        label="Ends at"
                         name="endsAt"
-                        placeholder="2026-07-29T16:00:00-04:00"
+                        defaultValue={zonedNowInput(projection.timezone, 8 * 60)}
                         required
                       />
                     </FormGrid>
@@ -768,7 +770,7 @@ export async function PosPage({
                     sales={controls.receiptLookupSales ?? []}
                     search={state.receiptSearch}
                   />
-                  <EvidenceTable rows={projection.rows} title="Recent receipts" />
+                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Recent receipts" />
                 </>
               ),
             },

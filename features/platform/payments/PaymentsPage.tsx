@@ -55,7 +55,7 @@ export async function PaymentsPage({ searchParams }: { searchParams: PlatformSea
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="Settlements and provider events" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Settlements and provider events" />
               </>
             ),
           },

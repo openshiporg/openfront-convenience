@@ -22,7 +22,8 @@ import {
   readRetainedRegisterClose,
   submitRetainedRegisterClose,
 } from "./register-close-actions";
-import { buttonClass } from "../components/cv-ui";
+import { buttonClass, primaryButtonClass } from "../components/cv-ui";
+import { centsFromInput, centsToInput } from "../lib/form-values";
 
 export function DurableRegisterClose({
   userId,
@@ -138,16 +139,18 @@ export function DurableRegisterClose({
       const registerSessionId = String(
         form.get("registerSessionId") ?? "",
       ).trim();
-      const count = String(form.get("countedCashCents") ?? "").trim();
-      if (!/^\d+$/.test(count))
-        throw new Error(
-          "Counted cash must be a non-negative integer number of cents",
-        );
+      let countedCashCents: number;
+      try {
+        countedCashCents = centsFromInput(String(form.get("countedCashCents") ?? ""));
+      } catch {
+        throw new Error("Enter the counted cash, such as 117.07");
+      }
+      if (countedCashCents < 0) throw new Error("Enter the counted cash, such as 117.07");
       const command = parseRegisterCloseIntent({
         businessId,
         storeId,
         registerSessionId,
-        countedCashCents: Number(count),
+        countedCashCents,
         notes: String(form.get("notes") ?? "").trim() || null,
         idempotencyKey: window.crypto.randomUUID(),
         originalScope: {
@@ -181,11 +184,10 @@ export function DurableRegisterClose({
       {pending ? (
         <div className="grid gap-2 border p-3 text-xs">
           <p>
-            Original till: {pending.registerSessionId} · counted{" "}
-            {pending.countedCashCents} cents
+            Till close pending · counted{" "}
+            <span className="font-mono">{centsToInput(pending.countedCashCents)}</span>
           </p>
           <p className="break-words">{pending.notes || "No closing notes"}</p>
-          <p className="break-all">Retained key: {pending.idempotencyKey}</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -193,7 +195,7 @@ export function DurableRegisterClose({
               onClick={() => void act("read", pending)}
               className={buttonClass}
             >
-              Retrieve SAME (read only)
+              Check result
             </button>
             <button
               type="button"
@@ -201,7 +203,7 @@ export function DurableRegisterClose({
               onClick={() => void act("retry", pending)}
               className={buttonClass}
             >
-              Retry SAME
+              Retry
             </button>
           </div>
         </div>
@@ -216,17 +218,17 @@ export function DurableRegisterClose({
         <button
           type="submit"
           disabled={!ready || busy || Boolean(pending) || foreign}
-          className={buttonClass}
+          className={`${primaryButtonClass} justify-self-start`}
         >
-          {busy ? "Checking original close…" : "Save intent and close register"}
+          {busy ? "Closing…" : "Close till"}
         </button>
       </form>
       {journal?.history
         .filter((entry) => sameCloseIdentity(entry.intent, identity))
         .map((entry) => (
           <p key={entry.intent.idempotencyKey} className="text-xs">
-            {entry.receipt.reference || entry.receipt.id} · original count{" "}
-            {entry.intent.countedCashCents} cents · confirmed closed
+            Till closed · counted{" "}
+            <span className="font-mono">{centsToInput(entry.intent.countedCashCents)}</span>
           </p>
         ))}
     </div>

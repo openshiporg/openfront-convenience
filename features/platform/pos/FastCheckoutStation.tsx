@@ -11,6 +11,7 @@ import {
   primaryButtonClass,
   type DotTone,
 } from "../components/cv-ui";
+import { quantityText, shortRef } from "../lib/labels";
 import type { PlatformOption } from "../lib/projection";
 import {
   fastAddPosLine,
@@ -119,7 +120,9 @@ export function FastCheckoutStation({
   registerSessions,
   employees,
   variants,
+  currencyCode,
 }: {
+  currencyCode: string;
   businessId: string;
   storeId: string;
   carts: PlatformOption[];
@@ -231,8 +234,8 @@ export function FastCheckoutStation({
     setCarts((current) => [
       {
         id: cart.id,
-        label: cart.reference,
-        detail: `${cart.lineCount} lines · ${cart.totalCents} cents`,
+        label: shortRef(cart.reference),
+        detail: `${cart.lineCount} ${cart.lineCount === 1 ? "line" : "lines"} · ${money(cart.totalCents)}`,
       },
       ...current.filter((item) => item.id !== cart.id),
     ]);
@@ -470,12 +473,18 @@ export function FastCheckoutStation({
 
   const field = "grid min-w-0 gap-1.5 text-xs font-medium text-muted-foreground";
   const control = `${inputClass} max-sm:h-11 h-11`;
-  const money = (cents: number) => (cents / 100).toFixed(2);
+  const money = (cents: number) => {
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode }).format(cents / 100);
+    } catch {
+      return (cents / 100).toFixed(2);
+    }
+  };
   const lineCount = summary?.lineCount ?? 0;
   const basketState: { tone: DotTone; label: string } = pendingIntent
     ? { tone: "warn", label: "Awaiting confirmation" }
     : cartId
-      ? { tone: "ok", label: summary?.reference || selectedCart?.label || "Basket open" }
+      ? { tone: "ok", label: shortRef(summary?.reference) || selectedCart?.label || "Basket open" }
       : { tone: "muted", label: "No basket" };
 
   return (
@@ -651,7 +660,7 @@ export function FastCheckoutStation({
       >
         <div className="min-w-0 rounded-xl bg-background px-4 pb-4 pt-3 font-mono shadow-[0_1px_2px_rgb(0_0_0/0.1)] dark:bg-zinc-900">
           <div className="flex items-baseline justify-between gap-3 border-b border-dashed pb-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="truncate">{summary?.reference || selectedCart?.label || "No basket"}</span>
+            <span className="truncate">{shortRef(summary?.reference) || selectedCart?.label || "No basket"}</span>
             <span className="tabular-nums">
               {lineCount} {lineCount === 1 ? "line" : "lines"}
             </span>
@@ -662,7 +671,7 @@ export function FastCheckoutStation({
                 <div className="min-w-0 font-sans">
                   <p className="truncate font-medium">{line.title}</p>
                   <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                    {line.quantity} {line.unitOfMeasure} × {money(line.unitPriceCents)}
+                    {quantityText(line.quantity)}{line.unitOfMeasure && line.unitOfMeasure !== "each" ? ` ${line.unitOfMeasure}` : ""} × {money(line.unitPriceCents)}
                     {line.discountCents ? ` · −${money(line.discountCents)}` : ""}
                     {line.taxCents ? ` · tax ${money(line.taxCents)}` : ""}
                   </p>

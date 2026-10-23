@@ -6,9 +6,28 @@ import { redirect } from "next/navigation";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { offlineOperationRequestDigest } from "@/features/keystone/lib/offlineReplay";
+import { convertFormValue } from "./lib/form-values";
 
-function field(formData: FormData, name: string): string {
+function rawField(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
+}
+
+/**
+ * Dollar, $/gal and local date-time inputs are converted here to the cents,
+ * mills and offset ISO values the operations take (see lib/form-values).
+ */
+function field(formData: FormData, name: string): string {
+  const raw = rawField(formData, name);
+  try {
+    return convertFormValue(name, raw, rawField(formData, "timezone") || null);
+  } catch (error) {
+    const query = new URLSearchParams({ error: error instanceof Error ? error.message : "Invalid value" });
+    const businessId = rawField(formData, "businessId");
+    const storeId = rawField(formData, "storeId");
+    if (businessId) query.set("businessId", businessId);
+    if (storeId) query.set("storeId", storeId);
+    redirect(`${operationPath(formData)}?${query.toString()}`);
+  }
 }
 
 function integer(formData: FormData, name: string): number {
@@ -44,8 +63,115 @@ const operationPaths = new Set([
 ]);
 
 function operationPath(formData: FormData): string {
-  const path = field(formData, "returnPath");
+  const path = rawField(formData, "returnPath");
   return operationPaths.has(path) ? path : "/dashboard/platform";
+}
+
+// Plain-language result for each operation, shown in the page notice.
+const OPERATION_NOTICES: Record<string, string> = {
+  activateLotteryPack: "Pack activated",
+  addPosCartLine: "Item added",
+  adjustLoyaltyPoints: "Points adjusted",
+  applyLoyaltyRedemptionToCart: "Points applied",
+  applyPromotionToCart: "Promotion applied",
+  approveFuelReconciliation: "Wet-stock reconciliation approved",
+  approveInventoryCount: "Count approved and posted",
+  approveLotterySettlement: "Lottery settlement approved",
+  approveMoneyServiceSettlement: "Settlement approved",
+  approvePaymentReconciliation: "Payment reconciliation approved",
+  approveStoreDayReconciliation: "Store day approved",
+  authorizeFuelPayment: "Fuel payment authorized",
+  cancelFuelPaymentAuthorization: "Fuel payment cancelled",
+  closeEmployeeShift: "Shift closed",
+  closeLotteryPack: "Pack closed",
+  closeRegisterSession: "Till closed",
+  completeFuelTransaction: "Fuel sale recorded",
+  completePosSale: "Sale completed",
+  completePrepBatch: "Prep batch completed",
+  configureAgeRestrictionPolicy: "Policy saved",
+  configureBusinessBrand: "Store settings saved",
+  configureCatalogItem: "Catalog item saved",
+  configureExportDestination: "Destination saved",
+  configureFuelTopology: "Fuel setup saved",
+  configureLotteryGame: "Game saved",
+  configureLoyaltyProgram: "Program saved",
+  configureMoneyServiceProvider: "Provider saved",
+  configurePaymentProvider: "Provider saved",
+  configurePreparedFoodRecipe: "Recipe saved",
+  configurePromotion: "Promotion saved",
+  configureStoreTaxRate: "Tax rate saved",
+  configureVendor: "Vendor saved",
+  configureVendorItem: "Vendor item saved",
+  createPosCart: "Basket started",
+  draftInventoryTransfer: "Transfer drafted",
+  draftPurchaseOrder: "Purchase order drafted",
+  enrollLoyaltyAccount: "Member enrolled",
+  evaluateOperationalAlerts: "Controls evaluated",
+  expireLoyaltyPoints: "Due points expired",
+  generateDailyAccountingExport: "Accounting batch generated",
+  generateFuelReconciliation: "Wet-stock reconciliation generated",
+  generateLotterySettlement: "Lottery settlement generated",
+  generateMoneyServiceSettlement: "Settlement generated",
+  generatePaymentReconciliation: "Payment reconciliation generated",
+  generateStoreDayReconciliation: "Store day generated",
+  openEmployeeShift: "Shift started",
+  openRegisterSession: "Till opened",
+  postInventoryAdjustment: "Adjustment posted",
+  prepareBankDeposit: "Deposit prepared",
+  receiveLotteryPack: "Pack received",
+  receivePurchaseOrder: "Delivery received",
+  recordCashMovement: "Cash movement posted",
+  recordExternalMoneyServiceTransaction: "Transaction recorded",
+  recordFuelDelivery: "Fuel delivery recorded",
+  recordFuelTankReading: "Tank reading recorded",
+  recordInventoryCountLine: "Count line recorded",
+  recordLotteryPackSale: "Ticket sales recorded",
+  recordOfflineReplayBatch: "Queued operation replayed",
+  recordWasteEvent: "Waste recorded",
+  refundPosSale: "Refund completed",
+  registerOfflineDevice: "Device registered",
+  removePosCartLine: "Line removed",
+  replayOutboxEvent: "Delivery requeued",
+  revokeBusinessApiKey: "Key revoked",
+  setFuelPrice: "Fuel price saved",
+  setOwnPosPin: "PIN set",
+  setRetailPrice: "Price published",
+  startInventoryCount: "Count started",
+  startPrepBatch: "Prep batch started",
+  transitionBankDeposit: "Deposit updated",
+  transitionComplianceIncident: "Incident updated",
+  transitionExportBatch: "Delivery updated",
+  transitionInventoryCount: "Count updated",
+  transitionInventoryTransfer: "Transfer updated",
+  transitionOfflineDevice: "Device updated",
+  transitionOperationalAlert: "Alert updated",
+  transitionPosCart: "Basket updated",
+  transitionPurchaseOrder: "Purchase order updated",
+  updatePosCartLine: "Quantity updated",
+  verifyRestrictedSaleAge: "Age check recorded",
+  voidCompletedPosSale: "Sale voided",
+  voidExternalMoneyServiceTransaction: "Transaction voided",
+};
+
+const humanStatus = (status: string) => {
+  const text = status.replaceAll("_", " ").trim();
+  return text ? text[0].toUpperCase() + text.slice(1) : "";
+};
+
+/** "Shift started · Scheduled", never a raw id or status code. */
+function operationNotice(fieldName: string, result: { status: string; replayed: boolean }): string {
+  const base = OPERATION_NOTICES[fieldName] ?? "Saved";
+  const status = humanStatus(result.status);
+  const parts = [base];
+  // The status only adds information when it isn't the outcome the label already states.
+  if (
+    status &&
+    !base.toLowerCase().includes(status.toLowerCase()) &&
+    !["Active", "Posted", "Completed", "Open", "Approved", "Succeeded", "Published"].includes(status)
+  )
+    parts.push(status);
+  if (result.replayed) parts.push("Already applied");
+  return parts.join(" · ");
 }
 
 async function executeOperation(
@@ -81,10 +207,7 @@ async function executeOperation(
   if (storeId) query.set("storeId", storeId);
   if (response.success) {
     const result = response.data[fieldName];
-    query.set(
-      "notice",
-      `${result.reference || result.id} · ${result.status}${result.replayed ? " · replayed" : ""}`,
-    );
+    query.set("notice", operationNotice(fieldName, result));
   } else {
     query.set("error", response.error || "Operation failed");
   }

@@ -238,7 +238,7 @@ export async function PurchasingPage({
                       </FormGrid>
                     </ActionPanel>
                   </PanelGrid>
-                  <EvidenceTable rows={projection.rows} title="Purchase-order queue" />
+                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Purchase-order queue" />
                 </>
               ),
             },

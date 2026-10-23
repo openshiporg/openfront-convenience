@@ -171,7 +171,7 @@ export async function FoodservicePage({ searchParams }: { searchParams: Platform
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="Prep batches" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Prep batches" />
               </>
             ),
           },

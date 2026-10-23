@@ -183,6 +183,7 @@ export async function LotteryPage({
                   </PanelGrid>
                   <EvidenceTable
                     rows={projection.rows}
+                    timeZone={projection.timezone}
                     title="Pack custody and sales"
                   />
                 </>

@@ -6,6 +6,7 @@ import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { registerCloseActorId } from "./register-close-actions";
 import { normalizeQuantity } from "@/features/keystone/lib/quantity";
 import { parseRetailIntent, type RetailIntent } from "./retainedRetail";
+import { centsFromInput } from "../lib/form-values";
 
 async function original(form: FormData) {
   const raw=form.get("__intent");
@@ -19,9 +20,11 @@ async function original(form: FormData) {
 function command(intent: RetailIntent) {
   const text=(name:string)=>intent.fields[name]?.trim()??"";
   const optional=(name:string)=>text(name)||null;
+  // Amounts are typed in dollars ("17.07") and sent as integer cents.
   const integer=(name:string)=>{
-    const raw=text(name),value=Number(raw);
-    if(!/^\d+$/.test(raw)||!Number.isSafeInteger(value)||value>2_147_483_647)throw new Error("Amount must be integer cents");
+    let value:number;
+    try { value=centsFromInput(text(name)); } catch { throw new Error("Enter an amount such as 12.50"); }
+    if(value<0||value>2_147_483_647)throw new Error("Enter an amount such as 12.50");
     return value;
   };
   const base={businessId:intent.businessId,storeId:intent.storeId,idempotencyKey:intent.key};

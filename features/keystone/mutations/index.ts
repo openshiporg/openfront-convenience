@@ -298,6 +298,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storeId: ID
         generatedAt: String!
         limit: Int!
+        timezone: String
+        currencyCode: String
         brand: ConvenienceBrand
         businesses: [ConveniencePlatformOption!]!
         stores: [ConveniencePlatformOption!]!
@@ -518,6 +520,12 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         currencyCode: String
         standardTaxBasisPoints: Int
         fuelEnabled: Boolean
+        includeDemoCatalog: Boolean
+        addressLine1: String
+        city: String
+        stateProvince: String
+        postalCode: String
+        phone: String
         brandName: String
         brandTagline: String
         brandMark: String

@@ -82,6 +82,7 @@ export async function PricingPage({
                   </PanelGrid>
                   <EvidenceTable
                     rows={projection.rows}
+                    timeZone={projection.timezone}
                     title="Effective price entries"
                   />
                 </>

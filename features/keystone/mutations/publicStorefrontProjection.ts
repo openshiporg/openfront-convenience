@@ -77,10 +77,11 @@ function projectIdentity(settings: StorefrontSettings) {
   };
 }
 
-function plainDocumentText(value: unknown): string {
+/** Plain text from a Keystone document or a ProseMirror-shaped value. */
+export function plainDocumentText(value: unknown, maxLength = 240): string {
   const parts: string[] = [];
   const visit = (node: unknown, depth: number) => {
-    if (depth > 8 || parts.join(" ").length >= 240) return;
+    if (depth > 8 || parts.join(" ").length >= maxLength) return;
     if (Array.isArray(node)) {
       for (const child of node.slice(0, 30)) visit(child, depth + 1);
       return;
@@ -93,7 +94,7 @@ function plainDocumentText(value: unknown): string {
     }
   };
   visit(value, 0);
-  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 240);
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, maxLength);
 }
 
 const emptyProjection = (

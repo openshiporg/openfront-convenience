@@ -74,7 +74,7 @@ export async function LoyaltyPage({ searchParams }: { searchParams: PlatformSear
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="Loyalty ledger" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Loyalty ledger" />
               </>
             ),
           },

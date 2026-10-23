@@ -51,6 +51,8 @@ export type PlatformProjection = {
   storeId: string | null;
   generatedAt: string;
   limit: number;
+  timezone: string | null;
+  currencyCode: string | null;
   brand: {
     name: string;
     tagline: string;
@@ -373,7 +375,7 @@ export async function getPlatformProjection(
     `
     query PlatformProjection($input: ConveniencePlatformProjectionInput!) {
       conveniencePlatformProjection(input: $input) {
-        surface businessId storeId generatedAt limit
+        surface businessId storeId generatedAt limit timezone currencyCode
         brand {
           name tagline mark logoIcon logoColor primaryColor accentColor
           storefrontMode storefrontStatus

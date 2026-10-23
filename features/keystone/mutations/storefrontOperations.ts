@@ -4,6 +4,7 @@ import type { Context } from ".keystone/types";
 import type { Session } from "../access";
 import { calculateLineAmounts } from "../lib/money";
 import { findEffectivePriceEntry, findEffectiveTaxRate } from "../lib/retailPricing";
+import { plainDocumentText } from "./publicStorefrontProjection";
 
 // Adapted from canonical security/cart-access: raw Cart/CartLine stay locked.
 // Public reads are explicit DTOs; customer IDs and prices never come from input.
@@ -43,7 +44,7 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
     }),
   ]);
   const now = new Date();
-  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, description: product.description ?? "", category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
+  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
     return { ...variant, priceCents: price?.amountCents ?? variant.defaultPriceCents, defaultPriceCents: undefined };
   })) }))) };

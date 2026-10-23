@@ -55,7 +55,8 @@
 }
 
 .sf *:focus-visible { outline: 2px solid var(--sf-edge); outline-offset: 2px; }
-.sf a { color: inherit; text-decoration: none; }
+/* :where keeps this reset at zero specificity so link buttons keep their colours. */
+:where(.sf) a { color: inherit; text-decoration: none; }
 .sf-wrap { width: min(100% - 32px, 1200px); margin-inline: auto; }
 .sf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sf-icon { width: 18px; height: 18px; flex: none; }
@@ -350,3 +351,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sf *, .sf *::before, .sf *::after { transition: none !important; }
 }
+
+/* Catalog product details */
+.sf-product__state { margin-top: 22px; font-size: 15px; }
+.sf-options:where(ul) { margin: 0; list-style: none; }
+.sf-option--static { cursor: default; color: var(--sf-ink); background: var(--sf-surface); box-shadow: var(--sf-raise); }
+.sf-product__form { margin-top: 18px; }

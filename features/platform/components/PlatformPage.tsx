@@ -19,6 +19,13 @@ import {
   type DotTone,
 } from "./cv-ui";
 import { PendingSubmitButton } from "./PendingSubmitButton";
+import {
+  centsToInput,
+  isDateTimeField,
+  isMillsField,
+  isMoneyField,
+  millsToInput,
+} from "../lib/form-values";
 
 export function PlatformPage({
   title,
@@ -70,7 +77,8 @@ export function PlatformPage({
   );
   return (
     <PageContainer title={title} header={header} breadcrumbs={breadcrumbs}>
-      <div className="min-w-0 space-y-6 px-4 pb-10 md:px-6">
+      {/* Extra bottom room on phones so the floating assistant button never covers content. */}
+      <div className="min-w-0 space-y-6 px-4 pb-10 max-sm:pb-28 md:px-6">
         {error ? (
           <p
             role="alert"
@@ -104,7 +112,11 @@ export function PlatformPage({
 
 export function MetricsBand({ metrics }: { metrics: PlatformProjection["metrics"] }) {
   return (
-    <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 md:grid-cols-4">
+    <dl
+      className={`grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 ${
+        metrics.length % 3 === 0 ? "md:grid-cols-3 2xl:grid-cols-6" : "md:grid-cols-4"
+      }`}
+    >
       {metrics.map((metric) => {
         const tone = toneOf(metric.tone);
         return (
@@ -188,12 +200,24 @@ function ScopeSelect({
   );
 }
 
+/** Times shown in the store's timezone, the same clock the receipt uses. */
+function storeTime(value: string, timeZone: string | null | undefined): string {
+  const options: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
+  try {
+    return new Date(value).toLocaleString("en-US", { ...options, timeZone: timeZone || "UTC" });
+  } catch {
+    return new Date(value).toLocaleString("en-US", { ...options, timeZone: "UTC" });
+  }
+}
+
 export function EvidenceTable({
   rows,
   title = "Recent activity",
+  timeZone,
 }: {
   rows: PlatformProjection["rows"];
   title?: string;
+  timeZone?: string | null;
 }) {
   return (
     <section className="min-w-0" aria-label={title}>
@@ -215,7 +239,7 @@ export function EvidenceTable({
                   {row.occurredAt ? (
                     <>
                       {" · "}
-                      <time dateTime={row.occurredAt}>{new Date(row.occurredAt).toLocaleString()}</time>
+                      <time dateTime={row.occurredAt}>{storeTime(row.occurredAt, timeZone)}</time>
                     </>
                   ) : null}
                 </p>
@@ -277,6 +301,7 @@ export function HiddenScope({ projection, returnPath }: { projection: PlatformPr
     <>
       <input type="hidden" name="businessId" value={projection.businessId ?? ""} />
       <input type="hidden" name="storeId" value={projection.storeId ?? ""} />
+      <input type="hidden" name="timezone" value={projection.timezone ?? ""} />
       <input type="hidden" name="returnPath" value={returnPath} />
     </>
   );
@@ -335,12 +360,73 @@ export function EnumField({
   );
 }
 
+const UNIT_SUFFIX = /\s*\((?:signed\s+)?cents[^)]*\)|\s*\((?:exact\s+)?ISO[^)]*\)|\s*\(optional ISO\)/gi;
+
+/** Field labels lose their unit notes; "optional" survives. */
+function plainLabel(label: string): string {
+  const optional = /optional/i.test(label.match(/\(([^)]*)\)/g)?.join(" ") ?? "");
+  const text = label.replace(UNIT_SUFFIX, "").replace(/^Mills per gallon$/i, "Price per gallon").trim();
+  return optional && !/optional/i.test(text) ? `${text} (optional)` : text;
+}
+
 export function TextField({
   label,
   name,
   className,
   ...props
 }: { label: string; name: string } & Omit<ComponentProps<"input">, "name">) {
+  // Amounts, fuel prices and times are typed the way a merchant reads them;
+  // the server action converts them back (lib/form-values).
+  if (isMoneyField(name) || isMillsField(name)) {
+    const mills = isMillsField(name);
+    // The dollar input sets its own type, range and placeholder.
+    const rest: ComponentProps<"input"> = { ...props };
+    for (const key of ["type", "min", "max", "step", "defaultValue", "placeholder"] as const) delete rest[key];
+    const defaultValue = props.defaultValue;
+    const numeric = defaultValue === undefined || defaultValue === "" ? undefined : Number(defaultValue);
+    return (
+      <label className={labelClass}>
+        {plainLabel(label)}
+        <span className="relative flex min-w-0 items-center">
+          <span aria-hidden="true" className="pointer-events-none absolute left-3 font-mono text-sm text-muted-foreground">
+            $
+          </span>
+          <input
+            name={name}
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder={mills ? "3.599" : "0.00"}
+            defaultValue={
+              numeric === undefined || !Number.isFinite(numeric)
+                ? undefined
+                : mills
+                  ? millsToInput(numeric)
+                  : centsToInput(numeric)
+            }
+            className={`${inputClass} pl-7 font-mono tabular-nums ${className ?? ""}`}
+            {...rest}
+          />
+          {mills ? (
+            <span aria-hidden="true" className="pointer-events-none absolute right-3 text-xs text-muted-foreground">
+              /gal
+            </span>
+          ) : null}
+        </span>
+      </label>
+    );
+  }
+  if (isDateTimeField(name)) {
+    const rest: ComponentProps<"input"> = { ...props };
+    delete rest.type;
+    delete rest.placeholder;
+    return (
+      <label className={labelClass}>
+        {plainLabel(label)}
+        <input name={name} type="datetime-local" className={`${inputClass} font-mono tabular-nums ${className ?? ""}`} {...rest} />
+      </label>
+    );
+  }
   return (
     <label className={labelClass}>
       {label}

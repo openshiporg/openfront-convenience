@@ -56,7 +56,7 @@ export async function RecoveryPage({ searchParams }: { searchParams: PlatformSea
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>
-                <EvidenceTable rows={projection.rows} title="Replay batches" />
+                <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Replay batches" />
               </>
             ),
           },

@@ -53,7 +53,8 @@ export function Workbench({
 
   return (
     <div className="min-w-0 space-y-5">
-      <div role="tablist" aria-label="Tasks" className={trackClass}>
+      {/* On phones the pills wrap so no task is hidden past the edge. */}
+      <div role="tablist" aria-label="Tasks" className={`${trackClass} max-sm:flex-wrap max-sm:rounded-2xl`}>
         {visible.map((section) => (
           <button
             key={section.id}

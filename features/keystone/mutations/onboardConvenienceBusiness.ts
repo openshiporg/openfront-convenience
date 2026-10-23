@@ -36,6 +36,12 @@ export type OnboardConvenienceBusinessArgs = {
     currencyCode?: string | null;
     standardTaxBasisPoints?: number | null;
     fuelEnabled?: boolean | null;
+    includeDemoCatalog?: boolean | null;
+    addressLine1?: string | null;
+    city?: string | null;
+    stateProvince?: string | null;
+    postalCode?: string | null;
+    phone?: string | null;
     brandName?: string | null;
     brandTagline?: string | null;
     brandMark?: string | null;
@@ -112,6 +118,22 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   ) {
     throw new Error("Storefront status must be draft or published");
   }
+  const location = {
+    addressLine1: input.addressLine1?.trim() ?? "",
+    city: input.city?.trim() ?? "",
+    stateProvince: input.stateProvince?.trim() ?? "",
+    postalCode: input.postalCode?.trim() ?? "",
+    phone: input.phone?.trim() ?? "",
+  };
+  if (
+    location.addressLine1.length > 120 ||
+    location.city.length > 80 ||
+    location.stateProvince.length > 80 ||
+    location.postalCode.length > 24 ||
+    location.phone.length > 40
+  ) {
+    throw new Error("Address or phone exceeds its supported length");
+  }
   const storefrontMode: StorefrontMode = storefrontModeValue;
   const storefrontStatus: "draft" | "published" = storefrontStatusValue;
   return {
@@ -123,6 +145,9 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
     currencyCode,
     standardTaxBasisPoints,
     fuelEnabled: input.fuelEnabled ?? false,
+    // API callers keep the sample catalog unless they opt out; the dashboard form asks.
+    includeDemoCatalog: input.includeDemoCatalog ?? true,
+    ...location,
     brandName,
     brandTagline,
     brandMark,
@@ -281,7 +306,12 @@ export default async function onboardConvenienceBusiness(
         currencyCode: input.currencyCode,
         timezone: input.timezone,
         fuelEnabled: input.fuelEnabled,
-        // Address and phone come from the operator in Store Settings, never from sample data.
+        // Address and phone come from the operator (onboarding or Store Settings), never from sample data.
+        addressLine1: input.addressLine1,
+        city: input.city,
+        stateProvince: input.stateProvince,
+        postalCode: input.postalCode,
+        phone: input.phone,
         countryCode: seed.storefront.contact.countryCode,
         metadata: {
           // Hours stay blank until the operator enters their real hours.
@@ -375,142 +405,141 @@ export default async function onboardConvenienceBusiness(
       create: { businessId: business.id, storeId: store.id, name: seed.register.name, code: seed.register.code, lookupKey: `${store.id}:${seed.register.code}`, status: "active" },
     });
 
-    const demoCategories = new Map<string, { id: string }>();
-    for (const categorySeed of seed.demoCategories) {
-      const category = await transaction.productCategory.upsert({
-        where: {
-          lookupKey: `${business.id}:category:${categorySeed.code}`,
-        },
-        update: {
-          name: categorySeed.name,
-          description: categorySeed.description,
-          status: "active",
-        },
-        create: {
-          businessId: business.id,
-          name: categorySeed.name,
-          code: categorySeed.code,
-          lookupKey: `${business.id}:category:${categorySeed.code}`,
-          description: categorySeed.description,
-          status: "active",
-          metadata: { demo: true },
-        },
-        select: { id: true },
-      });
-      demoCategories.set(categorySeed.code, category);
-    }
-
-    for (const productSeed of seed.demoProducts) {
-      const category = demoCategories.get(productSeed.categoryCode);
-      if (!category) {
-        throw new Error(
-          `Demo product category is missing: ${productSeed.categoryCode}`,
-        );
-      }
-      const description = {
-        type: "doc",
-        content: [
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: productSeed.summary }],
+    if (input.includeDemoCatalog) {
+      const demoCategories = new Map<string, { id: string }>();
+      for (const categorySeed of seed.demoCategories) {
+        const category = await transaction.productCategory.upsert({
+          where: {
+            lookupKey: `${business.id}:category:${categorySeed.code}`,
           },
-        ],
-      } as Prisma.InputJsonValue;
-      const product = await transaction.product.upsert({
-        where: {
-          lookupKey: `${business.id}:product:${productSeed.handle}`,
-        },
-        update: {
-          title: productSeed.title,
-          description,
-          status: "active",
-          preparedFood: productSeed.preparedFood,
-          taxCategoryId: standardTaxCategory.id,
-          categories: { set: [{ id: category.id }] },
-          metadata: { demo: true },
-        },
-        create: {
-          businessId: business.id,
-          title: productSeed.title,
-          handle: productSeed.handle,
-          lookupKey: `${business.id}:product:${productSeed.handle}`,
-          description,
-          status: "active",
-          regulatedSaleType: "none",
-          preparedFood: productSeed.preparedFood,
-          discountable: true,
-          returnable: true,
-          taxCategoryId: standardTaxCategory.id,
-          categories: { connect: [{ id: category.id }] },
-          metadata: { demo: true },
-        },
-      });
-      const variant = await transaction.productVariant.upsert({
-        where: {
-          lookupKey: `${business.id}:variant:${productSeed.sku}`,
-        },
-        update: {
-          productId: product.id,
-          title: productSeed.variantTitle,
-          status: "active",
-          defaultPriceCents: productSeed.defaultPriceCents,
-          trackInventory: false,
-          metadata: { demo: true },
-        },
-        create: {
-          businessId: business.id,
-          productId: product.id,
-          title: productSeed.variantTitle,
-          sku: productSeed.sku,
-          lookupKey: `${business.id}:variant:${productSeed.sku}`,
-          status: "active",
-          sellBy: "unit",
-          unitOfMeasure: "each",
-          defaultPriceCents: productSeed.defaultPriceCents,
-          trackInventory: false,
-          allowNegativeInventory: false,
-          metadata: { demo: true },
-        },
-      });
-      await transaction.productBarcode.upsert({
-        where: {
-          lookupKey: `${business.id}:barcode:${productSeed.barcode}`,
-        },
-        update: {
-          variantId: variant.id,
-          status: "active",
-          isPrimary: true,
-        },
-        create: {
-          businessId: business.id,
-          variantId: variant.id,
-          value: productSeed.barcode,
-          lookupKey: `${business.id}:barcode:${productSeed.barcode}`,
-          format: "internal",
-          embeddedDataType: "none",
-          isPrimary: true,
-          status: "active",
-          metadata: { demo: true },
-        },
-      });
-      await transaction.priceBookEntry.upsert({
-        where: { lookupKey: `${priceBook.id}:${variant.id}` },
-        update: {
-          amountCents: productSeed.defaultPriceCents,
-          status: "active",
-          metadata: { demo: true },
-        },
-        create: {
-          businessId: business.id,
-          priceBookId: priceBook.id,
-          variantId: variant.id,
-          lookupKey: `${priceBook.id}:${variant.id}`,
-          amountCents: productSeed.defaultPriceCents,
-          minQuantity: "1.0000",
-          status: "active",
-          metadata: { demo: true },
-        },
-      });
+          update: {
+            name: categorySeed.name,
+            description: categorySeed.description,
+            status: "active",
+          },
+          create: {
+            businessId: business.id,
+            name: categorySeed.name,
+            code: categorySeed.code,
+            lookupKey: `${business.id}:category:${categorySeed.code}`,
+            description: categorySeed.description,
+            status: "active",
+            metadata: { demo: true },
+          },
+          select: { id: true },
+        });
+        demoCategories.set(categorySeed.code, category);
+      }
+
+      for (const productSeed of seed.demoProducts) {
+        const category = demoCategories.get(productSeed.categoryCode);
+        if (!category) {
+          throw new Error(
+            `Demo product category is missing: ${productSeed.categoryCode}`,
+          );
+        }
+        // Keystone document format, which the product document field reads.
+        const description = [
+          { type: "paragraph", children: [{ text: productSeed.summary }] },
+        ] as Prisma.InputJsonValue;
+        const product = await transaction.product.upsert({
+          where: {
+            lookupKey: `${business.id}:product:${productSeed.handle}`,
+          },
+          update: {
+            title: productSeed.title,
+            description,
+            status: "active",
+            preparedFood: productSeed.preparedFood,
+            taxCategoryId: standardTaxCategory.id,
+            categories: { set: [{ id: category.id }] },
+            metadata: { demo: true },
+          },
+          create: {
+            businessId: business.id,
+            title: productSeed.title,
+            handle: productSeed.handle,
+            lookupKey: `${business.id}:product:${productSeed.handle}`,
+            description,
+            status: "active",
+            regulatedSaleType: "none",
+            preparedFood: productSeed.preparedFood,
+            discountable: true,
+            returnable: true,
+            taxCategoryId: standardTaxCategory.id,
+            categories: { connect: [{ id: category.id }] },
+            metadata: { demo: true },
+          },
+        });
+        const variant = await transaction.productVariant.upsert({
+          where: {
+            lookupKey: `${business.id}:variant:${productSeed.sku}`,
+          },
+          update: {
+            productId: product.id,
+            title: productSeed.variantTitle,
+            status: "active",
+            defaultPriceCents: productSeed.defaultPriceCents,
+            // Demo items track stock but may go negative until real stock is received.
+            trackInventory: true,
+            allowNegativeInventory: true,
+            metadata: { demo: true },
+          },
+          create: {
+            businessId: business.id,
+            productId: product.id,
+            title: productSeed.variantTitle,
+            sku: productSeed.sku,
+            lookupKey: `${business.id}:variant:${productSeed.sku}`,
+            status: "active",
+            sellBy: "unit",
+            unitOfMeasure: "each",
+            defaultPriceCents: productSeed.defaultPriceCents,
+            trackInventory: true,
+            allowNegativeInventory: true,
+            metadata: { demo: true },
+          },
+        });
+        await transaction.productBarcode.upsert({
+          where: {
+            lookupKey: `${business.id}:barcode:${productSeed.barcode}`,
+          },
+          update: {
+            variantId: variant.id,
+            status: "active",
+            isPrimary: true,
+          },
+          create: {
+            businessId: business.id,
+            variantId: variant.id,
+            value: productSeed.barcode,
+            lookupKey: `${business.id}:barcode:${productSeed.barcode}`,
+            format: "internal",
+            embeddedDataType: "none",
+            isPrimary: true,
+            status: "active",
+            metadata: { demo: true },
+          },
+        });
+        await transaction.priceBookEntry.upsert({
+          where: { lookupKey: `${priceBook.id}:${variant.id}` },
+          update: {
+            amountCents: productSeed.defaultPriceCents,
+            status: "active",
+            metadata: { demo: true },
+          },
+          create: {
+            businessId: business.id,
+            priceBookId: priceBook.id,
+            variantId: variant.id,
+            lookupKey: `${priceBook.id}:${variant.id}`,
+            amountCents: productSeed.defaultPriceCents,
+            minQuantity: "1.0000",
+            status: "active",
+            metadata: { demo: true },
+          },
+        });
+      }
     }
     await transaction.loyaltyProgram.upsert({
       where: { lookupKey: `${business.id}:loyalty:${seed.loyaltyProgram.code}` },
