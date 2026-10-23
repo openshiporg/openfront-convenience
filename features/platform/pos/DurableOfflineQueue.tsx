@@ -7,6 +7,7 @@ import {
   syncDurableOfflineQueue,
   type DurableOfflineOperation,
 } from "./offline-actions";
+import { buttonClass, dangerButtonClass, inputClass, panelClass, primaryButtonClass } from "../components/cv-ui";
 
 type Option = { id: string; label: string; detail?: string | null };
 type StoredOperation = DurableOfflineOperation & { id: string; scope: string };
@@ -353,11 +354,10 @@ export function DurableOfflineQueue({
   }, [synchronize]);
 
   if (!devices.length) return null;
-  const controlClass =
-    "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
+  const controlClass = inputClass;
   return (
     <section
-      className="rounded-xl border bg-card p-4"
+      className={panelClass}
       aria-labelledby="offline-pos-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -368,7 +368,7 @@ export function DurableOfflineQueue({
         </div>
         <button
           type="button"
-          className="rounded-md border px-3 py-2 text-sm"
+          className={buttonClass}
           disabled={syncing || !queue.length}
           onClick={() => void synchronize()}
         >
@@ -494,7 +494,7 @@ export function DurableOfflineQueue({
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-md border px-3 py-2 text-sm"
+          className={buttonClass}
           onClick={() =>
             void enqueue("addPosCartLine", {
               cartId,
@@ -508,7 +508,7 @@ export function DurableOfflineQueue({
         </button>
         <button
           type="button"
-          className="rounded-md border px-3 py-2 text-sm"
+          className={buttonClass}
           onClick={() =>
             void enqueue("updatePosCartLine", {
               cartId,
@@ -523,7 +523,7 @@ export function DurableOfflineQueue({
         </button>
         <button
           type="button"
-          className="rounded-md border px-3 py-2 text-sm"
+          className={buttonClass}
           onClick={() =>
             void enqueue("removePosCartLine", {
               cartId,
@@ -539,7 +539,7 @@ export function DurableOfflineQueue({
           <button
             key={nextStatus}
             type="button"
-            className="rounded-md border px-3 py-2 text-sm"
+            className={buttonClass}
             onClick={() =>
               void enqueue("transitionPosCart", {
                 cartId,
@@ -554,7 +554,7 @@ export function DurableOfflineQueue({
         ))}
         <button
           type="button"
-          className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
+          className={primaryButtonClass}
           onClick={() =>
             void enqueue("completePosSale", {
               cartId,
@@ -576,21 +576,21 @@ export function DurableOfflineQueue({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-md border px-3 py-2 text-sm"
+              className={buttonClass}
               onClick={() => void exportQueue()}
             >
               Export retained evidence
             </button>
             <button
               type="button"
-              className="rounded-md border px-3 py-2 text-sm"
+              className={buttonClass}
               onClick={() => void rebase()}
             >
               Rebase above server sequence
             </button>
             <button
               type="button"
-              className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive"
+              className={dangerButtonClass}
               onClick={() => void discard()}
             >
               Abandon retained operations

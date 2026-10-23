@@ -5,6 +5,7 @@ import { useActionState, useEffect } from "react";
 import type { PlatformOption } from "../lib/projection";
 import { downloadExportArtifactAction } from "./download-actions";
 import { initialExportDownloadState } from "./download-state";
+import { buttonClass, inputClass } from "../components/cv-ui";
 
 export function ExportDownloadPanel({
   businessId,
@@ -42,7 +43,7 @@ export function ExportDownloadPanel({
         <select
           name="batchId"
           required
-          className="h-9 min-w-0 border bg-background px-2 text-sm text-foreground"
+          className={inputClass}
         >
           <option value="">Choose a batch</option>
           {batches.map((batch) => (
@@ -56,7 +57,7 @@ export function ExportDownloadPanel({
       <button
         type="submit"
         disabled={pending || !batches.length}
-        className="h-9 border bg-background px-3 text-sm font-medium disabled:opacity-50"
+        className={buttonClass}
       >
         {pending ? "Verifying…" : "Verify & download CSV"}
       </button>

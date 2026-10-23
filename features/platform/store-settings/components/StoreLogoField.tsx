@@ -9,13 +9,13 @@ export function StoreLogoField({ initialIcon, initialColor }: { initialIcon: str
   const [logoIcon, setLogoIcon] = useState(initialIcon || DEFAULT_STORE_LOGO_ICON);
   const [logoColor, setLogoColor] = useState(normalizeStoreLogoColor(initialColor));
   return (
-    <fieldset className="grid min-w-0 gap-4 border p-4 sm:col-span-2">
-      <legend className="px-1 text-xs font-medium text-muted-foreground">Branding</legend>
+    <fieldset className="grid min-w-0 gap-4 rounded-xl bg-muted/40 p-4 shadow-[inset_0_1px_2px_rgb(0_0_0/0.05)] ring-1 ring-inset ring-border/60 sm:col-span-2">
+      <legend className="sr-only">Logo</legend>
       <input type="hidden" name="logoIcon" value={logoIcon} />
       <input type="hidden" name="logoColor" value={logoColor} />
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4">
         <div
-          className="flex size-16 items-center justify-center overflow-hidden border border-border bg-background p-2 [&>svg]:block [&>svg]:size-full"
+          className="flex size-16 items-center justify-center overflow-hidden rounded-xl bg-background p-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.12)] [&>svg]:block [&>svg]:size-full"
           style={{ filter: `hue-rotate(${logoColor}deg)` }}
           dangerouslySetInnerHTML={{ __html: logoIcon }}
         />
@@ -23,7 +23,7 @@ export function StoreLogoField({ initialIcon, initialColor }: { initialIcon: str
       </div>
       <div>
         <div className="flex items-center justify-between gap-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Hue rotation</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Colour</p>
           <span className="font-mono text-xs text-muted-foreground">{logoColor}°</span>
         </div>
         <input

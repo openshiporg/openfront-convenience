@@ -4,142 +4,187 @@ import type { ComponentProps, ReactNode } from "react";
 import { PageContainer } from "@/features/dashboard/components/PageContainer";
 
 import type { PlatformOption, PlatformProjection } from "../lib/projection";
+import {
+  Dot,
+  ListBand,
+  SectionTitle,
+  StatusText,
+  buttonClass,
+  formatMeasure,
+  inputClass,
+  labelClass,
+  panelClass,
+  toneOf,
+  trackClass,
+  type DotTone,
+} from "./cv-ui";
 import { PendingSubmitButton } from "./PendingSubmitButton";
 
 export function PlatformPage({
   title,
-  description,
   projection,
   error,
   notice,
   children,
   businessOnly = false,
+  showMetrics = true,
+  state,
 }: {
   title: string;
-  description: string;
+  description?: string;
   projection: PlatformProjection | null;
   error: string;
   notice: string;
   children: ReactNode;
   businessOnly?: boolean;
+  showMetrics?: boolean;
+  state?: { tone: DotTone; label: string } | null;
 }) {
   const breadcrumbs = [
     { type: "link" as const, label: "Dashboard", href: "/dashboard" },
     { type: "page" as const, label: "Platform" },
     { type: "page" as const, label: title },
   ];
+  const metrics = projection?.metrics ?? [];
+  const storeLabel =
+    projection?.stores.find((option) => option.id === projection.storeId)?.label ??
+    projection?.businesses.find((option) => option.id === projection.businessId)?.label;
+  const needsAttention = metrics.some(
+    (metric) => toneOf(metric.tone) !== "muted" && toneOf(metric.tone) !== "ok" && metric.value !== "0",
+  );
+  const titleState =
+    state ?? (storeLabel ? { tone: (needsAttention ? "warn" : "ok") as DotTone, label: storeLabel } : null);
   const header = (
     <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50 [overflow-wrap:anywhere]">
-          {title}
-        </h1>
-        <p className="text-muted-foreground">{description}</p>
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</h1>
+        {titleState ? (
+          <span className="inline-flex min-w-0 items-baseline gap-1.5 text-sm text-muted-foreground">
+            <Dot tone={titleState.tone} />
+            <span className="[overflow-wrap:anywhere]">{titleState.label}</span>
+          </span>
+        ) : null}
       </div>
-      {projection?.businessId ? (
-        <ScopeFilter projection={projection} businessOnly={businessOnly} />
-      ) : null}
+      {projection?.businessId ? <ScopeFilter projection={projection} businessOnly={businessOnly} /> : null}
     </div>
   );
   return (
     <PageContainer title={title} header={header} breadcrumbs={breadcrumbs}>
-      <div className="min-w-0 space-y-7 px-4 pb-8 md:px-6">
+      <div className="min-w-0 space-y-6 px-4 pb-10 md:px-6">
         {error ? (
           <p
             role="alert"
-            className="border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            className="flex items-baseline gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           >
+            <Dot tone="danger" />
             {error}
           </p>
         ) : null}
         {notice ? (
           <p
             role="status"
-            className="border border-emerald-700/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300"
+            className="flex items-baseline gap-2 rounded-xl border border-emerald-600/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300"
           >
+            <Dot tone="ok" />
             {notice}
           </p>
         ) : null}
         {!projection?.businessId && !error ? (
-          <EmptyState
-            title="You don't have access to a store yet"
-            detail="Ask the store owner to add you as an employee."
-          />
+          <EmptyState title="You don't have access to a store yet" detail="" />
         ) : (
-          children
+          <>
+            {showMetrics && metrics.length ? <MetricsBand metrics={metrics} /> : null}
+            {children}
+          </>
         )}
       </div>
     </PageContainer>
   );
 }
 
-function ScopeFilter({
-  projection,
-  businessOnly,
-}: {
-  projection: PlatformProjection;
-  businessOnly: boolean;
-}) {
+export function MetricsBand({ metrics }: { metrics: PlatformProjection["metrics"] }) {
   return (
-    <div className="grid min-w-0 gap-2 sm:grid-cols-2">
-      <form
-        method="get"
-        className="grid min-w-0 grid-cols-[minmax(150px,1fr)_auto] gap-2"
-      >
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Business
-          <select
-            name="businessId"
-            defaultValue={projection.businessId ?? ""}
-            className="h-9 min-w-0 border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {projection.businesses.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="submit"
-          className="h-9 self-end border bg-background px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-px"
-        >
-          Switch
-        </button>
-      </form>
-      {!businessOnly ? (
-        <form
-          method="get"
-          className="grid min-w-0 grid-cols-[minmax(150px,1fr)_auto] gap-2"
-        >
-          <input
-            type="hidden"
-            name="businessId"
-            value={projection.businessId ?? ""}
-          />
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-            Store
-            <select
-              name="storeId"
-              defaultValue={projection.storeId ?? ""}
-              className="h-9 min-w-0 border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {projection.stores.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="h-9 self-end border bg-background px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-px"
-          >
-            Apply
-          </button>
-        </form>
+    <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 md:grid-cols-4">
+      {metrics.map((metric) => {
+        const tone = toneOf(metric.tone);
+        return (
+          <div key={metric.label} className="min-w-0 bg-background px-4 py-3.5">
+            <dt className="flex items-baseline gap-1.5 text-xs font-medium text-muted-foreground">
+              {tone !== "muted" && metric.value !== "0" ? <Dot tone={tone} /> : null}
+              <span className="truncate">{metric.label}</span>
+            </dt>
+            <dd className="mt-1 font-mono text-2xl font-medium tabular-nums tracking-tight text-foreground [overflow-wrap:anywhere]">
+              {formatMeasure(metric.value)}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+function ScopeFilter({ projection, businessOnly }: { projection: PlatformProjection; businessOnly: boolean }) {
+  const showBusiness = projection.businesses.length > 1;
+  const showStore = !businessOnly && projection.stores.length > 0;
+  if (!showBusiness && !showStore) return null;
+  return (
+    <div className="flex min-w-0 flex-wrap gap-2">
+      {showBusiness ? (
+        <ScopeSelect label="Business" name="businessId" value={projection.businessId} options={projection.businesses} />
+      ) : null}
+      {showStore ? (
+        <ScopeSelect
+          label="Store"
+          name="storeId"
+          value={projection.storeId}
+          options={projection.stores}
+          keep={{ businessId: projection.businessId ?? "" }}
+        />
       ) : null}
     </div>
+  );
+}
+
+function ScopeSelect({
+  label,
+  name,
+  value,
+  options,
+  keep = {},
+}: {
+  label: string;
+  name: string;
+  value: string | null;
+  options: PlatformOption[];
+  keep?: Record<string, string>;
+}) {
+  return (
+    <form method="get" className={`${trackClass} min-w-0`}>
+      {Object.entries(keep).map(([key, keepValue]) => (
+        <input key={key} type="hidden" name={key} value={keepValue} />
+      ))}
+      <label className="sr-only" htmlFor={`scope-${name}`}>
+        {label}
+      </label>
+      <select
+        id={`scope-${name}`}
+        name={name}
+        defaultValue={value ?? ""}
+        className="h-8 min-w-0 max-w-56 truncate rounded-full border-0 bg-background px-3 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.14)] focus-visible:outline-2 focus-visible:outline-ring dark:bg-zinc-800 max-sm:h-10"
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
+      >
+        {label === "Business" ? "Switch" : "Apply"}
+      </button>
+    </form>
   );
 }
 
@@ -151,57 +196,38 @@ export function EvidenceTable({
   title?: string;
 }) {
   return (
-    <section className="min-w-0 space-y-3" aria-labelledby="activity-heading">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 id="activity-heading" className="text-lg font-semibold">
-            {title}
-          </h2>
-        </div>
-      </div>
+    <section className="min-w-0" aria-label={title}>
+      <SectionTitle meta={rows.length || undefined}>{title}</SectionTitle>
       {rows.length ? (
-        <div className="min-w-0 border">
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(100px,.6fr)_minmax(120px,.7fr)] border-b bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
-            <span>Record</span>
-            <span>Detail</span>
-            <span>Status</span>
-            <span className="text-right">Measure</span>
-          </div>
-          <div className="divide-y">
-            {rows.map((row) => (
-              <article
-                key={row.id}
-                className="grid min-w-0 gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(100px,.6fr)_minmax(120px,.7fr)] md:items-center"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{row.title}</p>
-                  {row.occurredAt ? (
-                    <time
-                      className="text-xs text-muted-foreground"
-                      dateTime={row.occurredAt}
-                    >
-                      {new Date(row.occurredAt).toLocaleString()}
-                    </time>
-                  ) : null}
+        <ListBand>
+          {rows.map((row) => (
+            <article
+              key={row.id}
+              className="grid min-w-0 gap-x-6 gap-y-1 bg-background/60 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+            >
+              <div className="min-w-0">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  <h3 className="min-w-0 text-sm font-medium text-foreground [overflow-wrap:anywhere]">{row.title}</h3>
+                  {row.status ? <StatusText status={row.status} /> : null}
                 </div>
-                <p className="min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   {row.detail || "—"}
+                  {row.occurredAt ? (
+                    <>
+                      {" · "}
+                      <time dateTime={row.occurredAt}>{new Date(row.occurredAt).toLocaleString()}</time>
+                    </>
+                  ) : null}
                 </p>
-                <p>
-                  <Status value={row.status} />
-                </p>
-                <p className="min-w-0 text-sm font-medium tabular-nums md:text-right [overflow-wrap:anywhere]">
-                  {row.metric}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
+              </div>
+              <p className="min-w-0 self-center font-mono text-sm tabular-nums text-foreground sm:text-right [overflow-wrap:anywhere]">
+                {row.metric ? formatMeasure(row.metric) : ""}
+              </p>
+            </article>
+          ))}
+        </ListBand>
       ) : (
-        <EmptyState
-          title="Nothing recorded yet"
-          detail="Activity for the selected store appears here."
-        />
+        <EmptyState title="Nothing recorded yet" detail="" />
       )}
     </section>
   );
@@ -210,14 +236,19 @@ export function EvidenceTable({
 export function ActionPanel({
   title,
   children,
+  tone,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
+  tone?: DotTone;
 }) {
   return (
-    <section className="min-w-0 border bg-background p-4 sm:p-5">
-      <h2 className="text-base font-semibold">{title}</h2>
+    <section className={panelClass}>
+      <h3 className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight text-foreground">
+        {tone ? <Dot tone={tone} /> : null}
+        {title}
+      </h3>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -226,7 +257,7 @@ export function ActionPanel({
 export function FormGrid({
   children,
   action,
-  submit = "Run operation",
+  submit = "Save",
 }: {
   children: ReactNode;
   action: (formData: FormData) => void | Promise<void>;
@@ -234,31 +265,17 @@ export function FormGrid({
 }) {
   return (
     <form action={action} className="grid min-w-0 gap-3 sm:grid-cols-2">
-      <input
-        type="hidden"
-        name="idempotencyKey"
-        value={`platform-${randomUUID()}`}
-      />
+      <input type="hidden" name="idempotencyKey" value={`platform-${randomUUID()}`} />
       {children}
       <PendingSubmitButton label={submit} />
     </form>
   );
 }
 
-export function HiddenScope({
-  projection,
-  returnPath,
-}: {
-  projection: PlatformProjection;
-  returnPath: string;
-}) {
+export function HiddenScope({ projection, returnPath }: { projection: PlatformProjection; returnPath: string }) {
   return (
     <>
-      <input
-        type="hidden"
-        name="businessId"
-        value={projection.businessId ?? ""}
-      />
+      <input type="hidden" name="businessId" value={projection.businessId ?? ""} />
       <input type="hidden" name="storeId" value={projection.storeId ?? ""} />
       <input type="hidden" name="returnPath" value={returnPath} />
     </>
@@ -278,15 +295,10 @@ export function SelectField({
   placeholder?: string;
 } & Omit<ComponentProps<"select">, "name" | "children">) {
   return (
-    <label className="grid min-w-0 gap-1 text-xs font-medium text-muted-foreground">
+    <label className={labelClass}>
       {label}
-      <select
-        name={name}
-        required
-        className="h-10 min-w-0 border bg-background px-2 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        {...props}
-      >
-        <option value="">{placeholder}</option>
+      <select name={name} required className={inputClass} {...props}>
+        <option value="">{options.length ? placeholder : "None available"}</option>
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}
@@ -310,13 +322,9 @@ export function EnumField({
   defaultValue?: string;
 }) {
   return (
-    <label className="grid min-w-0 gap-1 text-xs font-medium text-muted-foreground">
+    <label className={labelClass}>
       {label}
-      <select
-        name={name}
-        defaultValue={defaultValue}
-        className="h-10 min-w-0 border bg-background px-2 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
+      <select name={name} defaultValue={defaultValue} className={inputClass}>
         {values.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -330,37 +338,78 @@ export function EnumField({
 export function TextField({
   label,
   name,
+  className,
   ...props
 }: { label: string; name: string } & Omit<ComponentProps<"input">, "name">) {
   return (
-    <label className="grid min-w-0 gap-1 text-xs font-medium text-muted-foreground">
+    <label className={labelClass}>
       {label}
       <input
         name={name}
-        className="h-10 min-w-0 border bg-background px-3 text-sm font-normal text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={`${inputClass} ${props.type === "number" || props.inputMode === "decimal" || props.inputMode === "numeric" ? "font-mono tabular-nums" : ""} ${className ?? ""}`}
         {...props}
       />
     </label>
   );
 }
 
-export function EmptyState({
-  title,
+/** A GET lookup that keeps the page's other search values. */
+export function LookupForm({
+  action,
+  keep,
+  name,
+  label,
+  placeholder,
+  defaultValue,
+  submit,
+  empty,
 }: {
-  title: string;
-  detail: string;
+  action: string;
+  keep: Record<string, string | null | undefined>;
+  name: string;
+  label: string;
+  placeholder?: string;
+  defaultValue?: string | null;
+  submit: string;
+  empty?: string | false;
 }) {
   return (
-    <div className="border border-dashed px-4 py-8 text-center">
-      <p className="text-sm font-medium">{title}</p>
-    </div>
+    <section aria-label={label} className="min-w-0 space-y-2">
+      <form action={action} method="get" className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        {Object.entries(keep).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value ?? ""} />
+        ))}
+        <label className={labelClass}>
+          {label}
+          <input
+            type="search"
+            name={name}
+            minLength={2}
+            maxLength={80}
+            autoComplete="off"
+            defaultValue={defaultValue ?? ""}
+            placeholder={placeholder}
+            className={inputClass}
+          />
+        </label>
+        <button type="submit" className={buttonClass}>
+          {submit}
+        </button>
+      </form>
+      {empty ? (
+        <p className="flex items-baseline gap-2 text-sm text-muted-foreground" role="status">
+          <Dot tone="muted" />
+          {empty}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
-function Status({ value }: { value: string }) {
+export function EmptyState({ title }: { title: string; detail?: string }) {
   return (
-    <span className="inline-flex max-w-full border bg-muted/50 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground [overflow-wrap:anywhere]">
-      {value.replaceAll("_", " ")}
-    </span>
+    <div className="rounded-2xl border border-dashed px-4 py-10 text-center">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+    </div>
   );
 }

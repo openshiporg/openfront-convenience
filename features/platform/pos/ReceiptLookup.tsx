@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { buttonClass, inputClass, panelClass, primaryButtonClass } from "../components/cv-ui";
 
 type Option = { id: string; label: string; detail?: string | null };
 
@@ -24,10 +25,10 @@ export function ReceiptLookup({
 
   return (
     <section
-      className="rounded-xl border bg-card p-4"
+      className={panelClass}
       aria-labelledby="receipt-lookup-title"
     >
-      <h2 id="receipt-lookup-title" className="font-semibold">
+      <h2 id="receipt-lookup-title" className="text-[15px] font-semibold tracking-tight">
         Receipt reprint
       </h2>
       <form
@@ -42,17 +43,17 @@ export function ReceiptLookup({
         </label>
         <input
           id="receipt-search"
-          className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+          className={`${inputClass} flex-1`}
           type="search"
           name="receiptSearch"
           minLength={2}
           maxLength={80}
           autoComplete="off"
           defaultValue={search ?? ""}
-          placeholder="Receipt number (at least 2 characters)"
+          placeholder="Receipt number"
         />
         <button
-          className="h-9 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+          className={buttonClass}
           type="submit"
         >
           Search receipts
@@ -65,7 +66,7 @@ export function ReceiptLookup({
           </label>
           <select
             id="receipt-sale"
-            className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+            className={`${inputClass} flex-1`}
             value={selectedSaleId}
             onChange={(event) => setSaleId(event.target.value)}
           >
@@ -76,15 +77,15 @@ export function ReceiptLookup({
             ))}
           </select>
           <Link
-            className="rounded-md bg-primary px-3 py-2 text-center text-sm text-primary-foreground"
+            className={primaryButtonClass}
             href={`/dashboard/platform/pos/receipt/${encodeURIComponent(selectedSaleId)}?${query}`}
           >
-            Open / print receipt
+            Open receipt
           </Link>
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">
-          No matching receipts are available in this store.
+          No matching receipts
         </p>
       )}
     </section>

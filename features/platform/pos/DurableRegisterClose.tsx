@@ -22,6 +22,7 @@ import {
   readRetainedRegisterClose,
   submitRetainedRegisterClose,
 } from "./register-close-actions";
+import { buttonClass } from "../components/cv-ui";
 
 export function DurableRegisterClose({
   userId,
@@ -190,7 +191,7 @@ export function DurableRegisterClose({
               type="button"
               disabled={!ready || busy}
               onClick={() => void act("read", pending)}
-              className="border px-3 py-2 disabled:opacity-50"
+              className={buttonClass}
             >
               Retrieve SAME (read only)
             </button>
@@ -198,7 +199,7 @@ export function DurableRegisterClose({
               type="button"
               disabled={!ready || busy}
               onClick={() => void act("retry", pending)}
-              className="border px-3 py-2 disabled:opacity-50"
+              className={buttonClass}
             >
               Retry SAME
             </button>
@@ -215,7 +216,7 @@ export function DurableRegisterClose({
         <button
           type="submit"
           disabled={!ready || busy || Boolean(pending) || foreign}
-          className="border px-3 py-2 text-sm disabled:opacity-50"
+          className={buttonClass}
         >
           {busy ? "Checking original close…" : "Save intent and close register"}
         </button>

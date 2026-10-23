@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { captureRetailIntent, confirmedRetailReceipt, performRetainedRetail, retailIntentForm, type RetailIntent, type RetailPurpose, type RetailReceipt } from "./retainedRetail";
 import { retailVault, retailVaultLock } from "./retailVault";
 import { readRetainedRetail, submitRetainedRetail } from "./retail-actions";
+import { buttonClass, primaryButtonClass } from "../components/cv-ui";
 
 export function DurableRetailForm({userId,businessId,storeId,purpose,label,children}:{userId:string;businessId:string;storeId:string;purpose:RetailPurpose;label:string;children:ReactNode}) {
   const identity={userId,businessId,storeId},identityKey=JSON.stringify(identity),active=useRef(identityKey);active.current=identityKey;
@@ -59,12 +60,12 @@ export function DurableRetailForm({userId,businessId,storeId,purpose,label,child
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{busy?"Confirming original operation":message}</p>
     {pending&&<div className="grid min-w-0 gap-2 border p-3">
       <p className="text-sm font-medium">{pending.purpose==="completePosSale"?"Original tender":"Original refund"} · pending</p>
-      <div className="flex flex-wrap gap-2"><button type="button" disabled={!ready||busy} onClick={()=>void act("read",pending)} className="min-h-11 min-w-11 rounded-md border px-3 text-sm">Retrieve original outcome</button><button type="button" disabled={!ready||busy} onClick={()=>void act("retry",pending)} className="min-h-11 min-w-11 rounded-md border px-3 text-sm">Retry original</button></div>
+      <div className="flex flex-wrap gap-2"><button type="button" disabled={!ready||busy} onClick={()=>void act("read",pending)} className={buttonClass}>Retrieve original outcome</button><button type="button" disabled={!ready||busy} onClick={()=>void act("retry",pending)} className={buttonClass}>Retry original</button></div>
     </div>}
     <form ref={formRef} onSubmit={submit}>
       <fieldset disabled={!ready||busy||Boolean(pending)} className="grid min-w-0 gap-3 sm:grid-cols-2">
         {children}
-        <button type="submit" className="min-h-11 min-w-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50 sm:col-span-2">{label}</button>
+        <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>{label}</button>
       </fieldset>
     </form>
     {history&&receiptSale&&<Link className="inline-flex min-h-11 items-center gap-2 text-sm underline" href={`/dashboard/platform/pos/receipt/${encodeURIComponent(receiptSale)}?${new URLSearchParams({businessId,storeId})}`}>{history.receipt.reference||history.receipt.id} · {history.receipt.status}</Link>}

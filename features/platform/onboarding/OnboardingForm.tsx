@@ -2,10 +2,10 @@
 
 import { Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SegmentedRadio, primaryButtonClass } from "../components/cv-ui";
 import { useOnboardingApi } from "./hooks/useOnboardingApi";
 
 interface OnboardingFormProps {
@@ -55,18 +55,15 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
         </div>
       </fieldset>
 
-      <div className="space-y-2">
-        <Label htmlFor="storefrontStatus">Public storefront</Label>
-        <select
-          id="storefrontStatus"
-          name="storefrontStatus"
-          defaultValue="draft"
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-      </div>
+      <SegmentedRadio
+        label="Storefront"
+        name="storefrontStatus"
+        defaultValue="draft"
+        options={[
+          { value: "draft", label: "Draft", tone: "muted" },
+          { value: "published", label: "Published", tone: "ok" },
+        ]}
+      />
 
       <fieldset className="space-y-4 border-t pt-6">
         <legend className="text-sm font-semibold text-foreground">
@@ -124,18 +121,16 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
       {state.message && (
         <p
           role="alert"
-          className="border-l-2 border-destructive pl-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
         >
           {state.message}
         </p>
       )}
 
-      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-        {pending && (
-          <Loader2 aria-hidden="true" className="mr-2 size-4 animate-spin" />
-        )}
-        {pending ? "Creating workspace…" : "Create business workspace"}
-      </Button>
+      <button type="submit" disabled={pending} className={`${primaryButtonClass} w-full sm:w-auto`}>
+        {pending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
+        {pending ? "Creating store…" : "Create store"}
+      </button>
     </form>
   );
 }

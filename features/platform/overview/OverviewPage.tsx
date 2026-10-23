@@ -1,84 +1,60 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-import {
-  EvidenceTable,
-  PlatformPage,
-} from "../components/PlatformPage";
+import { SectionTitle, wellClass } from "../components/cv-ui";
+import { EvidenceTable, PlatformPage } from "../components/PlatformPage";
+import { platformNavItems } from "../lib/navigation";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 
-const workflows = [
-  [
-    "POS & cash",
-    "Open shifts and registers, post cash movements.",
-    "/dashboard/platform/pos",
-  ],
-  [
-    "Fuel control",
-    "Price changes, tank readings and wet-stock checks.",
-    "/dashboard/platform/fuel",
-  ],
-  [
-    "Inventory",
-    "Adjust stock and advance controlled counts.",
-    "/dashboard/platform/inventory",
-  ],
-  [
-    "Purchasing",
-    "Approve orders and inspect posted receipts.",
-    "/dashboard/platform/purchasing",
-  ],
-  [
-    "Reconciliation",
-    "Generate and lock store-day settlement.",
-    "/dashboard/platform/reconciliation",
-  ],
-  [
-    "Exceptions",
-    "Review open exceptions.",
-    "/dashboard/platform/exceptions",
-  ],
+const shortcuts = [
+  ["/platform/pos", "Ring up a sale"],
+  ["/platform/fuel", "Fuel prices and tanks"],
+  ["/platform/reconciliation", "Close the day"],
+  ["/platform/inventory", "Count stock"],
+  ["/platform/purchasing", "Receive a delivery"],
+  ["/platform/exceptions", "Review exceptions"],
 ] as const;
 
-export async function OverviewPage({
-  searchParams,
-}: {
-  searchParams: PlatformSearch;
-}) {
+export async function OverviewPage({ searchParams }: { searchParams: PlatformSearch }) {
   const state = await getPlatformProjection("overview", searchParams);
+  const scope = new URLSearchParams(
+    Object.entries({
+      businessId: state.projection?.businessId ?? "",
+      storeId: state.projection?.storeId ?? "",
+    }).filter(([, value]) => value),
+  ).toString();
   return (
-    <PlatformPage
-      title="Overview"
-      description="Today's sales, close status and open issues."
-      {...state}
-    >
+    <PlatformPage title="Overview" {...state}>
       {state.projection ? (
         <>
-          <section aria-labelledby="workflow-heading" className="space-y-3">
-            <div>
-              <h2 id="workflow-heading" className="text-lg font-semibold">
-                Continue a workflow
-              </h2>
-            </div>
-            <div className="grid gap-px border bg-border sm:grid-cols-2 xl:grid-cols-3">
-              {workflows.map(([title, , href]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="group min-w-0 bg-background p-4 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                >
-                  <span className="flex items-center justify-between gap-3 text-sm font-semibold">
-                    {title}
-                    <ArrowUpRight aria-hidden="true" className="size-4 shrink-0" />
-                  </span>
-                </Link>
-              ))}
+          <section aria-labelledby="shortcuts-heading" className="min-w-0">
+            <SectionTitle id="shortcuts-heading">Today</SectionTitle>
+            <div className={`${wellClass} grid gap-1 sm:grid-cols-2 xl:grid-cols-3`}>
+              {shortcuts.map(([href, label]) => {
+                const item = platformNavItems.find((entry) => entry.href === href);
+                const Icon = item?.icon;
+                return (
+                  <Link
+                    key={href}
+                    href={`/dashboard${href}${scope ? `?${scope}` : ""}`}
+                    className="group flex min-h-14 min-w-0 items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-[0_1px_2px_rgb(0_0_0/0.1),0_0_0_0.5px_rgb(0_0_0/0.05)] transition hover:-translate-y-px hover:shadow-[0_3px_8px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:bg-zinc-900"
+                  >
+                    {Icon ? (
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
+                        <Icon aria-hidden="true" className="size-4" />
+                      </span>
+                    ) : null}
+                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{label}</span>
+                    <ArrowUpRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-muted-foreground transition group-hover:text-foreground"
+                    />
+                  </Link>
+                );
+              })}
             </div>
           </section>
-          <EvidenceTable
-            rows={state.projection.rows}
-            title="Recent store days"
-          />
+          <EvidenceTable rows={state.projection.rows} title="Store days" />
         </>
       ) : null}
     </PlatformPage>
