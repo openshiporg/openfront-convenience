@@ -38,6 +38,7 @@ export async function configureCatalogItem(
       preparedFood?: boolean | null;
       discountable?: boolean | null;
       returnable?: boolean | null;
+      description?: string | null;
       taxCategoryId?: string | null;
       categoryName?: string | null;
       categoryCode?: string | null;
@@ -238,6 +239,16 @@ export async function configureCatalogItem(
         returnable: args.input.returnable ?? true,
         taxCategoryId: taxCategory?.id ?? null,
         ...(category ? { categories: { connect: { id: category.id } } } : {}),
+        // Plain text from the platform form, stored as one Keystone document
+        // paragraph per line; omitted means "leave the description as it is".
+        ...(args.input.description == null
+          ? {}
+          : {
+              description: args.input.description
+                .slice(0, 4000)
+                .split(/\r?\n/)
+                .map((line) => ({ type: "paragraph", children: [{ text: line }] })),
+            }),
       };
       const product = existingProduct
         ? await transaction.product.update({

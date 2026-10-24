@@ -13,6 +13,7 @@ import {
 } from "../components/PlatformPage";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 import { StoreLogoField } from "./components/StoreLogoField";
+import { StoreResources } from "./StoreResources";
 import { DEFAULT_STORE_LOGO_ICON } from "./lib/store-logo";
 
 const path = "/dashboard/platform/store-settings";
@@ -128,6 +129,15 @@ export async function StoreSettingsPage({
             </div>
           </aside>
         </div>
+      ) : null}
+      {state.projection?.businessId && store ? (
+        <StoreResources
+          businessId={state.projection.businessId}
+          storeId={store.id}
+          storeName={store.name}
+          timezone={state.projection.timezone}
+          returnPath={path}
+        />
       ) : null}
     </PlatformPage>
   );

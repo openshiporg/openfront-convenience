@@ -115,6 +115,7 @@ import {
   conveniencePlatformProjection,
 } from "./platformProjection";
 import { conveniencePublicStorefrontProjection } from "./publicStorefrontProjection";
+import { configureInventoryLocation, configureRegister } from "./storeResourceOperations";
 import { setRetailPrice } from "./pricingOperations";
 import { applyPromotionToCart } from "./promotionOperations";
 import {
@@ -141,7 +142,7 @@ import {
   transitionInventoryTransfer,
 } from "./transferOperations";
 import redirectToInit from "./redirectToInit";
-import { storefrontCatalog, storefrontBasket, updateStorefrontBasket, storefrontHistory } from "./storefrontOperations";
+import { storefrontCatalog, storefrontBasket, updateStorefrontBasket, storefrontHistory, storefrontRewards } from "./storefrontOperations";
 
 const graphql = String.raw;
 
@@ -153,6 +154,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storefrontCatalog(search: String, category: String, page: Int, productId: ID): JSON!
         storefrontBasket(cartId: ID!, token: String!): JSON
         storefrontHistory(saleId: ID): JSON!
+        storefrontRewards: JSON!
         redirectToInit: Boolean!
         assistantCapability: Boolean!
         conveniencePlatformProjection(
@@ -851,6 +853,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storeId: ID!
         title: String!
         handle: String!
+        description: String
         status: ProductStatusType!
         regulatedSaleType: ProductRegulatedSaleTypeType!
         minimumAge: Int
@@ -904,6 +907,25 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         categoryIds: [ID!]
         usageLimit: Int
         perCustomerLimit: Int
+        idempotencyKey: String!
+      }
+
+      input ConfigureRegisterInput {
+        businessId: ID!
+        storeId: ID!
+        name: String!
+        code: String!
+        status: RegisterStatusType!
+        idempotencyKey: String!
+      }
+
+      input ConfigureInventoryLocationInput {
+        businessId: ID!
+        storeId: ID!
+        name: String!
+        code: String!
+        type: InventoryLocationTypeType!
+        status: InventoryLocationStatusType!
         idempotencyKey: String!
       }
 
@@ -1655,6 +1677,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         ): OperationResult!
         configurePromotion(input: ConfigurePromotionInput!): OperationResult!
         configureVendor(input: ConfigureVendorInput!): OperationResult!
+        configureRegister(input: ConfigureRegisterInput!): OperationResult!
+        configureInventoryLocation(input: ConfigureInventoryLocationInput!): OperationResult!
         configureVendorItem(input: ConfigureVendorItemInput!): OperationResult!
         draftPurchaseOrder(input: DraftPurchaseOrderInput!): OperationResult!
         transitionPurchaseOrder(
@@ -1814,6 +1838,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storefrontCatalog,
         storefrontBasket,
         storefrontHistory,
+        storefrontRewards,
         posSaleReceipt,
         posOperationOutcome,
         downloadExportArtifact,
@@ -1853,6 +1878,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         configurePromotion,
         configureVendor,
         configureVendorItem,
+        configureRegister,
+        configureInventoryLocation,
         draftPurchaseOrder,
         transitionPurchaseOrder,
         receivePurchaseOrder,

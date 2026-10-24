@@ -23,4 +23,9 @@ export async function history(saleId?: string) {
   const result = await keystoneClient<{ storefrontHistory: History }>("query History($saleId: ID) { storefrontHistory(saleId: $saleId) }", { saleId });
   return result.success ? result.data.storefrontHistory : [];
 }
+export type Rewards = Array<{ id: string; accountNumber: string; currencyCode: string; status: string; tier: string; pointsBalance: number; lifetimePoints: number; program: { name: string; redemptionPoints: number; redemptionValueCents: number } | null; entries: Array<{ type: string; pointsDelta: number; balanceAfter: number; occurredAt: string | null }> }>;
+export async function rewards() {
+  const result = await keystoneClient<{ storefrontRewards: Rewards }>("query { storefrontRewards }");
+  return result.success ? result.data.storefrontRewards : [];
+}
 export const money = (cents: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);

@@ -62,9 +62,12 @@ const operationPaths = new Set([
   "/dashboard/platform/exceptions",
 ]);
 
+// List and detail pages added for coverage; the id segment is a Keystone cuid.
+const DETAIL_PATH = /^\/dashboard\/platform\/(products|sales|tills|stock|vendors|purchase-orders|customers|staff|promotions)(\/[a-z0-9]{10,40})?$/;
+
 function operationPath(formData: FormData): string {
   const path = rawField(formData, "returnPath");
-  return operationPaths.has(path) ? path : "/dashboard/platform";
+  return operationPaths.has(path) || DETAIL_PATH.test(path) ? path : "/dashboard/platform";
 }
 
 // Plain-language result for each operation, shown in the page notice.
@@ -100,6 +103,8 @@ const OPERATION_NOTICES: Record<string, string> = {
   configurePreparedFoodRecipe: "Recipe saved",
   configurePromotion: "Promotion saved",
   configureStoreTaxRate: "Tax rate saved",
+  configureRegister: "Register saved",
+  configureInventoryLocation: "Location saved",
   configureVendor: "Vendor saved",
   configureVendorItem: "Vendor item saved",
   createPosCart: "Basket started",
@@ -1026,6 +1031,8 @@ export async function configureCatalogItemAction(formData: FormData) {
       storeId: field(formData, "storeId"),
       title: field(formData, "title"),
       handle: field(formData, "handle"),
+      // Only the product detail form sends a description; the create form leaves it alone.
+      description: formData.has("description") ? field(formData, "description") : null,
       status: field(formData, "status"),
       regulatedSaleType: field(formData, "regulatedSaleType"),
       minimumAge: field(formData, "minimumAge")
@@ -2156,6 +2163,45 @@ export async function transitionAlertAction(formData: FormData) {
       employeeId: field(formData, "employeeId"),
       nextStatus: field(formData, "nextStatus"),
       notes: field(formData, "notes") || null,
+    },
+  );
+}
+
+export async function configureRegisterAction(formData: FormData) {
+  return executeOperation(
+    formData,
+    `
+    mutation PlatformConfigureRegister($input: ConfigureRegisterInput!) {
+      configureRegister(input: $input) { id status replayed reference }
+    }
+  `,
+    "configureRegister",
+    {
+      businessId: field(formData, "businessId"),
+      storeId: field(formData, "storeId"),
+      name: field(formData, "name"),
+      code: field(formData, "code"),
+      status: field(formData, "status") || "active",
+    },
+  );
+}
+
+export async function configureInventoryLocationAction(formData: FormData) {
+  return executeOperation(
+    formData,
+    `
+    mutation PlatformConfigureInventoryLocation($input: ConfigureInventoryLocationInput!) {
+      configureInventoryLocation(input: $input) { id status replayed reference }
+    }
+  `,
+    "configureInventoryLocation",
+    {
+      businessId: field(formData, "businessId"),
+      storeId: field(formData, "storeId"),
+      name: field(formData, "name"),
+      code: field(formData, "code"),
+      type: field(formData, "type") || "back_room",
+      status: field(formData, "status") || "active",
     },
   );
 }

@@ -135,7 +135,9 @@ export function MetricsBand({ metrics }: { metrics: PlatformProjection["metrics"
   );
 }
 
-function ScopeFilter({ projection, businessOnly }: { projection: PlatformProjection; businessOnly: boolean }) {
+type ScopeSource = Pick<PlatformProjection, "businessId" | "storeId" | "businesses" | "stores">;
+
+export function ScopeFilter({ projection, businessOnly }: { projection: ScopeSource; businessOnly: boolean }) {
   const showBusiness = projection.businesses.length > 1;
   const showStore = !businessOnly && projection.stores.length > 0;
   if (!showBusiness && !showStore) return null;
@@ -296,7 +298,13 @@ export function FormGrid({
   );
 }
 
-export function HiddenScope({ projection, returnPath }: { projection: PlatformProjection; returnPath: string }) {
+export function HiddenScope({
+  projection,
+  returnPath,
+}: {
+  projection: Pick<PlatformProjection, "businessId" | "storeId" | "timezone">;
+  returnPath: string;
+}) {
   return (
     <>
       <input type="hidden" name="businessId" value={projection.businessId ?? ""} />

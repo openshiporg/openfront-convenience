@@ -357,3 +357,9 @@
 .sf-options:where(ul) { margin: 0; list-style: none; }
 .sf-option--static { cursor: default; color: var(--sf-ink); background: var(--sf-surface); box-shadow: var(--sf-raise); }
 .sf-product__form { margin-top: 18px; }
+
+/* Account: rewards and receipts */
+.sf-rewards__balance { margin: 8px 0 2px; font-size: 28px; font-weight: 800; font-stretch: 110%; letter-spacing: -0.02em; }
+.sf-order--link { display: block; border-radius: 16px; transition: background 0.15s; }
+.sf-order--link:hover { background: var(--sf-surface); }
+.sf-tape--receipt { position: relative; top: auto; max-width: 440px; }

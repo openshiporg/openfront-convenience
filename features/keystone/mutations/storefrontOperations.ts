@@ -126,6 +126,32 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
   });
 }
 
+/** The signed-in customer's own loyalty accounts (linked by user, never by email). */
+export async function storefrontRewards(_root: unknown, _args: Record<string, never>, context: Context) {
+  const userId = await currentCustomerId(context.prisma, context);
+  if (!userId) return [];
+  const { business, store } = await publishedStore(context.prisma);
+  const accounts = await context.prisma.loyaltyAccount.findMany({
+    where: { userId, businessId: business.id, status: { in: ["active", "paused"] } },
+    select: {
+      id: true,
+      accountNumber: true,
+      status: true,
+      tier: true,
+      pointsBalance: true,
+      lifetimePoints: true,
+      program: { select: { name: true, redemptionPoints: true, redemptionValueCents: true } },
+      entries: { select: { type: true, pointsDelta: true, balanceAfter: true, occurredAt: true }, orderBy: { occurredAt: "desc" }, take: 10 },
+    },
+    take: 5,
+  });
+  return accounts.map((account) => ({
+    ...account,
+    currencyCode: store.currencyCode,
+    entries: account.entries.map((entry) => ({ ...entry, occurredAt: entry.occurredAt?.toISOString() ?? null })),
+  }));
+}
+
 export async function storefrontHistory(_root: unknown, args: { saleId?: string }, context: Context) {
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];

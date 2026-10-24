@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { Price } from "../components/Price";
-import { catalog, customer, history, money } from "../lib/data";
+import { catalog, customer, history, money, rewards } from "../lib/data";
 import { customerAuth, customerSignout } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
 
@@ -45,6 +45,8 @@ const statusLabel = (status: string) => {
   const text = status.replaceAll("_", " ");
   return text[0]?.toUpperCase() + text.slice(1);
 };
+const quantityLabel = (value: string) => String(Number(value));
+export const receiptMetadata = () => storefrontTitle("Receipt");
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 
 export async function ShopPage({ searchParams }: { searchParams: Search }) {
@@ -215,7 +217,7 @@ export async function CheckoutPage() {
 
 export async function AccountPage() {
   const user = await customer();
-  const orders = await history();
+  const [orders, accounts] = user ? await Promise.all([history(), rewards()]) : [[], []];
   return (
     <ShopShell>
       <div className="sf-pagehead">
@@ -247,52 +249,148 @@ export async function AccountPage() {
           </div>
         </section>
       )}
+      {user ? (
+        <section className="sf-section sf-section--tight" aria-labelledby="sf-rewards-title">
+          <div className="sf-section__head">
+            <h2 id="sf-rewards-title">Rewards</h2>
+          </div>
+          {accounts.length ? (
+            <ul className="sf-band">
+              {accounts.map((account) => (
+                <li className="sf-order" key={account.id}>
+                  <div className="sf-titleline">
+                    <h3>{account.program?.name ?? "Rewards"}</h3>
+                    <span className="sf-state">
+                      <span className="sf-dot" data-tone={account.status === "active" ? "ok" : "warn"} aria-hidden="true" />
+                      {account.status === "active" ? "Active" : "Paused"}
+                    </span>
+                    <span className="sf-muted sf-mono">{account.accountNumber}</span>
+                  </div>
+                  <p className="sf-rewards__balance">
+                    <span className="sf-mono">{account.pointsBalance ?? 0}</span> points
+                  </p>
+                  {account.program ? (
+                    <p className="sf-muted">
+                      {account.program.redemptionPoints} points = {money(account.program.redemptionValueCents, account.currencyCode)}
+                    </p>
+                  ) : null}
+                  {account.entries.length ? (
+                    <ul className="sf-order__lines">
+                      {account.entries.map((entry, index) => (
+                        <li key={index}>
+                          <span>
+                            {statusLabel(entry.type)}
+                            {entry.occurredAt ? (
+                              <span className="sf-muted"> · {new Date(entry.occurredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                            ) : null}
+                          </span>
+                          <span className="sf-mono">
+                            {entry.pointsDelta > 0 ? "+" : ""}
+                            {entry.pointsDelta}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="sf-empty">
+              <span className="sf-dot" data-tone="muted" aria-hidden="true" />
+              No rewards account linked
+            </p>
+          )}
+        </section>
+      ) : null}
       <section className="sf-section sf-section--tight" aria-labelledby="sf-orders-title">
         <div className="sf-section__head">
-          <h2 id="sf-orders-title">Orders</h2>
+          <h2 id="sf-orders-title">Receipts</h2>
           {orders.length ? <span className="sf-count">{orders.length}</span> : null}
         </div>
         {orders.length ? (
           <ul className="sf-band">
             {orders.map((order) => (
-              <li className="sf-order" key={order.id}>
-                <div className="sf-titleline">
-                  <h3 className="sf-mono">{order.receiptNumber}</h3>
-                  <span className="sf-state">
-                    <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
-                    {statusLabel(order.status)}
-                  </span>
-                  {order.completedAt ? (
-                    <time className="sf-muted" dateTime={order.completedAt}>
-                      {new Date(order.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </time>
-                  ) : null}
-                </div>
-                <ul className="sf-order__lines">
-                  {order.lines.map((line, index) => (
-                    <li key={index}>
-                      <span>
-                        <span className="sf-mono sf-muted">{Number(line.quantity)}×</span> {line.titleSnapshot}
-                        {line.variantTitleSnapshot ? <span className="sf-muted"> · {line.variantTitleSnapshot}</span> : null}
-                      </span>
-                      <span className="sf-mono">{money(line.totalCents, order.currencyCode)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="sf-order__total">
-                  <span>Total</span>
-                  <span className="sf-mono">{money(order.totalCents, order.currencyCode)}</span>
-                </p>
+              <li key={order.id}>
+                <Link className="sf-order sf-order--link" href={`/account/receipts/${order.id}`}>
+                  <div className="sf-titleline">
+                    <h3 className="sf-mono">{order.receiptNumber}</h3>
+                    <span className="sf-state">
+                      <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
+                      {statusLabel(order.status)}
+                    </span>
+                    {order.completedAt ? (
+                      <time className="sf-muted" dateTime={order.completedAt}>
+                        {new Date(order.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </time>
+                    ) : null}
+                  </div>
+                  <p className="sf-order__total">
+                    <span>
+                      {order.lines.length} {order.lines.length === 1 ? "item" : "items"}
+                    </span>
+                    <span className="sf-mono">{money(order.totalCents, order.currencyCode)}</span>
+                  </p>
+                </Link>
               </li>
             ))}
           </ul>
         ) : (
           <p className="sf-empty">
             <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-            {user ? "No orders yet" : "Sign in to view your orders"}
+            {user ? "No receipts yet" : "Sign in to view your receipts"}
           </p>
         )}
       </section>
+    </ShopShell>
+  );
+}
+
+export async function ReceiptPage({ params }: { params: Promise<{ saleId: string }> }) {
+  const { saleId } = await params;
+  const user = await customer();
+  if (!user) redirect("/account/signin");
+  const [order] = await history(saleId);
+  if (!order) notFound();
+  return (
+    <ShopShell>
+      <Link href="/account" className="sf-back">
+        <ArrowLeft aria-hidden="true" className="sf-icon" />
+        Account
+      </Link>
+      <div className="sf-pagehead">
+        <div className="sf-titleline">
+          <h1 className="sf-display sf-display--page sf-mono">{order.receiptNumber}</h1>
+          <span className="sf-state">
+            <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
+            {statusLabel(order.status)}
+          </span>
+        </div>
+      </div>
+      <aside className="sf-tape sf-tape--receipt" aria-label="Receipt">
+        <ul className="sf-tape__lines">
+          {order.lines.map((line, index) => (
+            <li key={index}>
+              <span>
+                <span className="sf-mono sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
+                {line.variantTitleSnapshot ? <span className="sf-muted"> · {line.variantTitleSnapshot}</span> : null}
+              </span>
+              <span className="sf-mono">{money(line.totalCents, order.currencyCode)}</span>
+            </li>
+          ))}
+        </ul>
+        <dl>
+          <div className="sf-tape__total">
+            <dt>Total</dt>
+            <dd>{money(order.totalCents, order.currencyCode)}</dd>
+          </div>
+        </dl>
+        {order.completedAt ? (
+          <p className="sf-muted sf-tape__more">
+            {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+          </p>
+        ) : null}
+      </aside>
     </ShopShell>
   );
 }

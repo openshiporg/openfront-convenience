@@ -9367,6 +9367,8 @@ type Mutation {
   configureStoreTaxRate(input: ConfigureStoreTaxRateInput!): OperationResult!
   configurePromotion(input: ConfigurePromotionInput!): OperationResult!
   configureVendor(input: ConfigureVendorInput!): OperationResult!
+  configureRegister(input: ConfigureRegisterInput!): OperationResult!
+  configureInventoryLocation(input: ConfigureInventoryLocationInput!): OperationResult!
   configureVendorItem(input: ConfigureVendorItemInput!): OperationResult!
   draftPurchaseOrder(input: DraftPurchaseOrderInput!): OperationResult!
   transitionPurchaseOrder(input: TransitionPurchaseOrderInput!): OperationResult!
@@ -9742,6 +9744,7 @@ type Query {
   storefrontCatalog(search: String, category: String, page: Int, productId: ID): JSON!
   storefrontBasket(cartId: ID!, token: String!): JSON
   storefrontHistory(saleId: ID): JSON!
+  storefrontRewards: JSON!
   redirectToInit: Boolean!
   assistantCapability: Boolean!
   conveniencePlatformProjection(input: ConveniencePlatformProjectionInput!): ConveniencePlatformProjection!
@@ -10570,6 +10573,7 @@ input ConfigureCatalogItemInput {
   storeId: ID!
   title: String!
   handle: String!
+  description: String
   status: ProductStatusType!
   regulatedSaleType: ProductRegulatedSaleTypeType!
   minimumAge: Int
@@ -10623,6 +10627,25 @@ input ConfigurePromotionInput {
   categoryIds: [ID!]
   usageLimit: Int
   perCustomerLimit: Int
+  idempotencyKey: String!
+}
+
+input ConfigureRegisterInput {
+  businessId: ID!
+  storeId: ID!
+  name: String!
+  code: String!
+  status: RegisterStatusType!
+  idempotencyKey: String!
+}
+
+input ConfigureInventoryLocationInput {
+  businessId: ID!
+  storeId: ID!
+  name: String!
+  code: String!
+  type: InventoryLocationTypeType!
+  status: InventoryLocationStatusType!
   idempotencyKey: String!
 }
 

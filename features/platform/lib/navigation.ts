@@ -17,6 +17,14 @@ import {
   Store,
   Ticket,
   ReceiptText,
+  ClipboardList,
+  Package,
+  Receipt,
+  Truck,
+  UserCog,
+  Users,
+  Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +50,11 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: "POS & Cash",     href: "/platform/pos",            color: "emerald", description: "Ring up sales, take payment and manage cash drawers.",           icon: ShoppingBasket, group: "standalone" },
   { title: "Store Settings", href: "/platform/store-settings", color: "slate",   description: "Configure store details, logo and storefront.",                  icon: Store,          group: "standalone" },
 
+  // Sales and people
+  { title: "Sales",          href: "/platform/sales",          color: "emerald", description: "Receipts, refunds and returns.",                                icon: Receipt,        group: "selling" },
+  { title: "Tills",          href: "/platform/tills",          color: "emerald", description: "Till sessions, cash movements and over/short.",                 icon: Wallet,         group: "selling" },
+  { title: "Staff",          href: "/platform/staff",          color: "slate",   description: "Employees, roles, stores and shifts.",                         icon: UserCog,        group: "selling" },
+
   // Store day
   { title: "Fuel",           href: "/platform/fuel",           color: "orange",  description: "Fuel grades, prices, tank readings and pump sales.",             icon: Fuel,           group: "store-day" },
   { title: "Reconciliation", href: "/platform/reconciliation", color: "emerald", description: "Close the store day and reconcile cash and card totals.",        icon: ClipboardCheck, group: "store-day" },
@@ -49,9 +62,14 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: "Recovery",       href: "/platform/recovery",       color: "slate",   description: "Resolve offline sales and failed syncs.",                        icon: RefreshCcw,     group: "store-day" },
 
   // Catalog & stock
+  { title: "Products",       href: "/platform/products",       color: "blue",    description: "Catalog items, variants, barcodes and prices.",                icon: Package,        group: "catalog" },
+  { title: "Stock",          href: "/platform/stock",          color: "blue",    description: "Stock by location, low stock and expiring lots.",              icon: Warehouse,      group: "catalog" },
   { title: "Inventory",      href: "/platform/inventory",      color: "blue",    description: "Stock levels, counts and adjustments.",                          icon: Boxes,          group: "catalog" },
   { title: "Purchasing",     href: "/platform/purchasing",     color: "indigo",  description: "Vendors, purchase orders and deliveries.",                       icon: ReceiptText,    group: "catalog" },
+  { title: "Vendors",        href: "/platform/vendors",        color: "indigo",  description: "Suppliers and their items.",                                   icon: Truck,          group: "catalog" },
+  { title: "Purchase Orders", href: "/platform/purchase-orders", color: "indigo", description: "Orders to vendors and deliveries received.",                   icon: ClipboardList,  group: "catalog" },
   { title: "Pricing",        href: "/platform/pricing",        color: "pink",    description: "Price books, tax rates and promotions.",                         icon: BadgePercent,   group: "catalog" },
+  { title: "Promotions",     href: "/platform/promotions",     color: "pink",    description: "Discounts, windows and how often they're used.",              icon: BadgePercent,   group: "catalog" },
   { title: "Foodservice",    href: "/platform/foodservice",    color: "amber",   description: "Prepared food recipes, batches and waste.",                      icon: CookingPot,     group: "catalog" },
 
   // Regulated services
@@ -61,6 +79,7 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: "Payments",         href: "/platform/payments",         color: "slate",  description: "Payment providers, terminals and refunds.",                icon: CreditCard,     group: "regulated" },
 
   // Customers & reports
+  { title: "Customers",      href: "/platform/customers",      color: "rose",    description: "Loyalty members, balances and purchases.",                     icon: Users,          group: "customers" },
   { title: "Loyalty",        href: "/platform/loyalty",        color: "rose",    description: "Loyalty members and point balances.",                            icon: HeartHandshake, group: "customers" },
   { title: "Reports",        href: "/platform/reports",        color: "indigo",  description: "Sales, fuel and inventory reports.",                             icon: BarChart3,      group: "customers" },
   { title: "Exports",        href: "/platform/exports",        color: "violet",  description: "Export sales and tax data to accounting.",                       icon: FileOutput,     group: "customers" },
@@ -71,6 +90,7 @@ export const platformStandaloneItems = platformNavItems.filter(
 );
 
 export const platformNavGroups: PlatformNavGroup[] = [
+  { id: "selling",   title: "Sales & Staff",       icon: Receipt,        items: platformNavItems.filter((i) => i.group === "selling") },
   { id: "store-day", title: "Store Day",           icon: ClipboardCheck, items: platformNavItems.filter((i) => i.group === "store-day") },
   { id: "catalog",   title: "Catalog & Stock",     icon: Boxes,          items: platformNavItems.filter((i) => i.group === "catalog") },
   { id: "regulated", title: "Regulated Services",  icon: ShieldCheck,    items: platformNavItems.filter((i) => i.group === "regulated") },

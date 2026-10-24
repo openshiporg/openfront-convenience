@@ -16,6 +16,7 @@ import {
 } from "../components/PlatformPage";
 import { PanelGrid } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
+import { CatalogItemFields } from "../products/components/CatalogItemFields";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 
 const path = "/dashboard/platform/pricing";
@@ -204,140 +205,9 @@ export async function PricingPage({
                       submit="Save catalog item"
                     >
                       <HiddenScope projection={projection} returnPath={path} />
-                      <TextField label="Product title" name="title" required />
-                      <TextField label="Product handle" name="handle" required />
-                      <EnumField
-                        label="Status"
-                        name="status"
-                        values={[
-                          { value: "active", label: "Active" },
-                          { value: "draft", label: "Draft" },
-                          { value: "discontinued", label: "Discontinued" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Restricted sale type"
-                        name="regulatedSaleType"
-                        values={[
-                          { value: "none", label: "None" },
-                          { value: "alcohol", label: "Alcohol" },
-                          { value: "tobacco", label: "Tobacco / nicotine" },
-                          { value: "lottery", label: "Lottery" },
-                          { value: "otc_medicine", label: "OTC medicine" },
-                          { value: "other", label: "Other" },
-                        ]}
-                      />
-                      <TextField
-                        label="Merchant minimum age (restricted only)"
-                        name="minimumAge"
-                        type="number"
-                        min="1"
-                        max="120"
-                        step="1"
-                      />
-                      <SelectField
-                        label="Tax category"
-                        name="taxCategoryId"
-                        options={controls.taxCategories ?? []}
-                        required={false}
-                      />
-                      <TextField
-                        label="New category name (optional)"
-                        name="categoryName"
-                      />
-                      <TextField label="New category code" name="categoryCode" />
-                      <TextField label="Variant title" name="variantTitle" required />
-                      <TextField label="SKU" name="sku" required />
-                      <EnumField
-                        label="Sell by"
-                        name="sellBy"
-                        values={[
-                          { value: "unit", label: "Unit" },
-                          { value: "weight", label: "Weight" },
-                          { value: "volume", label: "Volume" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Unit of measure"
-                        name="unitOfMeasure"
-                        values={[
-                          { value: "each", label: "Each" },
-                          { value: "lb", label: "Pound" },
-                          { value: "oz", label: "Ounce" },
-                          { value: "kg", label: "Kilogram" },
-                          { value: "g", label: "Gram" },
-                          { value: "gal", label: "Gallon" },
-                          { value: "l", label: "Liter" },
-                          { value: "ml", label: "Milliliter" },
-                        ]}
-                      />
-                      <TextField
-                        label="Default price (cents)"
-                        name="defaultPriceCents"
-                        type="number"
-                        min="0"
-                        step="1"
-                        required
-                      />
-                      <TextField
-                        label="Reference cost (cents)"
-                        name="costCents"
-                        type="number"
-                        min="0"
-                        step="1"
-                      />
-                      <SelectField
-                        label="Publish to price book"
-                        name="priceBookId"
-                        options={controls.priceBooks ?? []}
-                        required={false}
-                      />
-                      <TextField label="Barcode" name="barcode" />
-                      <EnumField
-                        label="Barcode format"
-                        name="barcodeFormat"
-                        values={[
-                          { value: "", label: "No barcode" },
-                          { value: "upc_a", label: "UPC-A" },
-                          { value: "upc_e", label: "UPC-E" },
-                          { value: "ean_13", label: "EAN-13" },
-                          { value: "ean_8", label: "EAN-8" },
-                          { value: "plu", label: "PLU" },
-                          { value: "gs1_databar", label: "GS1 DataBar" },
-                          { value: "internal", label: "Internal" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Track inventory"
-                        name="trackInventory"
-                        values={[
-                          { value: "true", label: "Yes" },
-                          { value: "false", label: "No" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Prepared food"
-                        name="preparedFood"
-                        values={[
-                          { value: "false", label: "No" },
-                          { value: "true", label: "Yes" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Discountable"
-                        name="discountable"
-                        values={[
-                          { value: "true", label: "Yes" },
-                          { value: "false", label: "No" },
-                        ]}
-                      />
-                      <EnumField
-                        label="Returnable"
-                        name="returnable"
-                        values={[
-                          { value: "true", label: "Yes" },
-                          { value: "false", label: "No" },
-                        ]}
+                      <CatalogItemFields
+                        taxCategories={controls.taxCategories ?? []}
+                        priceBooks={controls.priceBooks ?? []}
                       />
                     </FormGrid>
                   </ActionPanel>
