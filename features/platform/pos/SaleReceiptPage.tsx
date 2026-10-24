@@ -20,7 +20,7 @@ type Receipt = {
   totalCents: number;
   refundedCents: number;
   paymentDetailsAvailable: boolean;
-  lines: Array<{ lineNumber: number; description: string; sku: string; quantity: string; unitPriceCents: number; discountCents: number; taxRateBasisPoints: number; taxInclusive: boolean; taxCents: number; totalCents: number }>;
+  lines: Array<{ lineNumber: number; description: string; sku: string; quantity: string; unitPriceCents: number; discountCents: number; taxRate: number; taxInclusive: boolean; taxCents: number; totalCents: number }>;
   tenders: Array<{ method: string; status: string; amountCents: number; tenderedCents: number | null; changeCents: number; cardBrand: string; cardLast4: string }>;
   refunds: Array<{ refundNumber: string; status: string; amountCents: number; processedAt: string | null; tenderAllocations: Array<{ method: string; amountCents: number; providerRefundId: string }> }>;
 };
@@ -58,7 +58,7 @@ export async function SaleReceiptPage({ saleId, businessId, storeId }: { saleId:
         </header>
         <div className="divide-y divide-dashed divide-black/20">
           {receipt.lines.map((line) => <div key={line.lineNumber} className="grid grid-cols-[1fr_auto] gap-3 py-3 text-sm">
-            <div><p className="font-medium">{line.description}</p><p className="text-xs">{line.quantity} × {money(line.unitPriceCents, receipt.currencyCode)} · SKU {line.sku || "—"}</p>{line.discountCents ? <p className="text-xs">Discount −{money(line.discountCents, receipt.currencyCode)}</p> : null}<p className="text-xs">Tax {line.taxInclusive ? "included" : "added"} · {line.taxRateBasisPoints / 100}% · {money(line.taxCents, receipt.currencyCode)}</p></div>
+            <div><p className="font-medium">{line.description}</p><p className="text-xs">{line.quantity} × {money(line.unitPriceCents, receipt.currencyCode)} · SKU {line.sku || "—"}</p>{line.discountCents ? <p className="text-xs">Discount −{money(line.discountCents, receipt.currencyCode)}</p> : null}<p className="text-xs">Tax {line.taxInclusive ? "included" : "added"} · {Number((line.taxRate * 100).toFixed(4))}% · {money(line.taxCents, receipt.currencyCode)}</p></div>
             <p className="font-medium tabular-nums">{money(line.totalCents, receipt.currencyCode)}</p>
           </div>)}
         </div>

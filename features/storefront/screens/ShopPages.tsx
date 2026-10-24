@@ -113,7 +113,11 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
             const unit = product.variants.length === 1 ? product.variants[0].unitOfMeasure : "";
             return (
               <li key={product.id}>
-                <Link href={`/shop/${product.id}`} className="sf-tag">
+                <Link href={`/shop/${product.id}`} className="sf-tag" data-photo={product.image ? "" : undefined}>
+                  {product.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
+                    <img className="sf-tag__photo" src={product.image.url} alt={product.image.alt || ""} loading="lazy" />
+                  ) : null}
                   <span className="sf-tag__category">{product.category}</span>
                   <span className="sf-tag__title">{product.title}</span>
                   <span className="sf-tag__foot">
@@ -194,7 +198,11 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
         {product.category}
       </Link>
       <section className="sf-product">
-        <div className="sf-product__tag">
+        <div className="sf-product__tag" data-photo={product.image ? "" : undefined}>
+          {product.image ? (
+            // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
+            <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
+          ) : null}
           {/* The name is the H1 beside this tag; the tag carries the size and price. */}
           <span className="sf-tag__category" aria-hidden="true">{product.category}</span>
           <span className="sf-product__size">

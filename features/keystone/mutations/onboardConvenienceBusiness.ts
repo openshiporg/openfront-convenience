@@ -25,6 +25,7 @@ import { enqueueOperationOutbox } from "../lib/outbox";
 import { requireSession } from "./operationRunner";
 import { lockOperationAuthority } from "../lib/authorityFence";
 import { currentRetailSession } from "../lib/retailCashBoundary";
+import { rateToPpm } from "../lib/money";
 
 export type OnboardConvenienceBusinessArgs = {
   input: {
@@ -34,7 +35,7 @@ export type OnboardConvenienceBusinessArgs = {
     storeCode: string;
     timezone?: string | null;
     currencyCode?: string | null;
-    standardTaxBasisPoints?: number | null;
+    standardTaxRate?: number | null;
     fuelEnabled?: boolean | null;
     includeDemoCatalog?: boolean | null;
     addressLine1?: string | null;
@@ -67,7 +68,7 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   const storeCode = input.storeCode.trim().toLowerCase();
   const timezone = input.timezone?.trim() || "America/New_York";
   const currencyCode = (input.currencyCode?.trim() || "USD").toUpperCase();
-  const standardTaxBasisPoints = input.standardTaxBasisPoints ?? 0;
+  const rawStandardTaxRate = input.standardTaxRate ?? 0;
   if (!businessName || !storeName) throw new Error("Business and store names are required");
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: timezone });
@@ -77,9 +78,11 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(businessCode)) throw new Error("Business code must be a lowercase slug between 2 and 63 characters");
   if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(storeCode)) throw new Error("Store code must be a lowercase slug");
   if (!/^[A-Z]{3}$/.test(currencyCode)) throw new Error("Currency code must be a three-letter ISO 4217 code");
-  if (!Number.isSafeInteger(standardTaxBasisPoints) || standardTaxBasisPoints < 0 || standardTaxBasisPoints > 100_000) {
-    throw new Error("Standard tax must be integer basis points between 0 and 100000");
+  if (!Number.isFinite(rawStandardTaxRate) || rawStandardTaxRate < 0 || rawStandardTaxRate > 1) {
+    throw new Error("Standard tax must be between 0 and 100 percent");
   }
+  // Stored on the same parts-per-million grid the money math charges.
+  const standardTaxRate = rateToPpm(rawStandardTaxRate) / 1_000_000;
   const seedTheme = getStorefrontThemePreset(seed.storefront.themePreset);
   if (!seedTheme) throw new Error("Onboarding storefront theme is invalid");
   // The storefront shows the operator's own business unless they name a brand.
@@ -143,7 +146,7 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
     storeCode,
     timezone,
     currencyCode,
-    standardTaxBasisPoints,
+    standardTaxRate,
     fuelEnabled: input.fuelEnabled ?? false,
     // API callers keep the sample catalog unless they opt out; the dashboard form asks.
     includeDemoCatalog: input.includeDemoCatalog ?? true,
@@ -180,7 +183,7 @@ export default async function onboardConvenienceBusiness(
     storeCode: input.storeCode,
     timezone: input.timezone,
     currencyCode: input.currencyCode,
-    standardTaxBasisPoints: input.standardTaxBasisPoints,
+    standardTaxRate: input.standardTaxRate,
     fuelEnabled: input.fuelEnabled,
   });
   const requestDigest = fingerprintInput(input);
@@ -384,7 +387,7 @@ export default async function onboardConvenienceBusiness(
       where: { businessId: business.id, storeId: store.id, taxCategoryId: standardTaxCategory.id, jurisdiction: "default" },
     });
     if (taxRate) {
-      await transaction.taxRate.update({ where: { id: taxRate.id }, data: { name: "Standard Rate", rateBasisPoints: input.standardTaxBasisPoints, inclusive: false, status: "active" } });
+      await transaction.taxRate.update({ where: { id: taxRate.id }, data: { name: "Standard Rate", rate: input.standardTaxRate, inclusive: false, status: "active" } });
     } else {
       await transaction.taxRate.create({
         data: {
@@ -393,7 +396,7 @@ export default async function onboardConvenienceBusiness(
           taxCategoryId: standardTaxCategory.id,
           name: "Standard Rate",
           jurisdiction: "default",
-          rateBasisPoints: input.standardTaxBasisPoints,
+          rate: input.standardTaxRate,
           inclusive: false,
           status: "active",
         },

@@ -19,5 +19,7 @@ export const VIEW_ORDER = [
   "integer",
   "virtual",
   "decimal",
-  "document"
+  "document",
+  "image",
+  "float"
 ];

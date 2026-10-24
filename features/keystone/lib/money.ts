@@ -38,21 +38,33 @@ export function calculateBasisPoints(amountCents: number, basisPoints: number): 
   return Number(divideAndRound(BigInt(amountCents) * BigInt(basisPoints), 10_000n));
 }
 
+/**
+ * Tax rates are fractions (0.08875 = 8.875%), as in E-commerce. They become exact
+ * integer parts per million before any money math; six decimal places of a
+ * fraction is four of a percent, finer than any jurisdiction publishes.
+ */
+export function rateToPpm(rate: number, label = "Tax rate"): number {
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+    throw new Error(`${label} must be a fraction from 0 to 1 (0.08875 is 8.875%)`);
+  }
+  return Math.round(rate * 1_000_000);
+}
+
 export function calculateLineAmounts({
   unitPriceCents,
   quantity,
   discountCents = 0,
-  taxRateBasisPoints = 0,
+  taxRate = 0,
   taxInclusive = false,
 }: {
   unitPriceCents: number;
   quantity: string | number;
   discountCents?: number;
-  taxRateBasisPoints?: number;
+  taxRate?: number;
   taxInclusive?: boolean;
 }) {
   assertCents(discountCents, "Discount");
-  assertBasisPoints(taxRateBasisPoints);
+  const taxPpm = rateToPpm(taxRate);
   const subtotalCents = multiplyCentsByQuantity(unitPriceCents, quantity);
   if (discountCents > subtotalCents) {
     throw new Error("Discount cannot exceed line subtotal");
@@ -61,10 +73,10 @@ export function calculateLineAmounts({
   const discountedCents = subtotalCents - discountCents;
   const taxCents = taxInclusive
     ? Number(divideAndRound(
-        BigInt(discountedCents) * BigInt(taxRateBasisPoints),
-        BigInt(10_000 + taxRateBasisPoints),
+        BigInt(discountedCents) * BigInt(taxPpm),
+        BigInt(1_000_000 + taxPpm),
       ))
-    : calculateBasisPoints(discountedCents, taxRateBasisPoints);
+    : Number(divideAndRound(BigInt(discountedCents) * BigInt(taxPpm), 1_000_000n));
   const taxableCents = discountedCents - (taxInclusive ? taxCents : 0);
 
   return {

@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { checkbox, integer, json, relationship, text } from "@keystone-6/core/fields";
+import { checkbox, float, integer, json, relationship, text } from "@keystone-6/core/fields";
 
 import { immutableTenantAccess } from "../access";
 import { businessField, centsField, metadataField, quantityField, storeField } from "./modelFields";
@@ -30,7 +30,8 @@ export const SaleLine = list({
     subtotalCents: centsField(),
     discountCents: centsField({ defaultValue: 0 }),
     taxCategorySnapshot: text(),
-    taxRateBasisPoints: integer({ defaultValue: 0, validation: { min: 0, max: 100000 } }),
+    // Snapshot of the tax rate fraction applied to this line.
+    taxRate: float({ defaultValue: 0, validation: { min: 0, max: 1 } }),
     taxInclusive: checkbox({ defaultValue: false }),
     taxCents: centsField({ defaultValue: 0 }),
     totalCents: centsField(),

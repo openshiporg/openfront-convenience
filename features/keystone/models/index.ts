@@ -58,6 +58,7 @@ import { PriceBook } from "./PriceBook";
 import { PriceBookEntry } from "./PriceBookEntry";
 import { Product } from "./Product";
 import { ProductBarcode } from "./ProductBarcode";
+import { ProductImage } from "./ProductImage";
 import { ProductCategory } from "./ProductCategory";
 import { ProductVariant } from "./ProductVariant";
 import { Promotion } from "./Promotion";
@@ -112,6 +113,7 @@ export const models = {
   Product,
   ProductVariant,
   ProductBarcode,
+  ProductImage,
   TaxCategory,
   TaxRate,
   PriceBook,

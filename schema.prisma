@@ -49,6 +49,7 @@ model Business {
   from_Product_business                        Product[]                        @relation("Product_business")
   from_ProductVariant_business                 ProductVariant[]                 @relation("ProductVariant_business")
   from_ProductBarcode_business                 ProductBarcode[]                 @relation("ProductBarcode_business")
+  from_ProductImage_business                   ProductImage[]                   @relation("ProductImage_business")
   from_TaxCategory_business                    TaxCategory[]                    @relation("TaxCategory_business")
   from_TaxRate_business                        TaxRate[]                        @relation("TaxRate_business")
   from_PriceBook_business                      PriceBook[]                      @relation("PriceBook_business")
@@ -690,6 +691,7 @@ model Product {
   taxCategory                    TaxCategory?                 @relation("Product_taxCategory", fields: [taxCategoryId], references: [id])
   taxCategoryId                  String?                      @map("taxCategory")
   categories                     ProductCategory[]            @relation("Product_categories")
+  images                         ProductImage[]               @relation("Product_images")
   variants                       ProductVariant[]             @relation("ProductVariant_product")
   metadata                       Json?                        @default("{}")
   createdAt                      DateTime                     @default(now())
@@ -767,6 +769,25 @@ model ProductBarcode {
   @@index([value])
 }
 
+model ProductImage {
+  id              String    @id @default(cuid())
+  business        Business? @relation("ProductImage_business", fields: [businessId], references: [id])
+  businessId      String?   @map("business")
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  altText         String    @default("")
+  order           Int?      @default(0)
+  products        Product[] @relation("Product_images")
+  metadata        Json?     @default("{}")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@index([businessId])
+}
+
 model TaxCategory {
   id          String    @id @default(cuid())
   business    Business? @relation("TaxCategory_business", fields: [businessId], references: [id])
@@ -786,23 +807,23 @@ model TaxCategory {
 }
 
 model TaxRate {
-  id              String            @id @default(cuid())
-  business        Business?         @relation("TaxRate_business", fields: [businessId], references: [id])
-  businessId      String?           @map("business")
-  store           Store?            @relation("TaxRate_store", fields: [storeId], references: [id])
-  storeId         String?           @map("store")
-  taxCategory     TaxCategory?      @relation("TaxRate_taxCategory", fields: [taxCategoryId], references: [id])
-  taxCategoryId   String?           @map("taxCategory")
-  name            String            @default("")
-  jurisdiction    String            @default("")
-  rateBasisPoints Int
-  inclusive       Boolean           @default(false)
-  status          TaxRateStatusType @default(draft)
-  startsAt        DateTime?
-  endsAt          DateTime?
-  metadata        Json?             @default("{}")
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @default(now()) @updatedAt
+  id            String            @id @default(cuid())
+  business      Business?         @relation("TaxRate_business", fields: [businessId], references: [id])
+  businessId    String?           @map("business")
+  store         Store?            @relation("TaxRate_store", fields: [storeId], references: [id])
+  storeId       String?           @map("store")
+  taxCategory   TaxCategory?      @relation("TaxRate_taxCategory", fields: [taxCategoryId], references: [id])
+  taxCategoryId String?           @map("taxCategory")
+  name          String            @default("")
+  jurisdiction  String            @default("")
+  rate          Float
+  inclusive     Boolean           @default(false)
+  status        TaxRateStatusType @default(draft)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  metadata      Json?             @default("{}")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
 
   @@index([businessId])
   @@index([storeId])
@@ -1856,7 +1877,7 @@ model CartLine {
   unitPriceCents       Int
   subtotalCents        Int
   discountCents        Int                     @default(0)
-  taxRateBasisPoints   Int?                    @default(0)
+  taxRate              Float?                  @default(0)
   taxInclusive         Boolean                 @default(false)
   taxCents             Int                     @default(0)
   totalCents           Int
@@ -1951,7 +1972,7 @@ model SaleLine {
   subtotalCents        Int
   discountCents        Int                    @default(0)
   taxCategorySnapshot  String                 @default("")
-  taxRateBasisPoints   Int?                   @default(0)
+  taxRate              Float?                 @default(0)
   taxInclusive         Boolean                @default(false)
   taxCents             Int                    @default(0)
   totalCents           Int

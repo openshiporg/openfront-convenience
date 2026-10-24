@@ -522,7 +522,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storeCode: String!
         timezone: String
         currencyCode: String
-        standardTaxBasisPoints: Int
+        standardTaxRate: Float
         fuelEnabled: Boolean
         includeDemoCatalog: Boolean
         addressLine1: String
@@ -886,7 +886,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         categoryCode: String!
         rateName: String!
         jurisdiction: String!
-        rateBasisPoints: Int!
+        rate: Float!
         inclusive: Boolean
         idempotencyKey: String!
       }

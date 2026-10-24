@@ -376,3 +376,9 @@
 .sf-fuel__tier { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: oklch(80% 0.05 var(--sf-h)); }
 .sf-fuel__price { font-family: var(--sf-mono), ui-monospace, monospace; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sf-fuel__price small { font-size: 12px; color: oklch(80% 0.05 var(--sf-h)); }
+
+/* Product photos (optional; tags without one keep the plain shelf-tag look) */
+.sf-tag__photo { display: block; width: calc(100% + 32px); max-width: none; margin: -16px -16px 12px; aspect-ratio: 4 / 3; object-fit: contain; background: var(--sf-surface); border-bottom: 1px solid var(--sf-line); }
+.sf-product__photo { display: block; width: 100%; max-height: 340px; margin-bottom: 18px; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 14px; background: var(--sf-surface); box-shadow: var(--sf-raise); }
+.sf-product__tag[data-photo] { aspect-ratio: auto; }
+@media (max-width: 719px) { .sf-tag__photo { width: calc(100% + 24px); margin: -12px -12px 10px; } }

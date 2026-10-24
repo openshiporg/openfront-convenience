@@ -2094,6 +2094,8 @@ type Product {
   taxCategory: TaxCategory
   categories(where: ProductCategoryWhereInput! = {}, orderBy: [ProductCategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductCategoryWhereUniqueInput): [ProductCategory!]
   categoriesCount(where: ProductCategoryWhereInput! = {}): Int
+  images(where: ProductImageWhereInput! = {}, orderBy: [ProductImageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductImageWhereUniqueInput): [ProductImage!]
+  imagesCount(where: ProductImageWhereInput! = {}): Int
   variants(where: ProductVariantWhereInput! = {}, orderBy: [ProductVariantOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductVariantWhereUniqueInput): [ProductVariant!]
   variantsCount(where: ProductVariantWhereInput! = {}): Int
   metadata: JSON
@@ -2143,6 +2145,7 @@ input ProductWhereInput {
   returnable: BooleanFilter
   taxCategory: TaxCategoryWhereInput
   categories: ProductCategoryManyRelationFilter
+  images: ProductImageManyRelationFilter
   variants: ProductVariantManyRelationFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
@@ -2160,6 +2163,12 @@ input ProductRegulatedSaleTypeTypeNullableFilter {
   in: [ProductRegulatedSaleTypeType!]
   notIn: [ProductRegulatedSaleTypeType!]
   not: ProductRegulatedSaleTypeTypeNullableFilter
+}
+
+input ProductImageManyRelationFilter {
+  every: ProductImageWhereInput
+  some: ProductImageWhereInput
+  none: ProductImageWhereInput
 }
 
 input ProductVariantManyRelationFilter {
@@ -2427,6 +2436,104 @@ input ProductBarcodeOrderByInput {
   updatedAt: OrderDirection
 }
 
+type ProductImage {
+  id: ID!
+  business: Business
+  image: ImageFieldOutput
+  altText: String
+  order: Int
+  products(where: ProductWhereInput! = {}, orderBy: [ProductOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductWhereUniqueInput): [Product!]
+  productsCount(where: ProductWhereInput! = {}): Int
+  metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ImageFieldOutput {
+  id: ID!
+  filesize: Int!
+  width: Int!
+  height: Int!
+  extension: ImageExtension!
+  url: String!
+}
+
+enum ImageExtension {
+  jpg
+  png
+  webp
+  gif
+}
+
+input ProductImageWhereUniqueInput {
+  id: ID
+}
+
+input ProductImageWhereInput {
+  AND: [ProductImageWhereInput!]
+  OR: [ProductImageWhereInput!]
+  NOT: [ProductImageWhereInput!]
+  id: IDFilter
+  business: BusinessWhereInput
+  altText: StringFilter
+  order: IntNullableFilter
+  products: ProductManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ProductImageOrderByInput {
+  id: OrderDirection
+  altText: OrderDirection
+  order: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ProductImageUpdateInput {
+  business: BusinessRelateToOneForUpdateInput
+  image: ImageFieldInput
+  altText: String
+  order: Int
+  products: ProductRelateToManyForUpdateInput
+  metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ImageFieldInput {
+  upload: Upload!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
+
+input ProductRelateToManyForUpdateInput {
+  disconnect: [ProductWhereUniqueInput!]
+  set: [ProductWhereUniqueInput!]
+  connect: [ProductWhereUniqueInput!]
+}
+
+input ProductImageUpdateArgs {
+  where: ProductImageWhereUniqueInput!
+  data: ProductImageUpdateInput!
+}
+
+input ProductImageCreateInput {
+  business: BusinessRelateToOneForCreateInput
+  image: ImageFieldInput
+  altText: String
+  order: Int
+  products: ProductRelateToManyForCreateInput
+  metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ProductRelateToManyForCreateInput {
+  connect: [ProductWhereUniqueInput!]
+}
+
 type TaxCategory {
   id: ID!
   business: Business
@@ -2481,7 +2588,7 @@ type TaxRate {
   taxCategory: TaxCategory
   name: String
   jurisdiction: String
-  rateBasisPoints: Int
+  rate: Float
   inclusive: Boolean
   status: TaxRateStatusType
   startsAt: DateTime
@@ -2511,13 +2618,24 @@ input TaxRateWhereInput {
   taxCategory: TaxCategoryWhereInput
   name: StringFilter
   jurisdiction: StringFilter
-  rateBasisPoints: IntFilter
+  rate: FloatFilter
   inclusive: BooleanFilter
   status: TaxRateStatusTypeNullableFilter
   startsAt: DateTimeNullableFilter
   endsAt: DateTimeNullableFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input FloatFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatFilter
 }
 
 input TaxRateStatusTypeNullableFilter {
@@ -2531,7 +2649,7 @@ input TaxRateOrderByInput {
   id: OrderDirection
   name: OrderDirection
   jurisdiction: OrderDirection
-  rateBasisPoints: OrderDirection
+  rate: OrderDirection
   inclusive: OrderDirection
   status: OrderDirection
   startsAt: OrderDirection
@@ -5238,7 +5356,7 @@ type CartLine {
   unitPriceCents: Int
   subtotalCents: Int
   discountCents: Int
-  taxRateBasisPoints: Int
+  taxRate: Float
   taxInclusive: Boolean
   taxCents: Int
   totalCents: Int
@@ -5284,7 +5402,7 @@ input CartLineWhereInput {
   unitPriceCents: IntFilter
   subtotalCents: IntFilter
   discountCents: IntFilter
-  taxRateBasisPoints: IntNullableFilter
+  taxRate: FloatNullableFilter
   taxInclusive: BooleanFilter
   taxCents: IntFilter
   totalCents: IntFilter
@@ -5295,6 +5413,17 @@ input CartLineWhereInput {
   notes: StringFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input FloatNullableFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatNullableFilter
 }
 
 input CartLinePriceSourceTypeNullableFilter {
@@ -5315,7 +5444,7 @@ input CartLineOrderByInput {
   unitPriceCents: OrderDirection
   subtotalCents: OrderDirection
   discountCents: OrderDirection
-  taxRateBasisPoints: OrderDirection
+  taxRate: OrderDirection
   taxInclusive: OrderDirection
   taxCents: OrderDirection
   totalCents: OrderDirection
@@ -5509,7 +5638,7 @@ type SaleLine {
   subtotalCents: Int
   discountCents: Int
   taxCategorySnapshot: String
-  taxRateBasisPoints: Int
+  taxRate: Float
   taxInclusive: Boolean
   taxCents: Int
   totalCents: Int
@@ -5556,7 +5685,7 @@ input SaleLineWhereInput {
   subtotalCents: IntFilter
   discountCents: IntFilter
   taxCategorySnapshot: StringFilter
-  taxRateBasisPoints: IntNullableFilter
+  taxRate: FloatNullableFilter
   taxInclusive: BooleanFilter
   taxCents: IntFilter
   totalCents: IntFilter
@@ -5600,7 +5729,7 @@ input SaleLineOrderByInput {
   subtotalCents: OrderDirection
   discountCents: OrderDirection
   taxCategorySnapshot: OrderDirection
-  taxRateBasisPoints: OrderDirection
+  taxRate: OrderDirection
   taxInclusive: OrderDirection
   taxCents: OrderDirection
   totalCents: OrderDirection
@@ -9329,6 +9458,12 @@ type Mutation {
   createStores(data: [StoreCreateInput!]!): [Store]
   updateStore(where: StoreWhereUniqueInput!, data: StoreUpdateInput!): Store
   updateStores(data: [StoreUpdateArgs!]!): [Store]
+  createProductImage(data: ProductImageCreateInput!): ProductImage
+  createProductImages(data: [ProductImageCreateInput!]!): [ProductImage]
+  updateProductImage(where: ProductImageWhereUniqueInput!, data: ProductImageUpdateInput!): ProductImage
+  updateProductImages(data: [ProductImageUpdateArgs!]!): [ProductImage]
+  deleteProductImage(where: ProductImageWhereUniqueInput!): ProductImage
+  deleteProductImages(where: [ProductImageWhereUniqueInput!]!): [ProductImage]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -9504,6 +9639,9 @@ type Query {
   productBarcode(where: ProductBarcodeWhereUniqueInput!): ProductBarcode
   productBarcodes(where: ProductBarcodeWhereInput! = {}, orderBy: [ProductBarcodeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductBarcodeWhereUniqueInput): [ProductBarcode!]
   productBarcodesCount(where: ProductBarcodeWhereInput! = {}): Int
+  productImage(where: ProductImageWhereUniqueInput!): ProductImage
+  productImages(where: ProductImageWhereInput! = {}, orderBy: [ProductImageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProductImageWhereUniqueInput): [ProductImage!]
+  productImagesCount(where: ProductImageWhereInput! = {}): Int
   taxCategory(where: TaxCategoryWhereUniqueInput!): TaxCategory
   taxCategories(where: TaxCategoryWhereInput! = {}, orderBy: [TaxCategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TaxCategoryWhereUniqueInput): [TaxCategory!]
   taxCategoriesCount(where: TaxCategoryWhereInput! = {}): Int
@@ -10242,7 +10380,7 @@ input OnboardConvenienceBusinessInput {
   storeCode: String!
   timezone: String
   currencyCode: String
-  standardTaxBasisPoints: Int
+  standardTaxRate: Float
   fuelEnabled: Boolean
   includeDemoCatalog: Boolean
   addressLine1: String
@@ -10606,7 +10744,7 @@ input ConfigureStoreTaxRateInput {
   categoryCode: String!
   rateName: String!
   jurisdiction: String!
-  rateBasisPoints: Int!
+  rate: Float!
   inclusive: Boolean
   idempotencyKey: String!
 }

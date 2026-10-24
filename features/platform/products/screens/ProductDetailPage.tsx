@@ -12,6 +12,7 @@ import { quantityText } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { formatMoney, formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
 import { CatalogItemFields } from "../components/CatalogItemFields";
+import { ProductPhotos } from "../components/ProductPhotos";
 
 type Variant = {
   id: string;
@@ -191,6 +192,8 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
         ]}
       />
       {description ? <p className="whitespace-pre-line text-sm text-muted-foreground">{description}</p> : null}
+
+      <ProductPhotos productId={product.id} productTitle={product.title} scope={scope} returnPath={path} />
 
       <DetailSection title="Variants" meta={product.variants.length}>
         <ListBand>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { percentToRate } from "../lib/form-values";
 import type { OnboardingActionState } from "./state";
 
 const TEXT_FIELDS = [
@@ -64,7 +65,7 @@ export async function onboardConvenienceBusinessAction(
     storeCode: values.storeCode,
     timezone: values.timezone || "America/New_York",
     currencyCode: (values.currencyCode || "USD").toUpperCase(),
-    standardTaxBasisPoints: Math.round(Number(values.standardTaxPercent || 0) * 100),
+    standardTaxRate: percentToRate(values.standardTaxPercent || "0"),
     fuelEnabled: values.fuelEnabled === "on",
     includeDemoCatalog: values.includeDemoCatalog === "on",
     storefrontStatus: values.storefrontStatus || "draft",

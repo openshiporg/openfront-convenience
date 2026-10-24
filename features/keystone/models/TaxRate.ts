@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { checkbox, integer, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { checkbox, float, integer, relationship, select, text, timestamp } from "@keystone-6/core/fields";
 
 import { tenantAccess } from "../access";
 import { businessField, metadataField } from "./modelFields";
@@ -21,7 +21,7 @@ export const TaxRate = list({
   },
   ui: {
     labelField: "name",
-    listView: { initialColumns: ["name", "store", "taxCategory", "rateBasisPoints", "status"] },
+    listView: { initialColumns: ["name", "store", "taxCategory", "rate", "status"] },
   },
   fields: {
     business: businessField(),
@@ -29,7 +29,12 @@ export const TaxRate = list({
     taxCategory: relationship({ ref: "TaxCategory.rates" }),
     name: text({ validation: { isRequired: true } }),
     jurisdiction: text(),
-    rateBasisPoints: integer({ validation: { isRequired: true, min: 0, max: 100000 } }),
+    // A fraction, as in E-commerce (0.08875 = 8.875%). Money math converts it to
+    // exact parts per million (lib/money.ts), so tax stays exact to the cent.
+    rate: float({
+      validation: { isRequired: true, min: 0, max: 1 },
+      ui: { description: "Fraction: 0.08875 is 8.875%" },
+    }),
     inclusive: checkbox({ defaultValue: false }),
     status: select({
       type: "enum",

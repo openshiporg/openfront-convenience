@@ -236,7 +236,7 @@ export async function applyPromotionToCart(
           unitPriceCents: line.unitPriceCents,
           quantity: line.quantity.toString(),
           discountCents,
-          taxRateBasisPoints: line.taxRateBasisPoints ?? 0,
+          taxRate: line.taxRate ?? 0,
           taxInclusive: line.taxInclusive,
         });
         const existingMetadata =

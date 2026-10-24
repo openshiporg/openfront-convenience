@@ -15,7 +15,7 @@ function load(relative) {
   } }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(output, {
-    module, exports: module.exports, Intl, Date, Number, String,
+    module, exports: module.exports, Intl, Date, Number, String, BigInt, Math,
     require: (specifier) => load(path.relative(root, `${path.resolve(path.dirname(filename), specifier)}.ts`)),
   }, { filename });
   return module.exports;
@@ -91,4 +91,21 @@ test('open status is read in the store timezone', () => {
   const late = { friday: '10pm - 2am', saturday: 'Closed' };
   // Saturday 01:00 New York, still inside Friday's overnight window.
   assert.equal(hours.openStatus(late, 'America/New_York', new Date('2026-10-24T05:00:00Z')).label, 'Open now · until 2am');
+});
+
+const money = load('features/keystone/lib/money.ts');
+
+test('tax rates are fractions charged exactly', () => {
+  assert.equal(values.percentToRate('8.875'), 0.08875);
+  assert.equal(values.percentToRate('8.25'), 0.0825);
+  assert.equal(money.rateToPpm(0.08875), 88750);
+  assert.equal(money.rateToPpm(0.0825), 82500);
+  assert.throws(() => money.rateToPpm(8.875));
+  // $10.00 at 8.875%: 88.75 cents rounds to 89; at 8.25%: 82.5 rounds to 83 (half up, as before).
+  assert.equal(money.calculateLineAmounts({ unitPriceCents: 1000, quantity: '1', taxRate: 0.08875 }).taxCents, 89);
+  assert.equal(money.calculateLineAmounts({ unitPriceCents: 1000, quantity: '1', taxRate: 0.0825 }).taxCents, 83);
+  // Old basis-point results are unchanged after conversion: $2.49 × 2 at 825 bp was $0.41.
+  assert.equal(money.calculateLineAmounts({ unitPriceCents: 249, quantity: '2', taxRate: 0.0825 }).taxCents, 41);
+  // Tax-inclusive $10.00 at 8.875% holds 81.5 → 82 cents of tax.
+  assert.equal(money.calculateLineAmounts({ unitPriceCents: 1000, quantity: '1', taxRate: 0.08875, taxInclusive: true }).taxCents, 82);
 });

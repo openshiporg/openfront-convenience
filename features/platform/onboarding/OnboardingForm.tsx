@@ -161,7 +161,7 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
               type="number"
               min="0"
               max="100"
-              step="0.01"
+              step="0.0001"
               defaultValue={value("standardTaxPercent", "0")}
               inputMode="decimal"
               required

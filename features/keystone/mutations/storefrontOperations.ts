@@ -17,6 +17,28 @@ async function publishedStore(db: Prisma.TransactionClient) {
 }
 
 const CATALOG_PAGE_SIZE = 48;
+/**
+ * The first photo (lowest order) of each listed product, with Keystone's signed
+ * URL. Sudo is safe here: the ids come from the published store's own catalog query.
+ */
+async function mainImages(context: Context, productIds: string[]) {
+  const images = new Map<string, { url: string; alt: string }>();
+  if (!productIds.length) return images;
+  const rows = (await context.sudo().query.ProductImage.findMany({
+    where: { products: { some: { id: { in: productIds } } } },
+    orderBy: [{ order: "asc" }],
+    query: "altText image { url } products { id }",
+    take: 200,
+  })) as Array<{ altText: string; image: { url: string } | null; products: Array<{ id: string }> }>;
+  for (const row of rows) {
+    if (!row.image?.url) continue;
+    for (const product of row.products) {
+      if (productIds.includes(product.id) && !images.has(product.id)) images.set(product.id, { url: row.image.url, alt: row.altText });
+    }
+  }
+  return images;
+}
+
 export async function storefrontCatalog(_root: unknown, args: { search?: string | null; category?: string | null; page?: number | null; productId?: string | null }, context: Context) {
   const { business, store } = await publishedStore(context.prisma);
   const search = (args.search ?? "").trim().slice(0, 100);
@@ -44,7 +66,8 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
     }),
   ]);
   const now = new Date();
-  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
+  const images = await mainImages(context, products.map((product) => product.id));
+  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
     // Availability only, never quantities: "in_stock", "ask" (tracked, none on hand) or "untracked".
     const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
@@ -116,8 +139,8 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
       const tax = await findEffectiveTaxRate(db, { businessId: business.id, storeId: store.id, taxCategoryId: variant.product.taxCategoryId, at: new Date() });
       if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
       const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
-      const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRateBasisPoints: tax?.rateBasisPoints ?? 0, taxInclusive: tax?.inclusive ?? false });
-      const data = { businessId: business.id, storeId: store.id, cartId: cart.id, variantId: variant.id, titleSnapshot: variant.product.title, variantTitleSnapshot: variant.title, skuSnapshot: variant.sku, quantity, unitOfMeasure: variant.unitOfMeasure, unitPriceCents, subtotalCents: amounts.subtotalCents, discountCents: amounts.discountCents, taxCents: amounts.taxCents, totalCents: amounts.totalCents, taxRateBasisPoints: tax?.rateBasisPoints ?? 0, taxInclusive: tax?.inclusive ?? false, priceBookEntryId: price?.id ?? null, priceSource: price ? "price_book" as const : "variant_default" as const };
+      const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
+      const data = { businessId: business.id, storeId: store.id, cartId: cart.id, variantId: variant.id, titleSnapshot: variant.product.title, variantTitleSnapshot: variant.title, skuSnapshot: variant.sku, quantity, unitOfMeasure: variant.unitOfMeasure, unitPriceCents, subtotalCents: amounts.subtotalCents, discountCents: amounts.discountCents, taxCents: amounts.taxCents, totalCents: amounts.totalCents, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false, priceBookEntryId: price?.id ?? null, priceSource: price ? "price_book" as const : "variant_default" as const };
       if (input.lineId) await db.cartLine.update({ where: { id: input.lineId }, data }); else await db.cartLine.create({ data });
     }
     const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });

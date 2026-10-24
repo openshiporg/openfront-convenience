@@ -106,3 +106,10 @@ export function convertFormValue(name: string, raw: string, timeZone: string | n
   if (isDateTimeField(name)) return zonedIso(raw, timeZone);
   return raw;
 }
+
+/** "8.875" percent → 0.08875, rounded to the parts-per-million the money math uses. */
+export function percentToRate(raw: string): number {
+  const value = Number(String(raw).replace(/[%\s]/g, ""));
+  if (!Number.isFinite(value)) return Number.NaN;
+  return Math.round(value * 10_000) / 1_000_000;
+}

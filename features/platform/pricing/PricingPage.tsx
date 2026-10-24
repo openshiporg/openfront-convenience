@@ -249,7 +249,7 @@ export async function PricingPage({
                         inputMode="decimal"
                         min="0"
                         max="100"
-                        step="0.01"
+                        step="0.0001"
                         required
                       />
                       <EnumField

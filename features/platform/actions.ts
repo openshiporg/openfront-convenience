@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { offlineOperationRequestDigest } from "@/features/keystone/lib/offlineReplay";
-import { convertFormValue } from "./lib/form-values";
+import { convertFormValue, percentToRate } from "./lib/form-values";
 
 function rawField(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
@@ -1078,8 +1078,8 @@ export async function configureStoreTaxRateAction(formData: FormData) {
       categoryCode: field(formData, "categoryCode"),
       rateName: field(formData, "rateName"),
       jurisdiction: field(formData, "jurisdiction"),
-      // Typed as a percent (8.25); stored in basis points (825).
-      rateBasisPoints: Math.round(Number(field(formData, "ratePercent")) * 100),
+      // Typed as a percent (8.875); stored as a fraction (0.08875), as in E-commerce.
+      rate: percentToRate(field(formData, "ratePercent")),
       inclusive: field(formData, "inclusive") === "true",
     },
   );

@@ -56,6 +56,7 @@ export const Product = list({
     returnable: checkbox({ defaultValue: true }),
     taxCategory: relationship({ ref: "TaxCategory.products" }),
     categories: relationship({ ref: "ProductCategory.products", many: true }),
+    images: relationship({ ref: "ProductImage.products", many: true }),
     variants: relationship({ ref: "ProductVariant.product", many: true }),
     metadata: metadataField(),
     ...trackingFields,

@@ -11,7 +11,7 @@ import {
   admitManagerPinAttempt,
   requireManagerPinAuthority,
 } from "../lib/managerAuthority";
-import { calculateLineAmounts, sumAppliedTenders } from "../lib/money";
+import { calculateLineAmounts, rateToPpm, sumAppliedTenders } from "../lib/money";
 import {
   addQuantities,
   compareQuantities,
@@ -357,7 +357,7 @@ export async function addPosCartLine(
       const amounts = calculateLineAmounts({
         unitPriceCents,
         quantity,
-        taxRateBasisPoints: taxRate?.rateBasisPoints ?? 0,
+        taxRate: taxRate?.rate ?? 0,
         taxInclusive: taxRate?.inclusive ?? false,
       });
 
@@ -378,7 +378,7 @@ export async function addPosCartLine(
           unitPriceCents,
           subtotalCents: amounts.subtotalCents,
           discountCents: amounts.discountCents,
-          taxRateBasisPoints: taxRate?.rateBasisPoints ?? 0,
+          taxRate: taxRate?.rate ?? 0,
           taxInclusive: taxRate?.inclusive ?? false,
           taxCents: amounts.taxCents,
           totalCents: amounts.totalCents,
@@ -404,7 +404,7 @@ type DraftCartLineOverride = {
   unitPriceCents: number;
   priceBookEntryId: string | null;
   priceSource: "price_book" | "variant_default";
-  taxRateBasisPoints: number;
+  taxRate: number;
   taxInclusive: boolean;
 };
 
@@ -418,13 +418,12 @@ async function resetDraftCartPromotions(
     const override = overrides.get(line.id);
     const quantity = override?.quantity ?? line.quantity.toString();
     const unitPriceCents = override?.unitPriceCents ?? line.unitPriceCents;
-    const taxRateBasisPoints =
-      override?.taxRateBasisPoints ?? line.taxRateBasisPoints ?? 0;
+    const lineTaxRate = override?.taxRate ?? line.taxRate ?? 0;
     const taxInclusive = override?.taxInclusive ?? line.taxInclusive;
     const amounts = calculateLineAmounts({
       unitPriceCents,
       quantity,
-      taxRateBasisPoints,
+      taxRate: lineTaxRate,
       taxInclusive,
     });
     const existingMetadata =
@@ -447,7 +446,7 @@ async function resetDraftCartPromotions(
           ? {
               priceBookEntryId: override.priceBookEntryId,
               priceSource: override.priceSource,
-              taxRateBasisPoints,
+              taxRate: lineTaxRate,
               taxInclusive,
             }
           : {}),
@@ -557,7 +556,7 @@ export async function updatePosCartLine(
         unitPriceCents,
         priceBookEntryId: priceEntry?.id ?? null,
         priceSource: priceEntry ? "price_book" : "variant_default",
-        taxRateBasisPoints: taxRate?.rateBasisPoints ?? 0,
+        taxRate: taxRate?.rate ?? 0,
         taxInclusive: taxRate?.inclusive ?? false,
       };
       const cart = await resetDraftCartPromotions(
@@ -1095,7 +1094,7 @@ export async function completePosSale(
           taxCategoryId: product.taxCategoryId,
           at: checkoutAt,
         });
-        const taxRateBasisPoints = currentTaxRate?.rateBasisPoints ?? 0;
+        const lineTaxRate = currentTaxRate?.rate ?? 0;
         const taxInclusive = currentTaxRate?.inclusive ?? false;
         if (
           currentTaxRate &&
@@ -1109,11 +1108,11 @@ export async function completePosSale(
           unitPriceCents: currentUnitPriceCents,
           quantity,
           discountCents: line.discountCents,
-          taxRateBasisPoints,
+          taxRate: lineTaxRate,
           taxInclusive,
         });
         if (
-          line.taxRateBasisPoints !== taxRateBasisPoints ||
+          rateToPpm(line.taxRate ?? 0) !== rateToPpm(lineTaxRate) ||
           line.taxInclusive !== taxInclusive ||
           line.subtotalCents !== currentAmounts.subtotalCents ||
           line.taxCents !== currentAmounts.taxCents ||
@@ -1444,7 +1443,7 @@ export async function completePosSale(
             subtotalCents: line.subtotalCents,
             discountCents: line.discountCents,
             taxCategorySnapshot: product.taxCategory?.name ?? "",
-            taxRateBasisPoints: line.taxRateBasisPoints,
+            taxRate: line.taxRate,
             taxInclusive: line.taxInclusive,
             taxCents: line.taxCents,
             totalCents: line.totalCents,

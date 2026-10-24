@@ -14,11 +14,21 @@ import { parseMachineApiToken } from "./lib/machineAuth";
 import { sendPasswordResetEmail } from "./lib/mail";
 import { models } from "./models";
 import { extendGraphqlSchema } from "./mutations";
+import { s3ForcePathStyle } from "./lib/s3-storage";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+// Product photos use the same S3 settings as E-commerce (the five S3_* values).
+function productionEnv(name: string, developmentFallback: string): string {
+  if (process.env[name]) return process.env[name]!;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`${name} is required in production`);
+  }
+  return developmentFallback;
 }
 
 const databaseURL = requiredEnv("DATABASE_URL");
@@ -28,6 +38,12 @@ if (sessionSecret.length < 32) {
 }
 
 export const basePath = "/dashboard";
+
+const bucketName = productionEnv("S3_BUCKET_NAME", "keystone-test");
+const region = productionEnv("S3_REGION", "ap-southeast-2");
+const accessKeyId = productionEnv("S3_ACCESS_KEY_ID", "keystone");
+const secretAccessKey = productionEnv("S3_SECRET_ACCESS_KEY", "keystone");
+const endpoint = productionEnv("S3_ENDPOINT", "https://sfo3.digitaloceanspaces.com");
 
 const sessionConfig = {
   maxAge: 60 * 60 * 24 * 30,
@@ -195,6 +211,8 @@ function addConvenienceDatabaseConstraints(schema: string): string {
   return schema;
 }
 
+// Lists edited directly (not through domain commands): media only.
+const genericMediaConfiguration = new Set(["ProductImage"]);
 const genericIdentityAndTenantConfiguration = new Set([
   "Business",
   "Store",
@@ -204,6 +222,7 @@ const genericIdentityAndTenantConfiguration = new Set([
 ]);
 const boundedModels = Object.fromEntries(
   Object.entries(models).map(([key, model]) => {
+    if (genericMediaConfiguration.has(key)) return [key, model];
     const workflowOnly = !genericIdentityAndTenantConfiguration.has(key);
     const existingOmit =
       typeof model.graphql?.omit === "object" ? model.graphql.omit : {};
@@ -278,6 +297,19 @@ export default withAuth(
       extendPrismaSchema: addConvenienceDatabaseConstraints,
     },
     lists: boundedModels,
+    storage: {
+      my_images: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        endpoint,
+        signed: { expiry: 5000 },
+        forcePathStyle: s3ForcePathStyle(endpoint),
+      },
+    },
     ui: {
       isAccessAllowed: ({ session }) =>
         Boolean(

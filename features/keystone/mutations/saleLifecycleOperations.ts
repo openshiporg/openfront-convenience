@@ -144,7 +144,7 @@ export async function posSaleReceipt(
       quantity: line.quantity.toString(),
       unitPriceCents: line.unitPriceCents,
       discountCents: line.discountCents,
-      taxRateBasisPoints: line.taxRateBasisPoints,
+      taxRate: line.taxRate,
       taxInclusive: line.taxInclusive,
       taxCents: line.taxCents,
       totalCents: line.totalCents,

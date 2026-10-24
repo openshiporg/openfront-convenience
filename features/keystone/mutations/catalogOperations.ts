@@ -4,7 +4,7 @@ import type { Context } from ".keystone/types";
 import { Prisma } from "@prisma/client";
 
 import { assertStorePermission, type Session } from "../access";
-import { assertBasisPoints, assertCents } from "../lib/money";
+import { assertBasisPoints, assertCents, rateToPpm } from "../lib/money";
 import { assertCatalogLifecycleStatus } from "../lib/catalogLifecycle";
 import type { OperationResult } from "./cashOperations";
 import { requireSession, runIdempotentOperation } from "./operationRunner";
@@ -376,7 +376,7 @@ export async function configureStoreTaxRate(
       categoryCode: string;
       rateName: string;
       jurisdiction: string;
-      rateBasisPoints: number;
+      rate: number;
       inclusive?: boolean | null;
       idempotencyKey: string;
     };
@@ -389,7 +389,7 @@ export async function configureStoreTaxRate(
   const jurisdiction = args.input.jurisdiction.trim();
   if (!categoryName || !rateName || !jurisdiction)
     throw new Error("Tax category, rate name, and jurisdiction are required");
-  assertBasisPoints(args.input.rateBasisPoints, "Tax rate");
+  rateToPpm(args.input.rate, "Tax rate");
   return runIdempotentOperation({
     context,
     businessId: args.input.businessId,
@@ -462,7 +462,8 @@ export async function configureStoreTaxRate(
       const data = {
         name: rateName,
         jurisdiction,
-        rateBasisPoints: args.input.rateBasisPoints,
+        // Stored on the same parts-per-million grid the money math charges.
+        rate: rateToPpm(args.input.rate) / 1_000_000,
         inclusive,
         status: "active" as const,
       };
