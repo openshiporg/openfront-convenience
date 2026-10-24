@@ -26,6 +26,7 @@ const errorMessages: Record<string, string> = {
   basket: "Basket could not be updated",
   signup: "Account could not be created",
   signin: "Email or password incorrect",
+  password: "Choose a less common password",
 };
 const errorMessage = (code?: string) => (code ? errorMessages[code] : undefined);
 
@@ -118,6 +119,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
                   <span className="sf-tag__foot">
                     <span className="sf-tag__meta">
                       {product.variants.length > 1 ? `${product.variants.length} options` : unit && unit !== "each" ? unit : ""}
+                      {availabilityOf(product.variants).label === "Ask in store" ? <span className="sf-tag__ask">Ask in store</span> : null}
                     </span>
                     <Price cents={from} currency={data!.currency} from={varies} />
                   </span>
@@ -157,6 +159,25 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   );
 }
 
+type Variant = { availability: "in_stock" | "ask" | "untracked" };
+
+/** "In stock" when a tracked size has stock, "Ask in store" when none does, plain "In store" when not tracked. */
+function availabilityOf(variants: Variant[]) {
+  if (variants.some((variant) => variant.availability === "in_stock")) return { tone: "ok", label: "In stock" };
+  if (variants.length && variants.every((variant) => variant.availability === "ask")) return { tone: "warn", label: "Ask in store" };
+  return { tone: "ok", label: "In store" };
+}
+
+function Availability({ variants }: { variants: Variant[] }) {
+  const state = availabilityOf(variants);
+  return (
+    <p className="sf-state sf-product__state">
+      <span className="sf-dot" data-tone={state.tone} aria-hidden="true" />
+      {state.label}
+    </p>
+  );
+}
+
 export async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
   const data = await catalog({ productId });
@@ -174,26 +195,28 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
       </Link>
       <section className="sf-product">
         <div className="sf-product__tag">
+          {/* The name is the H1 beside this tag; the tag carries the size and price. */}
           <span className="sf-tag__category" aria-hidden="true">{product.category}</span>
-          <span className="sf-product__tagtitle" aria-hidden="true">{product.title}</span>
+          <span className="sf-product__size">
+            {single ? [single.title, single.unitOfMeasure !== "each" ? single.unitOfMeasure : null].filter(Boolean).join(" · ") : `${product.variants.length} sizes`}
+          </span>
           <span className="sf-product__tagfoot">
-            <span className="sf-tag__meta">{single && single.unitOfMeasure !== "each" ? single.unitOfMeasure : ""}</span>
+            <span className="sf-tag__meta" />
             <Price cents={from} currency={data.currency} from={varies} className="sf-price--hero" />
           </span>
         </div>
         <div className="sf-product__body">
-          <p className="sf-eyebrow">{product.category}</p>
           <h1 className="sf-display sf-display--product">{product.title}</h1>
           {product.description ? <p className="sf-product__description">{product.description}</p> : null}
-          <p className="sf-state sf-product__state">
-            <span className="sf-dot" data-tone="ok" aria-hidden="true" />
-            In store
-          </p>
+          <Availability variants={product.variants} />
           {single ? null : (
             <ul className="sf-options sf-product__form" aria-label="Options">
               {product.variants.map((variant) => (
                 <li key={variant.id} className="sf-option sf-option--static">
-                  <span className="sf-option__title">{variant.title}</span>
+                  <span className="sf-option__title">
+                    {variant.title}
+                    {variant.availability === "ask" ? <span className="sf-muted"> · ask in store</span> : null}
+                  </span>
                   <span className="sf-option__price">{money(variant.priceCents, data.currency)}</span>
                 </li>
               ))}
@@ -398,6 +421,7 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
 export async function AccountAuthPage({ params, searchParams }: { params: Promise<{ mode: string }>; searchParams: Search }) {
   const [{ mode }, search] = await Promise.all([params, searchParams]);
   if (!["signin", "signup"].includes(mode)) notFound();
+  if (await customer()) redirect("/account");
   const signup = mode === "signup";
   return (
     <ShopShell>

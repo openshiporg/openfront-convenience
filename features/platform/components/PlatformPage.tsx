@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
 import { PageContainer } from "@/features/dashboard/components/PageContainer";
@@ -216,10 +217,13 @@ export function EvidenceTable({
   rows,
   title = "Recent activity",
   timeZone,
+  rowHref,
 }: {
   rows: PlatformProjection["rows"];
   title?: string;
   timeZone?: string | null;
+  /** Makes each row a link, e.g. to the record's detail page. */
+  rowHref?: string;
 }) {
   return (
     <section className="min-w-0" aria-label={title}>
@@ -227,8 +231,9 @@ export function EvidenceTable({
       {rows.length ? (
         <ListBand>
           {rows.map((row) => (
-            <article
+            <RowFrame
               key={row.id}
+              href={rowHref ? `${rowHref}/${row.id}` : undefined}
               className="grid min-w-0 gap-x-6 gap-y-1 bg-background/60 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto]"
             >
               <div className="min-w-0">
@@ -249,13 +254,24 @@ export function EvidenceTable({
               <p className="min-w-0 self-center font-mono text-sm tabular-nums text-foreground sm:text-right [overflow-wrap:anywhere]">
                 {row.metric ? formatMeasure(row.metric) : ""}
               </p>
-            </article>
+            </RowFrame>
           ))}
         </ListBand>
       ) : (
         <EmptyState title="Nothing recorded yet" detail="" />
       )}
     </section>
+  );
+}
+
+/** A list row that is a link when it has somewhere to go. */
+function RowFrame({ href, className, children }: { href?: string; className: string; children: ReactNode }) {
+  return href ? (
+    <Link href={href} className={`${className} transition-colors hover:bg-background`}>
+      {children}
+    </Link>
+  ) : (
+    <article className={className}>{children}</article>
   );
 }
 

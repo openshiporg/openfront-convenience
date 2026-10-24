@@ -14,7 +14,10 @@ function load(relative) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
   } }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(output, { module, exports: module.exports, Intl, Date, Number, String }, { filename });
+  vm.runInNewContext(output, {
+    module, exports: module.exports, Intl, Date, Number, String,
+    require: (specifier) => load(path.relative(root, `${path.resolve(path.dirname(filename), specifier)}.ts`)),
+  }, { filename });
   return module.exports;
 }
 
@@ -59,4 +62,33 @@ test('references and quantities read as labels', () => {
   assert.equal(labels.quantityText('1.0000'), '1');
   assert.equal(labels.quantityText('0.5000'), '0.5');
   assert.equal(labels.quantityText('100.0000'), '100');
+});
+
+const hours = load('features/storefront/lib/open-now.ts');
+// Objects built inside the VM context have its prototypes, so compare their JSON.
+const same = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected));
+
+test('free-text hours parse to an open window', () => {
+  same(hours.parseHours('6am – 11pm'), { kind: 'range', open: 360, close: 1380 });
+  same(hours.parseHours('6:30 AM to midnight'), { kind: 'range', open: 390, close: 1440 });
+  same(hours.parseHours('6-11pm'), { kind: 'range', open: 360, close: 1380 });
+  same(hours.parseHours('10pm - 2am'), { kind: 'range', open: 1320, close: 1560 });
+  same(hours.parseHours('10-2am'), { kind: 'range', open: 1320, close: 1560 });
+  same(hours.parseHours('12-5pm'), { kind: 'range', open: 720, close: 1020 });
+  same(hours.parseHours('07:00 - 23:00'), { kind: 'range', open: 420, close: 1380 });
+  same(hours.parseHours('24 hours'), { kind: 'always' });
+  same(hours.parseHours('Closed'), { kind: 'closed' });
+  assert.equal(hours.parseHours('ask us'), null);
+});
+
+test('open status is read in the store timezone', () => {
+  const week = { monday: '6am – 11pm', tuesday: '6am – 11pm', wednesday: '6am – 11pm', thursday: '6am – 11pm', friday: '6am – 11pm', saturday: '8am - 10pm', sunday: 'Closed' };
+  // Friday 2026-10-23 22:30 in New York is Saturday 02:30 UTC.
+  assert.equal(hours.openStatus(week, 'America/New_York', new Date('2026-10-24T02:30:00Z')).label, 'Open now · until 11pm');
+  assert.equal(hours.openStatus(week, 'America/New_York', new Date('2026-10-23T09:00:00Z')).label, 'Closed · opens 6am');
+  // Saturday 23:00 New York, Sunday closed → Monday.
+  assert.equal(hours.openStatus(week, 'America/New_York', new Date('2026-10-25T03:00:00Z')).label, 'Closed · opens Mon 6am');
+  const late = { friday: '10pm - 2am', saturday: 'Closed' };
+  // Saturday 01:00 New York, still inside Friday's overnight window.
+  assert.equal(hours.openStatus(late, 'America/New_York', new Date('2026-10-24T05:00:00Z')).label, 'Open now · until 2am');
 });

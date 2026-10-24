@@ -45,7 +45,7 @@ export function DurableRegisterClose({
   const [ready, setReady] = useState(false);
   const [journal, setJournal] = useState<CloseJournal | null>(null);
   const [message, setMessage] = useState(
-    "Loading retained close",
+    "Loading",
   );
   const router = useRouter();
   const pending =
@@ -74,7 +74,7 @@ export function DurableRegisterClose({
       setReady(true);
       setMessage(
         loaded.journal.pending
-          ? "Pending confirmation"
+          ? "Awaiting confirmation"
           : "Ready",
       );
     } catch (error) {
@@ -107,8 +107,8 @@ export function DurableRegisterClose({
       setJournal(result.journal);
       setMessage(
         result.confirmed
-          ? "Original close confirmed"
-          : "Pending confirmation",
+          ? "Till closed"
+          : "Awaiting confirmation",
       );
       if (result.confirmed) router.refresh();
     } catch (error) {
@@ -124,7 +124,7 @@ export function DurableRegisterClose({
           history: previous?.history ?? [],
         }));
       setMessage(
-        `${error instanceof Error ? error.message : "Close is unconfirmed."} Storage/intent needs review; the displayed attempt is retained in memory, not certified durable. No NEW or SAME operation is enabled.`,
+        `${error instanceof Error ? error.message : "Close is unconfirmed."} Check the till before trying again.`,
       );
     } finally {
       busyRef.current = false;

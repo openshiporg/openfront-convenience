@@ -34,7 +34,7 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   const [products, total, categories] = await Promise.all([
     context.prisma.product.findMany({
       where,
-      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true }, take: 12, orderBy: { id: "asc" } } },
+      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
       take: CATALOG_PAGE_SIZE, skip: (page - 1) * CATALOG_PAGE_SIZE, orderBy: { title: "asc" },
     }),
     context.prisma.product.count({ where }),
@@ -46,7 +46,10 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   const now = new Date();
   return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
-    return { ...variant, priceCents: price?.amountCents ?? variant.defaultPriceCents, defaultPriceCents: undefined };
+    // Availability only, never quantities: "in_stock", "ask" (tracked, none on hand) or "untracked".
+    const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
+    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : "ask";
+    return { id: variant.id, title: variant.title, unitOfMeasure: variant.unitOfMeasure, priceCents: price?.amountCents ?? variant.defaultPriceCents, availability };
   })) }))) };
 }
 

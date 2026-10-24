@@ -16,6 +16,7 @@ export type CatalogItemDefaults = {
   defaultPriceCents?: number | null;
   costCents?: number | null;
   trackInventory?: boolean;
+  allowNegativeInventory?: boolean;
   preparedFood?: boolean;
   discountable?: boolean;
   returnable?: boolean;
@@ -158,6 +159,15 @@ export function CatalogItemFields({
         values={[
           { value: "true", label: "Yes" },
           { value: "false", label: "No" },
+        ]}
+      />
+      <EnumField
+        label="Allow negative stock"
+        name="allowNegativeInventory"
+        defaultValue={yesNo(defaults.allowNegativeInventory, false)}
+        values={[
+          { value: "false", label: "No: block sales at zero" },
+          { value: "true", label: "Yes: sell before stock is received" },
         ]}
       />
       <EnumField

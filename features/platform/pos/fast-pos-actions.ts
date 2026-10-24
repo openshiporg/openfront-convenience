@@ -1,6 +1,7 @@
 "use server";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { shortRef } from "../lib/labels";
 
 export type FastPosCartLineSummary = {
   id: string;
@@ -205,7 +206,7 @@ export async function fastLoadPosCart(input: {
   return {
     ok: Boolean(cart),
     message: cart
-      ? `${cart.lineCount} line${cart.lineCount === 1 ? "" : "s"} · ${(cart.totalCents / 100).toFixed(2)}`
+      ? `${cart.lineCount} line${cart.lineCount === 1 ? "" : "s"}`
       : "Basket was not found.",
     cart,
   };
@@ -299,7 +300,7 @@ export async function fastAddPosLine(input: {
   return {
     ok: Boolean(cart),
     message: cart
-      ? `${cart.lineCount} line${cart.lineCount === 1 ? "" : "s"} · ${(cart.totalCents / 100).toFixed(2)}`
+      ? `${cart.lineCount} line${cart.lineCount === 1 ? "" : "s"}`
       : "Item added; basket refresh required.",
     cart,
   };
@@ -373,7 +374,7 @@ export async function fastCompleteExactCash(input: {
   }
   return {
     ok: true,
-    message: `${response.data.completePosSale.reference || "Sale"} completed.`,
+    message: `Sale completed · ${shortRef(response.data.completePosSale.reference) || "receipt ready"}`,
     cart: null,
     saleId: response.data.completePosSale.id,
   };

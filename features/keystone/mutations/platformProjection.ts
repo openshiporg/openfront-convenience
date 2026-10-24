@@ -168,6 +168,30 @@ function humanStatus(status: string | null | undefined): string {
   return text ? text[0].toUpperCase() + text.slice(1) : "";
 }
 
+/**
+ * Approved (reconciled, not locked) store days whose period has activity after
+ * the close package was generated: the approved totals no longer match the till.
+ * Locked days can't change (database fences), so they're never stale.
+ */
+async function lateActivityByStoreDay(
+  context: Context,
+  scope: { businessId: string; storeId: string },
+  days: Array<{ id: string; status: string; periodStartedAt: Date; periodEndedAt: Date; generatedAt: Date | null }>,
+): Promise<Map<string, number>> {
+  const late = new Map<string, number>();
+  for (const day of days.filter((entry) => entry.status === "reconciled" && entry.generatedAt).slice(0, 10)) {
+    const after = { gt: day.generatedAt!, gte: day.periodStartedAt, lt: day.periodEndedAt };
+    const [sales, refunds, movements] = await Promise.all([
+      context.prisma.sale.count({ where: { ...scope, completedAt: after } }),
+      context.prisma.refund.count({ where: { ...scope, processedAt: after } }),
+      context.prisma.cashMovement.count({ where: { ...scope, occurredAt: after } }),
+    ]);
+    const total = sales + refunds + movements;
+    if (total) late.set(day.id, total);
+  }
+  return late;
+}
+
 function variantLabel(entry: { title: string; product?: { title: string } | null }): string {
   const product = entry.product?.title?.trim();
   if (!product) return entry.title;
@@ -689,6 +713,11 @@ export async function conveniencePlatformProjection(
       _sum: { totalCents: true },
       _count: { _all: true },
     });
+    const todayRefunds = await context.prisma.refund.aggregate({
+      where: { ...scope, status: "completed", processedAt: { gte: todayStart } },
+      _sum: { amountCents: true },
+    });
+    const refundedToday = todayRefunds._sum.amountCents ?? 0;
     const [openRegisters, openShifts, reviewDays, lockedDays] =
       await Promise.all([
         context.prisma.registerSession.count({
@@ -705,8 +734,10 @@ export async function conveniencePlatformProjection(
         }),
       ]);
     metrics = [
-      metric("Sales today", cents(todaySales._sum.totalCents ?? 0), "Completed sales since midnight", "neutral"),
+      // Net of today's refunds, matching Reports' "Net receipts".
+      metric("Net sales today", cents((todaySales._sum.totalCents ?? 0) - refundedToday), "Sales incl. tax less refunds since midnight", "neutral"),
       metric("Transactions today", todaySales._count._all, "Completed sales since midnight"),
+      ...(refundedToday ? [metric("Refunds today", cents(refundedToday), "Completed refunds since midnight", "attention")] : []),
       metric(
         "Registers open",
         openRegisters,
@@ -731,15 +762,21 @@ export async function conveniencePlatformProjection(
         netReceiptsCents: true,
         exceptionCount: true,
         generatedAt: true,
+        periodStartedAt: true,
+        periodEndedAt: true,
       },
       orderBy: { generatedAt: "desc" },
       take: limit,
     });
+    const late = await lateActivityByStoreDay(context, scope, days);
+    if (late.size) metrics.push(metric("Days out of date", late.size, "Activity after approval", "attention"));
     rows = days.map((day) => ({
       id: day.id,
       title: day.tradingDate,
-      detail: `${day.exceptionCount} exception${day.exceptionCount === 1 ? "" : "s"}`,
-      status: day.status,
+      detail: late.has(day.id)
+        ? `${late.get(day.id)} later ${late.get(day.id) === 1 ? "transaction" : "transactions"} · generate the close package again`
+        : `${day.exceptionCount} exception${day.exceptionCount === 1 ? "" : "s"}`,
+      status: late.has(day.id) ? "out_of_date" : day.status,
       metric: `${cents(day.netReceiptsCents)} net`,
       occurredAt: date(day.generatedAt),
     }));
@@ -1233,14 +1270,14 @@ export async function conveniencePlatformProjection(
     }));
     controls.sales = sales.map((entry) => ({
       id: entry.id,
-      label: entry.receiptNumber,
-      detail: `${cents(entry.totalCents)} · ${entry.status}`,
+      label: shortRef(entry.receiptNumber),
+      detail: `${cents(entry.totalCents)} · ${humanStatus(entry.status)}`,
     }));
     controls.posVoidHistorySales = voidReceiptHistorySale
       ? [
           {
             id: voidReceiptHistorySale.id,
-            label: voidReceiptHistorySale.receiptNumber,
+            label: shortRef(voidReceiptHistorySale.receiptNumber),
             detail: "Completed · cash · original register open",
           },
         ]
@@ -1258,19 +1295,21 @@ export async function conveniencePlatformProjection(
       : [];
     controls.refundSales = refundSales.map((entry) => ({
       id: entry.id,
-      label: entry.receiptNumber,
-      detail: `${cents(entry.totalCents)} · ${entry.status}`,
+      label: shortRef(entry.receiptNumber),
+      detail: `${cents(entry.totalCents)} · ${humanStatus(entry.status)}`,
     }));
     controls.receiptLookupSales = receiptLookupSales.map((entry) => ({
       id: entry.id,
-      label: entry.receiptNumber,
-      detail: entry.status,
+      label: shortRef(entry.receiptNumber),
+      detail: humanStatus(entry.status),
     }));
     controls.refundSaleLines = refundSaleLines.map((entry) => ({
       id: entry.id,
       label: entry.titleSnapshot,
       detail: `Qty ${quantityText(entry.quantity)} · ${cents(entry.totalCents)}`,
     }));
+    // Which sale each refundable line belongs to, so the refund form only offers the chosen sale's lines.
+    controls.refundLineSale = refundSaleLines.map((entry) => ({ id: entry.id, label: entry.saleId ?? "" }));
     controls.tenders = tenders
       .map((entry) => {
         const refundedCents = effectiveTenderRefundedCents(
@@ -1311,6 +1350,7 @@ export async function conveniencePlatformProjection(
         label: `${humanStatus(entry.method)} · ${cents(entry.availableCents)} available`,
         detail: "",
       }));
+    controls.refundTenderSale = refundTenders.map((entry) => ({ id: entry.id, label: entry.saleId ?? "" }));
     controls.saleLines = saleLines.map((entry) => ({
       id: entry.id,
       label: entry.titleSnapshot,
@@ -1348,8 +1388,8 @@ export async function conveniencePlatformProjection(
     ];
     rows = sales.map((entry) => ({
       id: entry.id,
-      title: entry.receiptNumber,
-      detail: "Immutable sale receipt",
+      title: shortRef(entry.receiptNumber),
+      detail: entry.receiptNumber,
       status: entry.status,
       metric: `${cents(entry.totalCents)}`,
       occurredAt: date(entry.completedAt),
@@ -1494,24 +1534,38 @@ export async function conveniencePlatformProjection(
         priceMillsPerGallon: true,
         status: true,
         startsAt: true,
+        endsAt: true,
         grade: { select: { name: true } },
       },
       orderBy: [{ startsAt: "desc" }],
       take: 50,
     });
-    controls.fuelPriceBoard = priceBoard.map((entry) => ({
-      id: entry.id,
-      label: `${entry.grade?.name ?? "Grade"} · ${humanStatus(entry.priceTier)}`,
-      detail: [
-        `$${(entry.priceMillsPerGallon / 1000).toFixed(3)}/gal`,
-        entry.status === "active" ? "Current" : "Scheduled",
-        entry.startsAt.toISOString(),
-      ].join("|"),
-    }));
+    // What the pump charges is the latest price per grade and tier that has
+    // started and not ended; the stored status only flips to active at the
+    // first pump sale, so it isn't what the board shows.
+    const priceNow = new Date();
+    const currentByTier = new Map<string, string>();
+    for (const entry of priceBoard) {
+      const key = `${entry.grade?.name ?? ""}:${entry.priceTier}`;
+      const started = entry.startsAt <= priceNow && (!entry.endsAt || entry.endsAt > priceNow);
+      if (started && !currentByTier.has(key)) currentByTier.set(key, entry.id);
+    }
+    controls.fuelPriceBoard = priceBoard
+      .filter((entry) => !entry.endsAt || entry.endsAt > priceNow)
+      .map((entry) => {
+        const key = `${entry.grade?.name ?? ""}:${entry.priceTier}`;
+        const state = currentByTier.get(key) === entry.id ? "Current" : entry.startsAt > priceNow ? "Scheduled" : "Superseded";
+        return {
+          id: entry.id,
+          label: `${entry.grade?.name ?? "Grade"} · ${humanStatus(entry.priceTier)}`,
+          detail: [`$${(entry.priceMillsPerGallon / 1000).toFixed(3)}/gal`, state, entry.startsAt.toISOString()].join("|"),
+        };
+      })
+      .filter((entry) => !entry.detail.includes("|Superseded|"));
     controls.fuelSites = sites.map((entry) => ({
       id: entry.id,
       label: entry.name,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.fuelGrades = grades.map((entry) => ({
       id: entry.id,
@@ -1521,7 +1575,7 @@ export async function conveniencePlatformProjection(
     controls.fuelTanks = tanks.map((entry) => ({
       id: entry.id,
       label: `Tank ${entry.tankNumber}`,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.fuelReadings = readings.map((entry) => ({
       id: entry.id,
@@ -1533,12 +1587,12 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.reconciliationNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.fuelPumps = pumps.map((entry) => ({
       id: entry.id,
       label: `Pump ${entry.pumpNumber}`,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.fuelNozzles = nozzles.map((entry) => ({
       id: entry.id,
@@ -1558,7 +1612,7 @@ export async function conveniencePlatformProjection(
     controls.paymentProviders = paymentProviders.map((entry) => ({
       id: entry.id,
       label: entry.name,
-      detail: entry.adapterKey,
+      detail: humanStatus(entry.adapterKey),
     }));
     const usedTenderIds = new Set(
       linkedFuelTenders
@@ -1588,7 +1642,7 @@ export async function conveniencePlatformProjection(
       })
       .map((entry) => ({
         id: entry.id,
-        label: entry.receiptNumber,
+        label: shortRef(entry.receiptNumber),
         detail: `${cents(entry.totalCents)}`,
       }));
     controls.fuelTenders = availableTenders.map((entry) => ({
@@ -1756,7 +1810,7 @@ export async function conveniencePlatformProjection(
         }),
         context.prisma.stockLevel.findMany({
           where: scope,
-          include: { variant: { select: { title: true, sku: true } } },
+          include: { variant: { select: { title: true, sku: true, product: { select: { title: true } } } } },
           orderBy: { updatedAt: "desc" },
           take: limit,
         }),
@@ -1774,7 +1828,7 @@ export async function conveniencePlatformProjection(
         context.prisma.inventoryCountLine.findMany({
           where: { ...scope, count: { status: "counting" } },
           include: {
-            variant: { select: { title: true, sku: true } },
+            variant: { select: { title: true, sku: true, product: { select: { title: true } } } },
             count: { select: { countNumber: true } },
           },
           orderBy: { updatedAt: "asc" },
@@ -1843,12 +1897,12 @@ export async function conveniencePlatformProjection(
     controls.inventoryCounts = actionableCounts.map((entry) => ({
       id: entry.id,
       label: entry.countNumber,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.inventoryCountHistory = inventoryCountHistory.map((entry) => ({
       id: entry.id,
       label: entry.countNumber,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.inventoryCountLines = countLines.map((entry) => ({
       id: entry.id,
@@ -1899,13 +1953,13 @@ export async function conveniencePlatformProjection(
     controls.inventoryTransfers = actionableTransfers.map((entry) => ({
       id: entry.id,
       label: entry.transferNumber,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.inventoryTransferHistory = inventoryTransferHistory.map(
       (entry) => ({
         id: entry.id,
         label: entry.transferNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }),
     );
     metrics = [
@@ -1938,7 +1992,7 @@ export async function conveniencePlatformProjection(
     ];
     rows = stock.map((entry) => ({
       id: entry.id,
-      title: entry.variant?.title ?? "Inventory item",
+      title: entry.variant ? variantLabel(entry.variant) : "Inventory item",
       detail: entry.variant?.sku ?? "",
       status:
         Number(entry.onHandQuantity) <= Number(entry.reorderPoint)
@@ -2154,13 +2208,13 @@ export async function conveniencePlatformProjection(
       purchaseOrderTransitionRecords.map((entry) => ({
         id: entry.id,
         label: entry.poNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.purchaseOrders = Array.from(purchaseOrderOptions.values()).map(
       (entry) => ({
         id: entry.id,
         label: entry.poNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }),
     );
     controls.productVariants = variants.map((entry) => ({
@@ -2238,7 +2292,7 @@ export async function conveniencePlatformProjection(
             : {}),
         },
         include: {
-          variant: { select: { title: true, sku: true } },
+          variant: { select: { title: true, sku: true, product: { select: { title: true } } } },
           priceBook: { select: { name: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -2295,7 +2349,7 @@ export async function conveniencePlatformProjection(
     ];
     rows = entries.map((entry) => ({
       id: entry.id,
-      title: entry.variant?.title ?? "Price entry",
+      title: entry.variant ? variantLabel(entry.variant) : "Price entry",
       detail: `${entry.priceBook?.name ?? "Price book"} · ${entry.variant?.sku ?? ""}`,
       status: entry.status,
       metric: `${cents(entry.amountCents)}`,
@@ -2313,7 +2367,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.name,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.productVariants = variants.map((entry) => ({
       id: entry.id,
@@ -2411,12 +2465,12 @@ export async function conveniencePlatformProjection(
     controls.carts = carts.map((entry) => ({
       id: entry.id,
       label: entry.cartNumber,
-      detail: entry.status,
+      detail: humanStatus(entry.status),
     }));
     controls.sales = sales.map((entry) => ({
       id: entry.id,
-      label: entry.receiptNumber,
-      detail: entry.status,
+      label: shortRef(entry.receiptNumber),
+      detail: humanStatus(entry.status),
     }));
     controls.products = products.map((entry) => ({
       id: entry.id,
@@ -2701,7 +2755,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.batchNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.prepBatches = batches
       .filter((entry) =>
@@ -2710,7 +2764,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.batchNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.openPrepBatchLookup =
       openBatchSearchRecords.length === 1
@@ -2913,7 +2967,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.reconciliationNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     metrics = [
       metric(
@@ -3008,7 +3062,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.settlementNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.registerSessions = registerSessions.map((entry) => ({
       id: entry.id,
@@ -3112,7 +3166,7 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.settlementNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.registerSessions = registerSessions.map((entry) => ({
       id: entry.id,
@@ -3341,6 +3395,8 @@ export async function conveniencePlatformProjection(
           cashOverShortCents: true,
           exceptionCount: true,
           generatedAt: true,
+          periodStartedAt: true,
+          periodEndedAt: true,
         },
         orderBy: { tradingDate: "desc" },
         take: limit,
@@ -3366,14 +3422,14 @@ export async function conveniencePlatformProjection(
       .map((entry) => ({
         id: entry.id,
         label: entry.tradingDate,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     controls.bankDeposits = deposits
       .filter((entry) => !["verified", "voided"].includes(entry.status))
       .map((entry) => ({
         id: entry.id,
         label: entry.depositNumber,
-        detail: entry.status,
+        detail: humanStatus(entry.status),
       }));
     metrics = [
       metric(
@@ -3390,8 +3446,8 @@ export async function conveniencePlatformProjection(
       ),
       metric(
         "Cash variance",
-        days.reduce((sum, entry) => sum + entry.cashOverShortCents, 0),
-        "Cents across projection",
+        cents(days.reduce((sum, entry) => sum + entry.cashOverShortCents, 0)),
+        "Across these days",
       ),
       metric(
         "Deposits open",
@@ -3401,14 +3457,20 @@ export async function conveniencePlatformProjection(
         "Prepared or deposited",
       ),
     ];
+    const late = await lateActivityByStoreDay(context, scope, days);
     rows = days.map((entry) => ({
       id: entry.id,
       title: entry.tradingDate,
-      detail: `${entry.exceptionCount} exceptions`,
-      status: entry.status,
+      detail: late.has(entry.id)
+        ? `${late.get(entry.id)} later ${late.get(entry.id) === 1 ? "transaction" : "transactions"} · generate the close package again`
+        : `${entry.exceptionCount} exceptions`,
+      status: late.has(entry.id) ? "out_of_date" : entry.status,
       metric: `${cents(entry.netReceiptsCents)} net`,
       occurredAt: date(entry.generatedAt),
     }));
+    if (late.size) {
+      metrics.unshift(metric("Days out of date", late.size, "Activity after approval", "attention"));
+    }
   }
 
   if (surface === "exceptions") {

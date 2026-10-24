@@ -1078,7 +1078,8 @@ export async function configureStoreTaxRateAction(formData: FormData) {
       categoryCode: field(formData, "categoryCode"),
       rateName: field(formData, "rateName"),
       jurisdiction: field(formData, "jurisdiction"),
-      rateBasisPoints: integer(formData, "rateBasisPoints"),
+      // Typed as a percent (8.25); stored in basis points (825).
+      rateBasisPoints: Math.round(Number(field(formData, "ratePercent")) * 100),
       inclusive: field(formData, "inclusive") === "true",
     },
   );
@@ -1106,8 +1107,9 @@ export async function configurePromotionAction(formData: FormData) {
       stackable: field(formData, "stackable") === "true",
       ruleType: field(formData, "ruleType"),
       benefitMethod: field(formData, "benefitMethod"),
-      valueBasisPoints: field(formData, "valueBasisPoints")
-        ? integer(formData, "valueBasisPoints")
+      // Typed as a percent (10 = 10% off); the operation takes basis points.
+      valueBasisPoints: field(formData, "valuePercent")
+        ? Math.round(Number(field(formData, "valuePercent")) * 100)
         : null,
       valueCents: field(formData, "valueCents")
         ? integer(formData, "valueCents")

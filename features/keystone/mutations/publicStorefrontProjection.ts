@@ -43,9 +43,12 @@ export type PublicStorefrontProjection = {
     postalCode: string;
     countryCode: string;
     phone: string;
+    timezone: string;
     hours: StorefrontHours;
   } | null;
   categories: PublicStorefrontCategory[];
+  /** Pump prices in effect now (fuel stores only): what forecourt visitors look for. */
+  fuelPrices: Array<{ grade: string; tier: string; priceMillsPerGallon: number }>;
 };
 
 type StorefrontSettings = {
@@ -105,13 +108,44 @@ const emptyProjection = (
   identity: null,
   location: null,
   categories: [],
+  fuelPrices: [],
 });
+
+/**
+ * The latest started, unexpired price per grade and tier: the same price the
+ * pump sale operation charges (scheduled prices become active at first sale).
+ */
+async function currentFuelPrices(context: Context, businessId: string, storeId: string) {
+  const now = new Date();
+  const prices = await context.prisma.fuelPrice.findMany({
+    where: {
+      businessId,
+      storeId,
+      status: { in: ["active", "scheduled"] },
+      startsAt: { lte: now },
+      OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      grade: { is: { status: "active" } },
+    },
+    select: { priceTier: true, priceMillsPerGallon: true, gradeId: true, grade: { select: { name: true } } },
+    orderBy: { startsAt: "desc" },
+    take: 50,
+  });
+  const seen = new Set<string>();
+  const current: Array<{ grade: string; tier: string; priceMillsPerGallon: number }> = [];
+  for (const price of prices) {
+    const key = `${price.gradeId}:${price.priceTier}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    current.push({ grade: price.grade?.name ?? "Fuel", tier: price.priceTier, priceMillsPerGallon: price.priceMillsPerGallon });
+  }
+  return current;
+}
 
 /**
  * Deliberately public and deliberately narrow. It exposes one explicitly
  * published storefront, its location, and active catalog
- * labels. It never projects stock, prices, carts, fulfillment, payments, fuel,
- * loyalty, providers, or provider configuration.
+ * labels and the pump prices a forecourt posts anyway. It never projects stock,
+ * item prices, carts, fulfillment, payments, loyalty, providers, or provider configuration.
  */
 export async function conveniencePublicStorefrontProjection(
   _root: unknown,
@@ -143,6 +177,8 @@ export async function conveniencePublicStorefrontProjection(
           postalCode: true,
           countryCode: true,
           phone: true,
+          timezone: true,
+          fuelEnabled: true,
           metadata: true,
         },
       },
@@ -214,8 +250,10 @@ export async function conveniencePublicStorefrontProjection(
         postalCode: store.postalCode,
         countryCode: store.countryCode,
         phone: store.phone,
+        timezone: store.timezone,
         hours: storefrontHoursFromMetadata(store.metadata),
       },
+      fuelPrices: store.fuelEnabled ? await currentFuelPrices(context, settings.id, store.id) : [],
       categories: categories.map((category) => ({
         id: category.id,
         name: category.name,

@@ -132,12 +132,13 @@ export async function PricingPage({
                         ]}
                       />
                       <TextField
-                        label="Percentage (basis points)"
-                        name="valueBasisPoints"
+                        label="Percent off"
+                        name="valuePercent"
                         type="number"
+                        inputMode="decimal"
                         min="0"
-                        max="10000"
-                        step="1"
+                        max="100"
+                        step="0.01"
                       />
                       <TextField
                         label="Fixed amount / price (cents)"
@@ -242,12 +243,13 @@ export async function PricingPage({
                         required
                       />
                       <TextField
-                        label="Rate (basis points)"
-                        name="rateBasisPoints"
+                        label="Rate (%)"
+                        name="ratePercent"
                         type="number"
+                        inputMode="decimal"
                         min="0"
-                        max="100000"
-                        step="1"
+                        max="100"
+                        step="0.01"
                         required
                       />
                       <EnumField

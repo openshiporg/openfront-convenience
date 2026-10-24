@@ -312,7 +312,7 @@ export function FastCheckoutStation({
       else window.localStorage.removeItem(storageKey);
       setMessage(
         result?.message ||
-          `${outcome?.reference || "Sale"} completed${outcome?.status ? ` (${outcome.status})` : ""}.`,
+          `Sale completed · ${shortRef(outcome?.reference) || "receipt ready"}`,
       );
     }
     clearPendingIntent();

@@ -30,6 +30,7 @@ import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 import { DurableOfflineQueue } from "./DurableOfflineQueue";
 import { FastCheckoutStation } from "./FastCheckoutStation";
 import { ReceiptLookup } from "./ReceiptLookup";
+import { RefundSalePicker } from "./RefundSalePicker";
 import { DurableRegisterClose } from "./DurableRegisterClose";
 import { DurableRetailForm } from "./DurableRetailForm";
 import { registerCloseActorId } from "./register-close-actions";
@@ -132,7 +133,6 @@ export async function PosPage({
                           name="employeeId"
                           options={controls.employees ?? []}
                         />
-                        <TextField label="Customer account ID (optional)" name="customerId" />
                         <SelectField
                           label="Loyalty account (optional)"
                           name="loyaltyAccountId"
@@ -590,15 +590,12 @@ export async function PosPage({
                   <ActionPanel title="Refund and return one sale line">
                     <DurableRetailForm userId={closeActorId} businessId={projection.businessId ?? ""} storeId={projection.storeId ?? ""} purpose="refundPosSale" label="Complete refund">
                       <HiddenScope projection={projection} returnPath={path} />
-                      <SelectField
-                        label="Sale"
-                        name="saleId"
-                        options={controls.refundSales ?? []}
-                      />
-                      <SelectField
-                        label="Original tender"
-                        name="originalTenderId"
-                        options={controls.refundTenders ?? []}
+                      <RefundSalePicker
+                        sales={controls.refundSales ?? []}
+                        lines={controls.refundSaleLines ?? []}
+                        tenders={controls.refundTenders ?? []}
+                        lineSale={controls.refundLineSale ?? []}
+                        tenderSale={controls.refundTenderSale ?? []}
                       />
                       <TextField
                         label="First allocation (cents; set for split refund)"
@@ -607,23 +604,12 @@ export async function PosPage({
                         min="0"
                         step="1"
                       />
-                      <SelectField
-                        label="Second original tender (optional)"
-                        name="originalTenderId2"
-                        options={controls.refundTenders ?? []}
-                        required={false}
-                      />
                       <TextField
                         label="Second allocation (cents)"
                         name="refundAllocationCents2"
                         type="number"
                         min="0"
                         step="1"
-                      />
-                      <SelectField
-                        label="Sale line"
-                        name="saleLineId"
-                        options={controls.refundSaleLines ?? []}
                       />
                       <SelectField
                         label="Open register session"
@@ -678,24 +664,29 @@ export async function PosPage({
                           { value: "unknown", label: "Unknown" },
                         ]}
                       />
-                      <TextField
-                        label="Provider refund reference for non-cash"
-                        name="providerRefundId"
-                      />
-                      <TextField
-                        label="Context-bound refund authority (v2)"
-                        name="providerAuthority"
-                        placeholder="v2=timestamp.signature"
-                      />
-                      <TextField
-                        label="Second provider refund reference"
-                        name="providerRefundId2"
-                      />
-                      <TextField
-                        label="Second context-bound refund authority (v2)"
-                        name="providerAuthority2"
-                        placeholder="v2=timestamp.signature"
-                      />
+                      <details className="grid gap-3 rounded-xl border border-dashed p-3 sm:col-span-2">
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund</summary>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <TextField
+                            label="Provider refund reference"
+                            name="providerRefundId"
+                          />
+                          <TextField
+                            label="Provider refund approval code"
+                            name="providerAuthority"
+                            placeholder="v2=timestamp.signature"
+                          />
+                          <TextField
+                            label="Second provider refund reference"
+                            name="providerRefundId2"
+                          />
+                          <TextField
+                            label="Second provider approval code"
+                            name="providerAuthority2"
+                            placeholder="v2=timestamp.signature"
+                          />
+                        </div>
+                      </details>
                       <EnumField
                         label="Override non-returnable product"
                         name="overrideNonReturnable"
@@ -770,7 +761,7 @@ export async function PosPage({
                     sales={controls.receiptLookupSales ?? []}
                     search={state.receiptSearch}
                   />
-                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Recent receipts" />
+                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Recent receipts" rowHref="/dashboard/platform/sales" />
                 </>
               ),
             },

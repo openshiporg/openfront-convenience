@@ -4,6 +4,10 @@ import { s3ForcePathStyle } from './features/keystone/lib/s3-storage';
 const s3Hostname = process.env.S3_ENDPOINT ? process.env.S3_ENDPOINT.replace(/^https?:\/\//, '').replace(/:\d+$/, '') : '/';
 
 const nextConfig: NextConfig = {
+  // Browsers ask for /favicon.ico by default; the icon is the SVG in /public.
+  async redirects() {
+    return [{ source: '/favicon.ico', destination: '/favicon.svg', permanent: true }];
+  },
   reactCompiler: true,
   serverExternalPackages: ['graphql'],
   experimental: {

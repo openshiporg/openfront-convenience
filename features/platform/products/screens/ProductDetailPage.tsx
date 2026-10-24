@@ -23,6 +23,7 @@ type Variant = {
   defaultPriceCents: number;
   costCents: number | null;
   trackInventory: boolean;
+  allowNegativeInventory: boolean;
   barcodes: Array<{ id: string; value: string; format: string; isPrimary: boolean; status: string }>;
   priceEntries: Array<{ id: string; amountCents: number; minQuantity: string; startsAt: string | null; endsAt: string | null; priceBook: { name: string } | null }>;
   stockLevels: Array<{ id: string; onHandQuantity: string; reorderPoint: string; location: { name: string } | null; store: { name: string } | null }>;
@@ -77,7 +78,7 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
         taxCategory { id name }
         categories { id name }
         variants(orderBy: { sku: asc }) {
-          id title sku status sellBy unitOfMeasure defaultPriceCents costCents trackInventory
+          id title sku status sellBy unitOfMeasure defaultPriceCents costCents trackInventory allowNegativeInventory
           barcodes(orderBy: { value: asc }) { id value format isPrimary status }
           priceEntries(where: { status: { equals: active } }, orderBy: { startsAt: desc }, take: 10) { id amountCents minQuantity startsAt endsAt priceBook { name } }
           stockLevels { id onHandQuantity reorderPoint location { name } store { name } }
@@ -102,6 +103,8 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
     { id },
   );
   product.description = descriptionResponse.success ? (descriptionResponse.data.product?.description ?? null) : null;
+  // Unreadable descriptions (older seeded rows) are left out of the edit form so saving never blanks them.
+  const descriptionReadable = descriptionResponse.success;
   const path = `/dashboard/platform/products/${product.id}`;
   const money = (cents: number | null | undefined) => formatMoney(cents ?? 0, scope.currencyCode);
   const selectedVariant = product.variants.find((variant) => variant.id === searchValue(search, "variant")) ?? product.variants[0];
@@ -129,6 +132,7 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
     defaultPriceCents: variant.defaultPriceCents,
     costCents: variant.costCents,
     trackInventory: variant.trackInventory,
+    allowNegativeInventory: variant.allowNegativeInventory,
   });
   const onHand = (variant: Variant) => variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
 
@@ -292,7 +296,7 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
                 defaults={variantDefaults(selectedVariant)}
                 taxCategories={taxOptions}
                 priceBooks={bookOptions}
-                withDescription
+                withDescription={descriptionReadable}
                 lockIdentity
               />
             </FormGrid>

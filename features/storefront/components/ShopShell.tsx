@@ -51,7 +51,7 @@ export async function ShopShell({ children }: { children: ReactNode }) {
     <div className={`sf ${fonts}`} style={theme}>
       <div className="sf-strip">
         <div className="sf-wrap sf-strip__inner">
-          {hasHours && location ? <TodayLine hours={location.hours} /> : <span />}
+          {hasHours && location ? <TodayLine hours={location.hours} timeZone={location.timezone} /> : <span />}
           <span className="sf-strip__meta">
             {address ? <span>{address}</span> : null}
             {location?.phone ? (
@@ -93,7 +93,7 @@ export async function ShopShell({ children }: { children: ReactNode }) {
           {hasHours && location ? (
             <div className="sf-foot__col">
               <h2>Hours</h2>
-              <HoursList hours={location.hours} />
+              <HoursList hours={location.hours} timeZone={location.timezone} />
             </div>
           ) : null}
           <nav className="sf-foot__col" aria-label="Footer">

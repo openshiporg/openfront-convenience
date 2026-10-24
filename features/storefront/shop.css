@@ -363,3 +363,16 @@
 .sf-order--link { display: block; border-radius: 16px; transition: background 0.15s; }
 .sf-order--link:hover { background: var(--sf-surface); }
 .sf-tape--receipt { position: relative; top: auto; max-width: 440px; }
+
+/* Product size line and availability */
+.sf-product__size { margin-top: 10px; font-size: clamp(17px, 2vw, 21px); font-weight: 700; font-stretch: 108%; color: var(--sf-ink-2); }
+.sf-tag__ask { display: block; margin-top: 2px; font-family: var(--sf-font), sans-serif; font-size: 11px; font-weight: 700; color: var(--sf-ink-2); }
+@media (max-width: 719px) { .sf-tag__meta:has(.sf-tag__ask) { display: block; } }
+
+/* Fuel price strip */
+.sf-fuel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 10px; margin: 0 0 40px; padding: 0; list-style: none; }
+.sf-fuel__item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: var(--sf-r); background: var(--sf-deep); color: #fff; box-shadow: inset 0 -4px 0 var(--sf-edge); }
+.sf-fuel__grade { font-weight: 800; font-stretch: 110%; letter-spacing: -0.01em; }
+.sf-fuel__tier { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: oklch(80% 0.05 var(--sf-h)); }
+.sf-fuel__price { font-family: var(--sf-mono), ui-monospace, monospace; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sf-fuel__price small { font-size: 12px; color: oklch(80% 0.05 var(--sf-h)); }

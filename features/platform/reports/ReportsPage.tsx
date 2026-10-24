@@ -2,12 +2,21 @@ import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { Dot, ListBand, SectionTitle, inputClass, labelClass, panelClass, primaryButtonClass } from "../components/cv-ui";
 import { EmptyState, PlatformPage } from "../components/PlatformPage";
+import { zonedNowInput } from "../lib/form-values";
 import { getPlatformProjection, searchValue, type PlatformSearch } from "../lib/projection";
 
 type Summary = {
   currencyCode: string;
   dayCount: number;
   grossSalesCents: string;
+  discountCents: string;
+  taxCents: string;
+  totalSalesCents: string;
+  refundCents: string;
+  cashTenderCents: string;
+  nonCashTenderCents: string;
+  saleCount: string;
+  refundCount: string;
   netReceiptsCents: string;
   cashOverShortCents: string;
   depositedCashCents: string;
@@ -26,17 +35,19 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
   const search = await searchParams;
   const replayableSearch = Promise.resolve(search);
   const state = await getPlatformProjection("reports", replayableSearch);
-  const startDate = searchValue(search, "startDate");
-  const endDate = searchValue(search, "endDate");
+  // Today in the store's timezone unless a period was chosen.
+  const today = zonedNowInput(state.projection?.timezone).slice(0, 10);
+  const startDate = searchValue(search, "startDate") || today;
+  const endDate = searchValue(search, "endDate") || today;
   const scope = searchValue(search, "scope") || "business";
-  const currencyCode = searchValue(search, "currencyCode").toUpperCase();
+  const currencyCode = (searchValue(search, "currencyCode") || state.projection?.currencyCode || "").toUpperCase();
   let summary: Summary | null = null;
   let reportError = "";
   if (state.projection?.businessId && startDate && endDate) {
     const response = await keystoneClient<{ convenienceReportingSummary: Summary }>(`
       query PlatformReport($input: ConvenienceReportingSummaryInput!) {
         convenienceReportingSummary(input: $input) {
-          currencyCode dayCount grossSalesCents netReceiptsCents cashOverShortCents depositedCashCents lotteryNetCents moneyServiceNetCents exceptionCount
+          currencyCode dayCount grossSalesCents discountCents taxCents totalSalesCents refundCents netReceiptsCents cashTenderCents nonCashTenderCents saleCount refundCount cashOverShortCents depositedCashCents lotteryNetCents moneyServiceNetCents exceptionCount
           stores { storeId storeName dayCount netReceiptsCents cashOverShortCents exceptionCount }
         }
       }
@@ -46,8 +57,16 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
   }
   const figures: Array<[string, string]> = summary
     ? [
-        ["Gross sales", money(summary.grossSalesCents, summary.currencyCode)],
+        // One set of definitions: item sales → less discounts → plus tax → less refunds = net receipts.
+        ["Item sales (before tax)", money(summary.grossSalesCents, summary.currencyCode)],
+        ["Discounts", money(summary.discountCents, summary.currencyCode)],
+        ["Tax", money(summary.taxCents, summary.currencyCode)],
+        ["Sales incl. tax", money(summary.totalSalesCents, summary.currencyCode)],
+        ["Refunds", money(summary.refundCents, summary.currencyCode)],
         ["Net receipts", money(summary.netReceiptsCents, summary.currencyCode)],
+        ["Cash taken", money(summary.cashTenderCents, summary.currencyCode)],
+        ["Card and other", money(summary.nonCashTenderCents, summary.currencyCode)],
+        ["Transactions", summary.saleCount],
         ["Cash variance", money(summary.cashOverShortCents, summary.currencyCode)],
         ["Deposited cash", money(summary.depositedCashCents, summary.currencyCode)],
         ["Lottery settlement", money(summary.lotteryNetCents, summary.currencyCode)],
@@ -71,7 +90,8 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
         </form>
       </section>
       {summary ? <section className="min-w-0 space-y-5" aria-labelledby="report-results">
-        <SectionTitle id="report-results" meta={`${startDate} – ${endDate}`}>Reconciled store days</SectionTitle>
+        <SectionTitle id="report-results" meta={`${startDate} – ${endDate}`}>Closed store days</SectionTitle>
+        {summary.dayCount === 0 ? <EmptyState title="No closed store days in this period" /> : null}
         <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 md:grid-cols-4">
           {figures.map(([label, value]) => <div key={label} className="min-w-0 bg-background px-4 py-3.5"><dt className="truncate text-xs font-medium text-muted-foreground">{label}</dt><dd className="mt-1 font-mono text-xl font-medium tabular-nums tracking-tight [overflow-wrap:anywhere]">{value}</dd></div>)}
         </dl>

@@ -56,7 +56,7 @@ export async function StorefrontPage() {
             <div className="sf-storecard__tag">
               <div className="sf-titleline">
                 <h2>{location.name}</h2>
-                {hasHours ? <TodayLine hours={location.hours} /> : null}
+                {hasHours ? <TodayLine hours={location.hours} timeZone={location.timezone} /> : null}
               </div>
               {mapsQuery ? (
                 <address>
@@ -70,7 +70,7 @@ export async function StorefrontPage() {
                   {location.phone}
                 </a>
               ) : null}
-              {hasHours ? <HoursList hours={location.hours} /> : null}
+              {hasHours ? <HoursList hours={location.hours} timeZone={location.timezone} /> : null}
             </div>
             {mapsQuery ? (
               <a
@@ -86,6 +86,28 @@ export async function StorefrontPage() {
           </aside>
         ) : null}
       </section>
+
+      {projection.fuelPrices.length ? (
+        <section aria-labelledby="sf-fuel-title">
+          <div className="sf-section__head">
+            <h2 id="sf-fuel-title">Fuel</h2>
+          </div>
+          <ul className="sf-fuel">
+            {projection.fuelPrices.map((price) => (
+              <li key={`${price.grade}-${price.tier}`} className="sf-fuel__item">
+                <span>
+                  <span className="sf-fuel__grade">{price.grade}</span>
+                  <span className="sf-fuel__tier">{price.tier}</span>
+                </span>
+                <span className="sf-fuel__price">
+                  ${(price.priceMillsPerGallon / 1000).toFixed(3)}
+                  <small>/gal</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {categories.length ? (
         <section id="aisles" className="sf-section" aria-labelledby="sf-aisles-title">

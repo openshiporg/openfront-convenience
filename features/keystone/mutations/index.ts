@@ -253,6 +253,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         postalCode: String!
         countryCode: String!
         phone: String!
+        timezone: String!
         hours: JSON!
       }
 
@@ -276,6 +277,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         identity: ConveniencePublicStorefrontIdentity
         location: ConveniencePublicStorefrontLocation
         categories: [ConveniencePublicStorefrontCategory!]!
+        fuelPrices: JSON!
       }
 
       type ConveniencePlatformMetric {

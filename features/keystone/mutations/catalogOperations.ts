@@ -16,6 +16,18 @@ function slug(value: string, label: string): string {
   return result;
 }
 
+/** A lookup-key segment from free text ("2 for $5 Chips" → "2-for-5-chips"). */
+function keySegment(value: string, label: string): string {
+  const result = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63);
+  if (result.length < 2) throw new Error(`${label} needs at least two letters or numbers`);
+  return result;
+}
+
 function sku(value: string): string {
   const result = value.trim().toUpperCase();
   if (!/^[A-Z0-9][A-Z0-9._/-]{1,63}$/.test(result))
@@ -634,7 +646,8 @@ export async function configurePromotion(
         throw new Error(
           "One or more promotion categories do not belong to this business",
         );
-      const lookupKey = `${args.input.businessId}:promotion:${code || slug(name, "Promotion name")}`;
+      // Promotions are named in plain words; only the lookup key needs a slug.
+      const lookupKey = `${args.input.businessId}:promotion:${code || keySegment(name, "Promotion name")}`;
       const existing = await transaction.promotion.findUnique({
         where: { lookupKey },
       });

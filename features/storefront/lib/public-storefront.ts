@@ -30,6 +30,7 @@ export const getPublicStorefrontProjection = cache(
         identity: null,
         location: null,
         categories: [],
+        fuelPrices: [],
       };
     }
   },

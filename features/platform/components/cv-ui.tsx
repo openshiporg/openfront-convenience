@@ -28,7 +28,7 @@ export function toneOf(value: string | null | undefined): DotTone {
 
 const STATUS_TONES: Array<[RegExp, DotTone]> = [
   [/(fail|error|reject|void|cancel|expired|destroy|critical|short|breach|blocked|disabled|denied|abandon)/, "danger"],
-  [/(review|pending|draft|held|open|counting|submitted|progress|partial|attention|queued|retry|suspend|closing|unsettled|flagged|in_transit|shipped)/, "warn"],
+  [/(out_of_date|review|pending|draft|held|open|counting|submitted|progress|partial|attention|queued|retry|suspend|closing|unsettled|flagged|in_transit|shipped)/, "warn"],
   [/(complete|locked|approved|active|posted|received|captured|settled|resolved|published|verified|delivered|paid|closed|ready|succeeded|live)/, "ok"],
 ];
 

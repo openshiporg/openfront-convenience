@@ -9973,6 +9973,7 @@ type ConveniencePublicStorefrontLocation {
   postalCode: String!
   countryCode: String!
   phone: String!
+  timezone: String!
   hours: JSON!
 }
 
@@ -9996,6 +9997,7 @@ type ConveniencePublicStorefrontProjection {
   identity: ConveniencePublicStorefrontIdentity
   location: ConveniencePublicStorefrontLocation
   categories: [ConveniencePublicStorefrontCategory!]!
+  fuelPrices: JSON!
 }
 
 type ConveniencePlatformMetric {

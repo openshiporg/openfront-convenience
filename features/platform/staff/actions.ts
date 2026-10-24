@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { isCommonPassword } from "@/features/storefront/lib/password-rules";
 
 const value = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -34,6 +35,7 @@ export async function addStaffAction(form: FormData) {
   const roleId = value(form, "roleId");
   if (!name || !email || !employeeNumber || !roleId || !businessId || !storeId) back(path, form, { error: "Name, email, employee number, role and store are required" });
   if (password.length < 10) back(path, form, { error: "The temporary password needs at least 10 characters" });
+  if (isCommonPassword(password, email)) back(path, form, { error: "Choose a less common temporary password" });
   const user = await keystoneClient<{ createUser: { id: string } | null }>(
     `mutation PlatformAddStaffUser($data: UserCreateInput!) { createUser(data: $data) { id } }`,
     { data: { name, email, password } },

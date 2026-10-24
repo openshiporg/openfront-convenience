@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { isCommonPassword } from "./lib/password-rules";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 const basketMutation = `mutation Basket($input: StorefrontBasketInput!) { updateStorefrontBasket(input: $input) }`;
@@ -33,6 +34,7 @@ export async function customerAuth(form: FormData) {
   const email = value(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   if (mode === "signup") {
+    if (isCommonPassword(password, email)) redirect("/account/signup?error=password");
     const result = await keystoneClient(`mutation Signup($data: UserCreateInput!) { createUser(data: $data) { id } }`, { data: { name: value(form, "name"), email, password } });
     if (!result.success) redirect("/account/signup?error=signup");
   }
@@ -43,6 +45,9 @@ export async function customerAuth(form: FormData) {
   redirect("/account");
 }
 export async function customerSignout() {
+  // Stateless cookies stay valid until they expire, so bump the user's session
+  // version first: a copied cookie stops authenticating after sign-out.
+  await keystoneClient("mutation { revokeCurrentUserSessions }");
   await keystoneClient("mutation { endSession }");
   const jar = await cookies();
   jar.delete("keystonejs-session");
