@@ -1,12 +1,15 @@
 import Link from "next/link";
 
-import { ShopShell } from "@/features/storefront/components/ShopShell";
+import "@/features/storefront/shop.css";
 
 export const metadata = { title: "Not found" };
 
+// Static: Next prerenders this page at build time, when the database isn't
+// reachable, so it reads nothing. Unknown products get the store-shell 404 in
+// app/(shop)/not-found.tsx.
 export default function NotFound() {
   return (
-    <ShopShell>
+    <main className="sf sf-soon">
       <div className="sf-emptycard">
         <p className="sf-empty">
           <span className="sf-dot" data-tone="muted" aria-hidden="true" />
@@ -16,6 +19,6 @@ export default function NotFound() {
           Back to shop
         </Link>
       </div>
-    </ShopShell>
+    </main>
   );
 }

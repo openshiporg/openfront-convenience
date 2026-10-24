@@ -237,6 +237,8 @@ async function reconcileAtomicMigrationChecksums(
   );
 }
 
+// Period columns are TIMESTAMP(3) without time zone holding UTC (Prisma's DateTime),
+// so they are read as UTC first and then converted to the store's local date.
 async function assertSettlementTradingDateReadiness(
   prisma: PrismaClient,
 ): Promise<void> {
@@ -252,9 +254,9 @@ async function assertSettlementTradingDateReadiness(
         FROM "StoreDay" AS day
         WHERE day."periodEndedAt" <= day."periodStartedAt"
           OR day."tradingDate" IS DISTINCT FROM
-            to_char(day."periodStartedAt" AT TIME ZONE day."timezoneSnapshot", 'YYYY-MM-DD')
+            to_char((day."periodStartedAt" AT TIME ZONE 'UTC') AT TIME ZONE day."timezoneSnapshot", 'YYYY-MM-DD')
           OR day."tradingDate" IS DISTINCT FROM
-            to_char((day."periodEndedAt" - interval '1 millisecond') AT TIME ZONE day."timezoneSnapshot", 'YYYY-MM-DD')
+            to_char(((day."periodEndedAt" - interval '1 millisecond') AT TIME ZONE 'UTC') AT TIME ZONE day."timezoneSnapshot", 'YYYY-MM-DD')
       `,
     );
   }
@@ -268,9 +270,9 @@ async function assertSettlementTradingDateReadiness(
         FROM "LotterySettlement" AS settlement
         JOIN "Store" AS store ON store.id = settlement.store
         WHERE settlement."tradingDate" IS DISTINCT FROM
-          to_char(settlement."periodStartedAt" AT TIME ZONE store.timezone, 'YYYY-MM-DD')
+          to_char((settlement."periodStartedAt" AT TIME ZONE 'UTC') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
           OR settlement."tradingDate" IS DISTINCT FROM
-          to_char((settlement."periodEndedAt" - interval '1 millisecond') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
+          to_char(((settlement."periodEndedAt" - interval '1 millisecond') AT TIME ZONE 'UTC') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
           OR (
             settlement.status IN ('approved', 'exported')
             AND NOT EXISTS (
@@ -295,9 +297,9 @@ async function assertSettlementTradingDateReadiness(
         FROM "MoneyServiceSettlement" AS settlement
         JOIN "Store" AS store ON store.id = settlement.store
         WHERE settlement."tradingDate" IS DISTINCT FROM
-          to_char(settlement."periodStartedAt" AT TIME ZONE store.timezone, 'YYYY-MM-DD')
+          to_char((settlement."periodStartedAt" AT TIME ZONE 'UTC') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
           OR settlement."tradingDate" IS DISTINCT FROM
-          to_char((settlement."periodEndedAt" - interval '1 millisecond') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
+          to_char(((settlement."periodEndedAt" - interval '1 millisecond') AT TIME ZONE 'UTC') AT TIME ZONE store.timezone, 'YYYY-MM-DD')
           OR (
             settlement.status IN ('approved', 'exported')
             AND NOT EXISTS (
