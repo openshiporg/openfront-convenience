@@ -88,14 +88,14 @@ export async function ShopShell({ children }: { children: ReactNode }) {
             <ul className="sf-foot__lines">
               {fullAddress ? (
                 <li className="sf-row">
-                  <span>{location?.name ?? "Store"}</span>
+                  <span className="sf-foot__label">Address</span>
                   <span className="sf-leader" aria-hidden="true" />
                   <address className="sf-row__value">{fullAddress}</address>
                 </li>
               ) : null}
               {location?.phone ? (
                 <li className="sf-row">
-                  <span>Phone</span>
+                  <span className="sf-foot__label">Phone</span>
                   <span className="sf-leader" aria-hidden="true" />
                   <a className="sf-row__value sf-mono" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>{location.phone}</a>
                 </li>

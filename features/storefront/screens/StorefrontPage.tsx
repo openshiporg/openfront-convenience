@@ -53,7 +53,7 @@ export async function StorefrontPage() {
           ) : null}
           {address?.full ? (
             <li className="sf-row sf-fact">
-              <span className="sf-fact__label">{location?.name ?? "Store"}</span>
+              <span className="sf-fact__label">Address</span>
               <span className="sf-leader" aria-hidden="true" />
               <span className="sf-row__value">
                 <address>{address.full}</address>

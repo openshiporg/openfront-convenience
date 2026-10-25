@@ -473,9 +473,19 @@
   padding: 10px 0;
   font-size: 1.0625rem;
 }
-.sf-fact__label {
+.sf-fact__label,
+.sf-foot__label {
+  flex: none;
+  white-space: nowrap;
   color: var(--sf-ink-2);
   font-weight: 600;
+}
+/* Rows whose value can wrap keep the leader on the first line. */
+.sf-fact .sf-leader,
+.sf-foot__lines .sf-leader {
+  align-self: flex-start;
+  margin-top: 1.05em;
+  margin-bottom: 0;
 }
 .sf-fact .sf-row__value {
   display: grid;
@@ -923,6 +933,7 @@
   display: grid;
   gap: clamp(24px, 4vw, 56px);
   max-width: 720px;
+  margin-inline: auto;
 }
 .sf-product:has(.sf-product__photo) {
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
@@ -1110,6 +1121,7 @@
   display: grid;
   gap: 14px;
   max-width: 720px;
+  margin-inline: auto;
 }
 .sf-foot__tagline {
   color: var(--sf-ink-2);
