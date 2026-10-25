@@ -56,19 +56,19 @@
   color: inherit;
   text-decoration: none;
 }
-.sf h1,
-.sf h2,
-.sf h3,
-.sf p {
+:where(.sf) h1,
+:where(.sf) h2,
+:where(.sf) h3,
+:where(.sf) p {
   margin: 0;
 }
-.sf ul,
-.sf ol {
+:where(.sf) ul,
+:where(.sf) ol {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.sf address {
+:where(.sf) address {
   font-style: normal;
 }
 :where(.sf) input,
