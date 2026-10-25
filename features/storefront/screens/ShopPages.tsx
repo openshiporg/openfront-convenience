@@ -204,8 +204,8 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
           <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
         ) : null}
         <div className="sf-slip sf-product__receipt">
-          <span className="sf-tag__category">{product.category}</span>
           <h1 className="sf-display sf-display--product">{product.title}</h1>
+          <span className="sf-tag__category">{product.category}</span>
           <p className="sf-product__size">
             {single ? [single.title, single.unitOfMeasure !== "each" ? single.unitOfMeasure : null].filter(Boolean).join(" · ") : `${product.variants.length} sizes`}
           </p>

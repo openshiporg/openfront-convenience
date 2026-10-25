@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T00:00:00Z",
+  "title": "Design System: Openfront Convenience Storefront",
+  "extensions": {
+    "colorMeta": {
+      "counter-ground": {
+        "role": "neutral",
+        "displayName": "Counter Ground",
+        "canonical": "oklch(15.5% 0.014 var(--sf-h))",
+        "hexApprox": "#110a08",
+        "tonalRamp": [
+          "oklch(15% 0.014 44)",
+          "oklch(26% 0.014 44)",
+          "oklch(38% 0.014 44)",
+          "oklch(50% 0.014 44)",
+          "oklch(62% 0.014 44)",
+          "oklch(74% 0.014 44)",
+          "oklch(85% 0.014 44)",
+          "oklch(95% 0.014 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "receipt-paper": {
+        "role": "neutral",
+        "displayName": "Receipt Paper",
+        "canonical": "oklch(20% 0.016 var(--sf-h))",
+        "hexApprox": "#1c1410",
+        "tonalRamp": [
+          "oklch(15% 0.016 44)",
+          "oklch(26% 0.016 44)",
+          "oklch(38% 0.016 44)",
+          "oklch(50% 0.016 44)",
+          "oklch(62% 0.016 44)",
+          "oklch(74% 0.016 44)",
+          "oklch(85% 0.016 44)",
+          "oklch(95% 0.016 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "receipt-paper-raised": {
+        "role": "neutral",
+        "displayName": "Raised Paper",
+        "canonical": "oklch(24.5% 0.018 var(--sf-h))",
+        "hexApprox": "#281e19",
+        "tonalRamp": [
+          "oklch(15% 0.018 44)",
+          "oklch(26% 0.018 44)",
+          "oklch(38% 0.018 44)",
+          "oklch(50% 0.018 44)",
+          "oklch(62% 0.018 44)",
+          "oklch(74% 0.018 44)",
+          "oklch(85% 0.018 44)",
+          "oklch(95% 0.018 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "counter-well": {
+        "role": "neutral",
+        "displayName": "Counter Well",
+        "canonical": "oklch(12% 0.012 var(--sf-h))",
+        "hexApprox": "#090503",
+        "tonalRamp": [
+          "oklch(15% 0.012 44)",
+          "oklch(26% 0.012 44)",
+          "oklch(38% 0.012 44)",
+          "oklch(50% 0.012 44)",
+          "oklch(62% 0.012 44)",
+          "oklch(74% 0.012 44)",
+          "oklch(85% 0.012 44)",
+          "oklch(95% 0.012 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "thermal-ink": {
+        "role": "neutral",
+        "displayName": "Thermal Ink",
+        "canonical": "oklch(95.5% 0.012 85)",
+        "hexApprox": "#f4f0e7",
+        "tonalRamp": [
+          "oklch(15% 0.012 85)",
+          "oklch(26% 0.012 85)",
+          "oklch(38% 0.012 85)",
+          "oklch(50% 0.012 85)",
+          "oklch(62% 0.012 85)",
+          "oklch(74% 0.012 85)",
+          "oklch(85% 0.012 85)",
+          "oklch(95% 0.012 85)"
+        ]
+      },
+      "faded-ink": {
+        "role": "neutral",
+        "displayName": "Faded Ink",
+        "canonical": "oklch(81% 0.014 80)",
+        "hexApprox": "#c6c0b7",
+        "tonalRamp": [
+          "oklch(15% 0.014 80)",
+          "oklch(26% 0.014 80)",
+          "oklch(38% 0.014 80)",
+          "oklch(50% 0.014 80)",
+          "oklch(62% 0.014 80)",
+          "oklch(74% 0.014 80)",
+          "oklch(85% 0.014 80)",
+          "oklch(95% 0.014 80)"
+        ]
+      },
+      "ghost-ink": {
+        "role": "neutral",
+        "displayName": "Ghost Ink",
+        "canonical": "oklch(68% 0.014 80)",
+        "hexApprox": "#9d978f",
+        "tonalRamp": [
+          "oklch(15% 0.014 80)",
+          "oklch(26% 0.014 80)",
+          "oklch(38% 0.014 80)",
+          "oklch(50% 0.014 80)",
+          "oklch(62% 0.014 80)",
+          "oklch(74% 0.014 80)",
+          "oklch(85% 0.014 80)",
+          "oklch(95% 0.014 80)"
+        ]
+      },
+      "perforation": {
+        "role": "neutral",
+        "displayName": "Perforation",
+        "canonical": "oklch(34% 0.018 var(--sf-h))",
+        "hexApprox": "#403530",
+        "tonalRamp": [
+          "oklch(15% 0.018 44)",
+          "oklch(26% 0.018 44)",
+          "oklch(38% 0.018 44)",
+          "oklch(50% 0.018 44)",
+          "oklch(62% 0.018 44)",
+          "oklch(74% 0.018 44)",
+          "oklch(85% 0.018 44)",
+          "oklch(95% 0.018 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "lit-sign": {
+        "role": "primary",
+        "displayName": "Lit Sign",
+        "canonical": "oklch(73% 0.17 var(--sf-h))",
+        "hexApprox": "#fd7f44",
+        "tonalRamp": [
+          "oklch(15% 0.17 44)",
+          "oklch(26% 0.17 44)",
+          "oklch(38% 0.17 44)",
+          "oklch(50% 0.17 44)",
+          "oklch(62% 0.17 44)",
+          "oklch(74% 0.17 44)",
+          "oklch(85% 0.17 44)",
+          "oklch(95% 0.17 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "lit-sign-bright": {
+        "role": "primary",
+        "displayName": "Lit Sign Bright",
+        "canonical": "oklch(80% 0.15 var(--sf-h))",
+        "hexApprox": "#ff9b69",
+        "tonalRamp": [
+          "oklch(15% 0.15 44)",
+          "oklch(26% 0.15 44)",
+          "oklch(38% 0.15 44)",
+          "oklch(50% 0.15 44)",
+          "oklch(62% 0.15 44)",
+          "oklch(74% 0.15 44)",
+          "oklch(85% 0.15 44)",
+          "oklch(95% 0.15 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "lit-sign-ink": {
+        "role": "primary",
+        "displayName": "Lit Sign Ink",
+        "canonical": "oklch(17% 0.04 var(--sf-h))",
+        "hexApprox": "#1d0902",
+        "tonalRamp": [
+          "oklch(15% 0.04 44)",
+          "oklch(26% 0.04 44)",
+          "oklch(38% 0.04 44)",
+          "oklch(50% 0.04 44)",
+          "oklch(62% 0.04 44)",
+          "oklch(74% 0.04 44)",
+          "oklch(85% 0.04 44)",
+          "oklch(95% 0.04 44)"
+        ],
+        "note": "Hue is runtime --sf-h (store logo hue); recorded values use the default 44."
+      },
+      "void-red": {
+        "role": "semantic",
+        "displayName": "Void Red",
+        "canonical": "oklch(71% 0.19 25)",
+        "hexApprox": "#ff6762",
+        "tonalRamp": [
+          "oklch(15% 0.19 25)",
+          "oklch(26% 0.19 25)",
+          "oklch(38% 0.19 25)",
+          "oklch(50% 0.19 25)",
+          "oklch(62% 0.19 25)",
+          "oklch(74% 0.19 25)",
+          "oklch(85% 0.19 25)",
+          "oklch(95% 0.19 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Store name on the home page, length-fitted to one line."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and product titles."
+      },
+      "title-aisle": {
+        "displayName": "Title Aisle",
+        "purpose": "Aisle names on the home receipt."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Slip and section heads."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Store tagline and today's open line."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default running text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Row labels, counts, metadata, header strip."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Product row prices; cents and symbol raised at 0.5em."
+      },
+      "price-hero": {
+        "displayName": "Price Hero",
+        "purpose": "Product page total."
+      },
+      "price-fuel": {
+        "displayName": "Price Fuel",
+        "purpose": "Posted fuel prices, in lit-sign."
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu-drop",
+        "value": "0 24px 40px -16px rgb(0 0 0 / 0.7)",
+        "purpose": "Phone menu sheet only; slips are flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-quint",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "All transitions and entrances."
+      },
+      {
+        "name": "state-change",
+        "value": "160ms",
+        "purpose": "Colour and border transitions."
+      },
+      {
+        "name": "press",
+        "value": "140ms scale(0.97)",
+        "purpose": "Button and pill press feedback."
+      },
+      {
+        "name": "printer-feed",
+        "value": "560ms, 40ms stagger, 120ms delay, from translateY(-10px) opacity 0",
+        "purpose": "Home receipt lines feed in once; reduced motion: none."
+      },
+      {
+        "name": "print-name",
+        "value": "700ms clip-path inset(0 0 100% 0) to inset(0 0 -10% 0)",
+        "purpose": "Store name prints top-down once; reduced motion: none."
+      },
+      {
+        "name": "menu-drop",
+        "value": "220ms from translateY(-8px) opacity 0",
+        "purpose": "Phone menu sheet opening."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "420px"
+      },
+      {
+        "name": "phone",
+        "value": "760px"
+      },
+      {
+        "name": "counter-stack",
+        "value": "1080px"
+      },
+      {
+        "name": "container",
+        "value": "1360px"
+      }
+    ],
+    "runtimeHue": {
+      "variable": "--sf-h",
+      "default": 44,
+      "source": "ShopShell: (260 + store logoColor) % 360"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one solid action per view, in lit-sign.",
+      "html": "<button class=\"ds-btn\">Search</button>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border:1.5px solid var(--sf-accent);border-radius:var(--sf-r);background:var(--sf-accent);color:var(--sf-accent-ink);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-weight:700;font-size:1rem;letter-spacing:0.01em;cursor:pointer;transition:transform 140ms var(--sf-ease),background-color 160ms var(--sf-ease),border-color 160ms var(--sf-ease)} .ds-btn:hover{background:oklch(80% 0.15 var(--sf-h));border-color:oklch(80% 0.15 var(--sf-h))} .ds-btn:active{transform:scale(0.97)} .ds-btn:focus-visible{outline:2px solid var(--sf-accent);outline-offset:3px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary action: outlined in perforation.",
+      "html": "<a class=\"ds-btn ds-btn--quiet\" href=\"#\">Shop the store <svg class=\"ds-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></a>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-icon{width:1.05em;height:1.05em;flex:none} .ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border:1.5px solid var(--sf-accent);border-radius:var(--sf-r);background:var(--sf-accent);color:var(--sf-accent-ink);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-weight:700;font-size:1rem;letter-spacing:0.01em;cursor:pointer;transition:transform 140ms var(--sf-ease),background-color 160ms var(--sf-ease),border-color 160ms var(--sf-ease)} .ds-btn:hover{background:oklch(80% 0.15 var(--sf-h));border-color:oklch(80% 0.15 var(--sf-h))} .ds-btn:active{transform:scale(0.97)} .ds-btn:focus-visible{outline:2px solid var(--sf-accent);outline-offset:3px} .ds-btn--quiet{background:transparent;border-color:var(--sf-line);color:var(--sf-ink);text-decoration:none} .ds-btn--quiet:hover{background:transparent;border-color:var(--sf-ink-2)}"
+    },
+    {
+      "name": "Aisle Pills",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Aisle track: current solid, the rest outlined.",
+      "html": "<nav class=\"ds-track\"><a class=\"ds-pill\" href=\"#\">All</a><a class=\"ds-pill\" aria-current=\"page\" href=\"#\">Cold Drinks</a><a class=\"ds-pill\" href=\"#\">Snacks &amp; Pantry</a></nav>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-track{display:flex;flex-wrap:wrap;gap:8px;background:var(--sf-ground);padding:16px} .ds-pill{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid var(--sf-line);border-radius:var(--sf-r);color:var(--sf-ink-2);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-weight:600;text-decoration:none;transition:border-color 160ms var(--sf-ease),color 160ms var(--sf-ease),transform 140ms var(--sf-ease)} .ds-pill:not([aria-current]):hover{border-color:var(--sf-ink-3);color:var(--sf-ink)} .ds-pill:active{transform:scale(0.97)} .ds-pill:focus-visible{outline:2px solid var(--sf-accent);outline-offset:3px} .ds-pill[aria-current=page]{background:var(--sf-accent);border-color:var(--sf-accent);color:var(--sf-accent-ink)}"
+    },
+    {
+      "name": "Made-in-store Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Small fact tag beside an item.",
+      "html": "<span class=\"ds-chip\">Made in store</span>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-chip{display:inline-flex;align-items:center;min-height:22px;padding:0 7px;border-radius:var(--sf-r);background:var(--sf-paper-2);color:var(--sf-ink-2);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-size:0.8125rem;font-weight:700}"
+    },
+    {
+      "name": "Search Line",
+      "kind": "input",
+      "refersTo": "input-scan",
+      "description": "Home search on receipt paper; focus turns the border lit-sign.",
+      "html": "<form class=\"ds-scan\" role=\"search\"><svg class=\"ds-icon ds-scan__icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Search the store\" aria-label=\"Search products\"></form>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-icon{width:1.05em;height:1.05em;flex:none} .ds-scan{position:relative;display:flex;align-items:center} .ds-scan__icon{position:absolute;left:18px;color:var(--sf-ink-3)} .ds-scan input{width:100%;min-height:56px;padding:0 14px 0 48px;border:1.5px solid var(--sf-line);border-radius:var(--sf-r);background:var(--sf-paper);color:var(--sf-ink);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-size:1.125rem;outline:none;transition:border-color 160ms var(--sf-ease)} .ds-scan input::placeholder{color:var(--sf-ink-3)} .ds-scan input:focus{border-color:var(--sf-accent)}"
+    },
+    {
+      "name": "Header Nav",
+      "kind": "nav",
+      "refersTo": "pill-current",
+      "description": "Sticky counter-well bar with logo, Shop and Account.",
+      "html": "<header class=\"ds-bar\"><span class=\"ds-logo\">Cedar &amp; Main Market</span><nav class=\"ds-nav\"><a class=\"ds-pill\" aria-current=\"page\" href=\"#\">Shop</a><a class=\"ds-pill\" href=\"#\">Account</a></nav></header>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-bar{display:flex;align-items:center;gap:24px;min-height:68px;padding:0 24px;background:var(--sf-well);color:var(--sf-ink);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;} .ds-logo{margin-right:auto;font-weight:800;font-size:1.125rem;letter-spacing:0.01em} .ds-nav{display:flex;gap:6px} .ds-pill{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid transparent;border-radius:var(--sf-r);color:var(--sf-ink-2);font-weight:600;text-decoration:none;transition:color 160ms var(--sf-ease)} .ds-pill:hover{color:var(--sf-ink)} .ds-pill:focus-visible{outline:2px solid var(--sf-accent);outline-offset:3px} .ds-pill[aria-current=page]{background:var(--sf-accent);border-color:var(--sf-accent);color:var(--sf-accent-ink)}"
+    },
+    {
+      "name": "Receipt Slip with Itemised Rows",
+      "kind": "card",
+      "refersTo": "slip",
+      "description": "Signature: paper slip, dotted leaders, torn foot.",
+      "html": "<ul class=\"ds-slip\"><li class=\"ds-row\"><span class=\"ds-label\">Today</span><span class=\"ds-leader\"></span><span class=\"ds-val ds-today\"><span class=\"ds-dot\"></span>Open now · until 9pm</span></li><li class=\"ds-row\"><span class=\"ds-label\">Phone</span><span class=\"ds-leader\"></span><span class=\"ds-val\">(212) 555-0184</span></li></ul>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-slip{position:relative;list-style:none;margin:0 0 12px;padding:clamp(18px,2.4vw,28px);background:var(--sf-paper);border-radius:var(--sf-r) var(--sf-r) 0 0;color:var(--sf-ink);font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;font-size:1.0625rem} .ds-slip::after{content:'';position:absolute;inset:100% 0 auto;height:10px;background:var(--sf-paper);-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Cpath d='M0 0h16L8 10z'/%3E%3C/svg%3E\") repeat-x 0 0 / 16px 10px;mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Cpath d='M0 0h16L8 10z'/%3E%3C/svg%3E\") repeat-x 0 0 / 16px 10px} .ds-row{display:flex;align-items:baseline;gap:10px;padding:10px 0} .ds-label{color:var(--sf-ink-2);font-weight:600;white-space:nowrap} .ds-leader{flex:1;min-width:24px;align-self:end;margin-bottom:0.4em;border-bottom:2px dotted var(--sf-line)} .ds-val{font-variant-numeric:tabular-nums} .ds-today{display:inline-flex;align-items:center;gap:8px;font-weight:700} .ds-dot{width:8px;height:8px;border-radius:50%;background:var(--sf-accent)}"
+    },
+    {
+      "name": "Product Row with Price",
+      "kind": "custom",
+      "refersTo": "slip",
+      "description": "Shop list row: title and meta, leader, dot-matrix price.",
+      "html": "<a class=\"ds-tag\" href=\"#\"><span class=\"ds-tag__body\"><span class=\"ds-tag__title\">Cold Brew Coffee</span><span class=\"ds-tag__meta\">Cold Drinks · 12 oz</span></span><span class=\"ds-leader\"></span><span class=\"ds-price\"><span class=\"ds-sm\">$</span>4<span class=\"ds-sm\">49</span></span></a>",
+      "css": ":host{--sf-h:44;--sf-ground:oklch(15.5% 0.014 var(--sf-h));--sf-paper:oklch(20% 0.016 var(--sf-h));--sf-paper-2:oklch(24.5% 0.018 var(--sf-h));--sf-well:oklch(12% 0.012 var(--sf-h));--sf-ink:oklch(95.5% 0.012 85);--sf-ink-2:oklch(81% 0.014 80);--sf-ink-3:oklch(68% 0.014 80);--sf-line:oklch(34% 0.018 var(--sf-h));--sf-accent:oklch(73% 0.17 var(--sf-h));--sf-accent-ink:oklch(17% 0.04 var(--sf-h));--sf-danger:oklch(71% 0.19 25);--sf-ease:cubic-bezier(0.23,1,0.32,1);--sf-r:3px} .ds-tag{display:flex;align-items:center;gap:16px;min-height:76px;padding:14px 24px;background:var(--sf-paper);color:var(--sf-ink);text-decoration:none;font-family:'Sofia Sans Semi Condensed',ui-sans-serif,system-ui,sans-serif;} .ds-tag__body{display:grid;gap:2px} .ds-tag__title{font-size:1.25rem;font-weight:700;line-height:1.2;transition:color 160ms var(--sf-ease)} .ds-tag:hover .ds-tag__title{color:var(--sf-accent)} .ds-tag:focus-visible{outline:2px solid var(--sf-accent);outline-offset:3px} .ds-tag__meta{color:var(--sf-ink-3);font-size:0.875rem} .ds-leader{flex:1;min-width:24px;border-bottom:2px dotted var(--sf-line)} .ds-price{display:inline-flex;align-items:flex-start;font-family:Doto,'Sofia Sans Semi Condensed',ui-sans-serif,sans-serif;font-weight:900;letter-spacing:-0.02em;font-size:2rem;line-height:1} .ds-sm{font-size:0.5em;margin-top:0.12em}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Receipt",
+    "overview": "The storefront is the store's own register receipt, printed at night. Every fact the store knows (today's open state, address, phone, fuel, aisles, items, a customer's receipts) is set as an itemised line: the name at one end, the value at the other, joined by a dotted leader. The lines sit on slips of receipt paper that end in a torn, zigzag foot, laid on a near-black counter. The page is dense in the way a receipt is dense, with no hero imagery and no grid of product cards.\n\nThere are three inks and one light. The counter, paper and well are warm near-blacks tinted a few degrees toward the store's logo hue. Thermal-white ink carries the text in three strengths. The single lit-sign accent, also in the logo hue, marks what is live or actionable. The store name, prices and totals print in Doto, a dot-matrix face, and everything else is set in Sofia Sans Semi Condensed.\n\nThe whole palette follows the store. `ShopShell` sets `--sf-h` from the store's logo colour at runtime, and every grounded and accented token rotates with it. The values recorded here are the default hue (44, a warm orange), not a fixed brand colour.",
+    "keyCharacteristics": [
+      "Itemised rows with dotted leaders are the main layout device.",
+      "Receipt slips have square-ish top corners and a torn zigzag foot.",
+      "Dot-matrix numerals for the store name, prices and totals only.",
+      "One accent in the store's logo hue, for live state and action only.",
+      "Selected states are solid fills and everything else is outlined.",
+      "The home receipt feeds out top-down once on load, like a printer."
+    ],
+    "rules": [
+      {
+        "name": "The One Light Rule",
+        "body": "The lit-sign accent is reserved for live state, action, the current location, and the posted fuel price. Body text, headings and paper never take it at rest.",
+        "section": "colors"
+      },
+      {
+        "name": "The Store's Hue Rule",
+        "body": "Grounds, perforation and accent are written as `oklch(L C var(--sf-h))`. Never hard-code a hue. The store's logo sets it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Printer's Numbers Rule",
+        "body": "Doto sets only the store name, prices and receipt totals. Page titles, product titles and all running text stay in Sofia. Phone numbers and hours use tabular numerals in Sofia, not Doto.",
+        "section": "typography"
+      },
+      {
+        "name": "The Plain Case Rule",
+        "body": "Nothing is uppercased or letter-spaced into a label. Hierarchy comes from weight and size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Itemised Line Rule",
+        "body": "Any fact with a name and a value is a row joined by a dotted leader, never a label stacked over a value in a box.",
+        "section": "layout"
+      },
+      {
+        "name": "The Paper-On-Counter Rule",
+        "body": "A surface is lifted by being lighter paper, not by a shadow or a border.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Torn Foot Rule",
+        "body": "A slip that represents a printed receipt (store facts, aisles, fuel, hours, shop list, product receipt, receipt detail, footer, auth form) ends in the torn foot. Panels that are not printed receipts (profile, order and rewards panels, empty cards) are fully rounded at 3px with no tear.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do derive every grounded and accented colour from `--sf-h` so the storefront follows the store's logo hue.",
+      "Do set any name/value fact as an itemised row with a 2px dotted leader.",
+      "Do end printed-receipt slips with the torn foot, in the slip's own paper colour.",
+      "Do keep the lit-sign accent for live state, the primary action, the current location and posted fuel prices.",
+      "Do make selected states solid and leave the rest outlined.",
+      "Do use Doto 900 for the store name, prices and totals, with cents and currency raised at 0.5em.",
+      "Do gate hover on `(hover: hover) and (pointer: fine)` and motion on `prefers-reduced-motion: no-preference`; keep 0.97 press feedback on buttons and pills.",
+      "Do keep touch targets at 44px or larger."
+    ],
+    "donts": [
+      "Don't build a hero-plus-card-grid shop page; products are rows on a slip.",
+      "Don't return to light paper grounds or flat grey neutrals; every neutral is tinted toward the store's hue.",
+      "Don't add shadows to slips or cards; lift with lighter paper.",
+      "Don't introduce a second accent hue. Void red is for errors only.",
+      "Don't set running text, page titles or phone numbers in Doto.",
+      "Don't round corners past 3px or soften the torn foot into a curve.",
+      "Don't uppercase or letter-space labels into eyebrows above headings."
+    ]
+  }
+}
