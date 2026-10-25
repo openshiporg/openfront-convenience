@@ -26,14 +26,35 @@
     }
   },
   "inventoryLocations": [
-    { "name": "Sales Floor", "code": "sales-floor", "type": "sales_floor" },
-    { "name": "Back Room", "code": "back-room", "type": "back_room" }
+    {
+      "name": "Sales Floor",
+      "code": "sales-floor",
+      "type": "sales_floor"
+    },
+    {
+      "name": "Back Room",
+      "code": "back-room",
+      "type": "back_room"
+    }
   ],
-  "register": { "name": "Register 1", "code": "register-1" },
-  "priceBook": { "name": "Default Retail", "code": "default-retail", "priority": 100 },
+  "register": {
+    "name": "Register 1",
+    "code": "register-1"
+  },
+  "priceBook": {
+    "name": "Default Retail",
+    "code": "default-retail",
+    "priority": 100
+  },
   "taxCategories": [
-    { "name": "Standard", "code": "standard" },
-    { "name": "Exempt", "code": "exempt" }
+    {
+      "name": "Standard",
+      "code": "standard"
+    },
+    {
+      "name": "Exempt",
+      "code": "exempt"
+    }
   ],
   "demoCategories": [
     {
@@ -128,6 +149,138 @@
       "barcode": "2000000000068",
       "defaultPriceCents": 329,
       "preparedFood": false
+    },
+    {
+      "title": "Cold Brew Coffee",
+      "summary": "Smooth, slow-steeped black cold brew.",
+      "handle": "cold-brew-coffee",
+      "categoryCode": "cold-drinks",
+      "variantTitle": "11 fl oz bottle",
+      "sku": "BEV-COLDBREW-11",
+      "barcode": "2000000001012",
+      "defaultPriceCents": 349,
+      "preparedFood": false
+    },
+    {
+      "title": "Orange Juice",
+      "summary": "Not-from-concentrate orange juice.",
+      "handle": "orange-juice",
+      "categoryCode": "cold-drinks",
+      "variantTitle": "12 fl oz bottle",
+      "sku": "BEV-OJ-12",
+      "barcode": "2000000001029",
+      "defaultPriceCents": 299,
+      "preparedFood": false
+    },
+    {
+      "title": "Spring Water",
+      "summary": "Still spring water.",
+      "handle": "spring-water",
+      "categoryCode": "cold-drinks",
+      "variantTitle": "1 L bottle",
+      "sku": "BEV-WATER-1L",
+      "barcode": "2000000001036",
+      "defaultPriceCents": 159,
+      "preparedFood": false
+    },
+    {
+      "title": "Trail Mix",
+      "summary": "Peanuts, raisins, almonds and chocolate pieces.",
+      "handle": "trail-mix",
+      "categoryCode": "snacks-pantry",
+      "variantTitle": "6 oz bag",
+      "sku": "SNK-TRAIL-6",
+      "barcode": "2000000001043",
+      "defaultPriceCents": 449,
+      "preparedFood": false
+    },
+    {
+      "title": "Dark Chocolate Bar",
+      "summary": "70% cacao dark chocolate.",
+      "handle": "dark-chocolate-bar",
+      "categoryCode": "snacks-pantry",
+      "variantTitle": "3.5 oz bar",
+      "sku": "SNK-CHOC-DARK",
+      "barcode": "2000000001050",
+      "defaultPriceCents": 299,
+      "preparedFood": false
+    },
+    {
+      "title": "Instant Oatmeal Cup",
+      "summary": "Maple and brown sugar oats; just add hot water.",
+      "handle": "instant-oatmeal-cup",
+      "categoryCode": "snacks-pantry",
+      "variantTitle": "1.9 oz cup",
+      "sku": "PAN-OATS-CUP",
+      "barcode": "2000000001067",
+      "defaultPriceCents": 199,
+      "preparedFood": false
+    },
+    {
+      "title": "Cafe Latte",
+      "summary": "Espresso with steamed milk.",
+      "handle": "cafe-latte",
+      "categoryCode": "coffee-bar",
+      "variantTitle": "16 oz cup",
+      "sku": "CAF-LATTE-16",
+      "barcode": "2000000001074",
+      "defaultPriceCents": 399,
+      "preparedFood": true
+    },
+    {
+      "title": "Blueberry Muffin",
+      "summary": "Baked fresh each morning.",
+      "handle": "blueberry-muffin",
+      "categoryCode": "coffee-bar",
+      "variantTitle": "Each",
+      "sku": "BAK-MUFFIN-BLU",
+      "barcode": "2000000001081",
+      "defaultPriceCents": 279,
+      "preparedFood": true
+    },
+    {
+      "title": "Chicken Caesar Salad",
+      "summary": "Romaine, grilled chicken, parmesan and croutons.",
+      "handle": "chicken-caesar-salad",
+      "categoryCode": "prepared-food",
+      "variantTitle": "Each",
+      "sku": "FOOD-CAESAR",
+      "barcode": "2000000001098",
+      "defaultPriceCents": 749,
+      "preparedFood": true
+    },
+    {
+      "title": "Paper Towels",
+      "summary": "Two-ply select-a-size rolls.",
+      "handle": "paper-towels",
+      "categoryCode": "everyday-essentials",
+      "variantTitle": "2 rolls",
+      "sku": "HH-TOWEL-2",
+      "barcode": "2000000001104",
+      "defaultPriceCents": 549,
+      "preparedFood": false
+    },
+    {
+      "title": "AA Batteries",
+      "summary": "Alkaline batteries.",
+      "handle": "aa-batteries",
+      "categoryCode": "everyday-essentials",
+      "variantTitle": "4 pack",
+      "sku": "HH-BATT-AA4",
+      "barcode": "2000000001111",
+      "defaultPriceCents": 699,
+      "preparedFood": false
+    },
+    {
+      "title": "Large Eggs",
+      "summary": "Grade A large eggs.",
+      "handle": "large-eggs",
+      "categoryCode": "everyday-essentials",
+      "variantTitle": "Dozen",
+      "sku": "DAIRY-EGGS-12",
+      "barcode": "2000000001128",
+      "defaultPriceCents": 449,
+      "preparedFood": false
     }
   ],
   "paymentProvider": {
@@ -153,5 +306,21 @@
     "tankCapacityGallons": "10000.0000",
     "pumpNumber": "1",
     "nozzleNumber": "1"
+  },
+  "sampleForm": {
+    "businessName": "Cedar & Main Market",
+    "businessCode": "cedar-main-market",
+    "storeName": "Cedar & Main Market",
+    "storeCode": "main",
+    "timezone": "America/New_York",
+    "currencyCode": "USD",
+    "standardTaxPercent": "8.875",
+    "addressLine1": "1847 Cedar Avenue",
+    "city": "Brookfield",
+    "stateProvince": "NY",
+    "postalCode": "10000",
+    "phone": "(212) 555-0184",
+    "storefrontStatus": "published",
+    "includeDemoCatalog": "on"
   }
 }

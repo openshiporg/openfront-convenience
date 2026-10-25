@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SegmentedRadio, inputClass, primaryButtonClass } from "../components/cv-ui";
 import { useOnboardingApi } from "./hooks/useOnboardingApi";
+import seed from "./lib/seed.json";
+
+// "Sample store" fills the form from lib/seed.json, like E-commerce's Complete template;
+// the owner reviews and submits it through the same checks as a blank form.
+const SAMPLE_VALUES: Record<string, string> = seed.sampleForm;
 
 interface OnboardingFormProps {
   onSuccess?: () => void;
@@ -36,13 +42,38 @@ function timezoneOptions(): string[] {
 
 export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
   const { state, action, pending, idempotencyKey } = useOnboardingApi(onSuccess);
-  const values = state.values;
+  const [template, setTemplate] = useState<"sample" | "blank">("blank");
+  const values = state.attempt > 0 ? state.values : template === "sample" ? SAMPLE_VALUES : {};
   const value = (name: string, fallback = "") => values[name] ?? fallback;
 
   return (
     // Keyed by attempt so a failed submit re-renders with what was typed.
-    <form key={state.attempt} action={action} className="space-y-6">
+    <form key={`${state.attempt}-${template}`} action={action} className="space-y-6">
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+
+      {state.attempt === 0 && (
+        <div
+          onChange={(event) => {
+            const input = event.target as HTMLInputElement;
+            if (input.name === "template") setTemplate(input.value === "sample" ? "sample" : "blank");
+          }}
+        >
+          <SegmentedRadio
+            label="Start from"
+            name="template"
+            defaultValue={template}
+            options={[
+              { value: "sample", label: "Sample store", tone: "ok" },
+              { value: "blank", label: "Blank", tone: "muted" },
+            ]}
+          />
+          {template === "sample" && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {seed.storefront.name}: sample business details and {seed.demoProducts.length} products. Review and change anything before you create the store.
+            </p>
+          )}
+        </div>
+      )}
 
       {state.message && (
         <p
@@ -176,7 +207,7 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
           <div className="flex items-center gap-3 sm:col-span-2">
             <Checkbox id="includeDemoCatalog" name="includeDemoCatalog" defaultChecked={value("includeDemoCatalog") === "on"} />
             <Label htmlFor="includeDemoCatalog" className="font-normal">
-              Add six sample products
+              Add {seed.demoProducts.length} sample products
             </Label>
           </div>
         </div>
