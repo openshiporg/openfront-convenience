@@ -118,15 +118,16 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
                     // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
                     <img className="sf-tag__photo" src={product.image.url} alt={product.image.alt || ""} loading="lazy" />
                   ) : null}
-                  <span className="sf-tag__category">{product.category}</span>
-                  <span className="sf-tag__title">{product.title}</span>
-                  <span className="sf-tag__foot">
+                  <span className="sf-tag__body">
+                    <span className="sf-tag__title">{product.title}</span>
                     <span className="sf-tag__meta">
-                      {product.variants.length > 1 ? `${product.variants.length} options` : unit && unit !== "each" ? unit : ""}
+                      <span className="sf-tag__category">{product.category}</span>
+                      {product.variants.length > 1 ? <span>{product.variants.length} options</span> : unit && unit !== "each" ? <span>{unit}</span> : null}
                       {availabilityOf(product.variants).label === "Ask in store" ? <span className="sf-tag__ask">Ask in store</span> : null}
                     </span>
-                    <Price cents={from} currency={data!.currency} from={varies} />
                   </span>
+                  <span className="sf-leader" aria-hidden="true" />
+                  <Price cents={from} currency={data!.currency} from={varies} />
                 </Link>
               </li>
             );

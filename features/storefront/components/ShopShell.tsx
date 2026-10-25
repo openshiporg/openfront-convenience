@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archivo, JetBrains_Mono } from "next/font/google";
+import { Doto, Sofia_Sans_Semi_Condensed } from "next/font/google";
 import type { CSSProperties, ReactNode } from "react";
 import { Search } from "lucide-react";
 
@@ -11,8 +11,10 @@ import { MobileMenu, StoreNav } from "./StoreNav";
 import { HoursList, TodayLine } from "./TodayHours";
 import "../shop.css";
 
-const display = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--sf-font", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--sf-mono", display: "swap" });
+// Receipt-printer dot matrix for the store name, prices and totals; a condensed
+// grotesk for everything else.
+const text = Sofia_Sans_Semi_Condensed({ subsets: ["latin"], variable: "--sf-font", display: "swap" });
+const dots = Doto({ subsets: ["latin"], weight: ["700", "900"], variable: "--sf-dots", display: "swap" });
 
 function SearchForm({ id }: { id: string }) {
   return (
@@ -29,7 +31,7 @@ function SearchForm({ id }: { id: string }) {
 export async function ShopShell({ children }: { children: ReactNode }) {
   const projection = await getPublicStorefrontProjection();
   const identity = projection.identity;
-  const fonts = `${display.variable} ${mono.variable}`;
+  const fonts = `${text.variable} ${dots.variable}`;
   if (!identity || projection.state !== "published") {
     return (
       <main className={`sf sf-soon ${fonts}`}>
@@ -79,6 +81,9 @@ export async function ShopShell({ children }: { children: ReactNode }) {
       <main className="sf-wrap sf-main">{children}</main>
       <footer className="sf-foot">
         <div className="sf-wrap sf-foot__inner">
+          <p className="sf-foot__mark" aria-hidden="true">
+            {identity.name}
+          </p>
           <div className="sf-foot__brand">
             <StoreLogo {...identity} />
             {identity.tagline ? <p>{identity.tagline}</p> : null}
