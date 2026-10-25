@@ -199,38 +199,36 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
         {product.category}
       </Link>
       <section className="sf-product">
-        <div className="sf-product__tag" data-photo={product.image ? "" : undefined}>
-          {product.image ? (
-            // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
-            <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
-          ) : null}
-          {/* The name is the H1 beside this tag; the tag carries the size and price. */}
-          <span className="sf-tag__category" aria-hidden="true">{product.category}</span>
-          <span className="sf-product__size">
-            {single ? [single.title, single.unitOfMeasure !== "each" ? single.unitOfMeasure : null].filter(Boolean).join(" · ") : `${product.variants.length} sizes`}
-          </span>
-          <span className="sf-product__tagfoot">
-            <span className="sf-tag__meta" />
-            <Price cents={from} currency={data.currency} from={varies} className="sf-price--hero" />
-          </span>
-        </div>
-        <div className="sf-product__body">
+        {product.image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
+          <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
+        ) : null}
+        <div className="sf-slip sf-product__receipt">
+          <span className="sf-tag__category">{product.category}</span>
           <h1 className="sf-display sf-display--product">{product.title}</h1>
+          <p className="sf-product__size">
+            {single ? [single.title, single.unitOfMeasure !== "each" ? single.unitOfMeasure : null].filter(Boolean).join(" · ") : `${product.variants.length} sizes`}
+          </p>
           {product.description ? <p className="sf-product__description">{product.description}</p> : null}
           <Availability variants={product.variants} />
           {single ? null : (
             <ul className="sf-options sf-product__form" aria-label="Options">
               {product.variants.map((variant) => (
-                <li key={variant.id} className="sf-option sf-option--static">
+                <li key={variant.id} className="sf-row sf-option--static">
                   <span className="sf-option__title">
                     {variant.title}
                     {variant.availability === "ask" ? <span className="sf-muted"> · ask in store</span> : null}
                   </span>
+                  <span className="sf-leader" aria-hidden="true" />
                   <span className="sf-option__price">{money(variant.priceCents, data.currency)}</span>
                 </li>
               ))}
             </ul>
           )}
+          <div className="sf-product__total">
+            <span>{varies ? "From" : "Price"}</span>
+            <Price cents={from} currency={data.currency} className="sf-price--hero" />
+          </div>
         </div>
       </section>
     </ShopShell>

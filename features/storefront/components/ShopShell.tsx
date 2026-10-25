@@ -8,7 +8,8 @@ import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { addressParts } from "../lib/address";
 import { StoreLogo } from "./StoreLogo";
 import { MobileMenu, StoreNav } from "./StoreNav";
-import { HoursList, TodayLine } from "./TodayHours";
+import { TodayLine } from "./TodayHours";
+import { HeaderSearch } from "./HeaderSearch";
 import "../shop.css";
 
 // Receipt-printer dot matrix for the store name, prices and totals; a condensed
@@ -69,9 +70,9 @@ export async function ShopShell({ children }: { children: ReactNode }) {
           <Link href="/" className="sf-bar__home" aria-label={`${identity.name} home`}>
             <StoreLogo {...identity} />
           </Link>
-          <div className="sf-bar__search">
+          <HeaderSearch>
             <SearchForm id="sf-search-desktop" />
-          </div>
+          </HeaderSearch>
           <StoreNav />
           <MobileMenu>
             <SearchForm id="sf-search-mobile" />
@@ -80,32 +81,31 @@ export async function ShopShell({ children }: { children: ReactNode }) {
       </header>
       <main className="sf-wrap sf-main">{children}</main>
       <footer className="sf-foot">
-        <div className="sf-wrap sf-foot__inner">
-          <p className="sf-foot__mark" aria-hidden="true">
-            {identity.name}
-          </p>
-          <div className="sf-foot__brand">
+        <div className="sf-wrap">
+          <div className="sf-slip sf-foot__slip">
             <StoreLogo {...identity} />
-            {identity.tagline ? <p>{identity.tagline}</p> : null}
+            {identity.tagline ? <p className="sf-foot__tagline">{identity.tagline}</p> : null}
+            <ul className="sf-foot__lines">
+              {fullAddress ? (
+                <li className="sf-row">
+                  <span>{location?.name ?? "Store"}</span>
+                  <span className="sf-leader" aria-hidden="true" />
+                  <address className="sf-row__value">{fullAddress}</address>
+                </li>
+              ) : null}
+              {location?.phone ? (
+                <li className="sf-row">
+                  <span>Phone</span>
+                  <span className="sf-leader" aria-hidden="true" />
+                  <a className="sf-row__value sf-mono" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>{location.phone}</a>
+                </li>
+              ) : null}
+            </ul>
+            <nav className="sf-foot__nav" aria-label="Footer">
+              <Link href="/shop">Shop</Link>
+              <Link href="/account">Account</Link>
+            </nav>
           </div>
-          {location ? (
-            <div className="sf-foot__col">
-              <h2>{location.name}</h2>
-              {fullAddress ? <address>{fullAddress}</address> : null}
-              {location.phone ? <p className="sf-mono">{location.phone}</p> : null}
-            </div>
-          ) : null}
-          {hasHours && location ? (
-            <div className="sf-foot__col">
-              <h2>Hours</h2>
-              <HoursList hours={location.hours} timeZone={location.timezone} />
-            </div>
-          ) : null}
-          <nav className="sf-foot__col" aria-label="Footer">
-            <h2>Store</h2>
-            <Link href="/shop">Shop</Link>
-            <Link href="/account">Account</Link>
-          </nav>
         </div>
       </footer>
     </div>

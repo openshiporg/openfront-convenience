@@ -39,56 +39,41 @@ export async function StorefrontPage() {
   return (
     <ShopShell>
       <section className="sf-hero" aria-labelledby="sf-hero-title">
-        <h1 id="sf-hero-title" className="sf-display sf-hero__name">
+        <h1 id="sf-hero-title" className="sf-display sf-hero__name" style={{ "--len": Math.max(8, identity?.name.length ?? 12) } as CSSProperties}>
           {identity?.name}
         </h1>
         {identity?.tagline ? <p className="sf-hero__tagline">{identity.tagline}</p> : null}
-        <div className="sf-facts">
+        <ul className="sf-slip sf-facts" aria-label="Store">
           {location && hasHours ? (
-            <div className="sf-fact sf-fact--today">
-              <h2>Today</h2>
-              <TodayLine hours={location.hours} timeZone={location.timezone} />
-            </div>
+            <li className="sf-row sf-fact">
+              <span className="sf-fact__label">Today</span>
+              <span className="sf-leader" aria-hidden="true" />
+              <span className="sf-row__value sf-fact--today"><TodayLine hours={location.hours} timeZone={location.timezone} /></span>
+            </li>
           ) : null}
           {address?.full ? (
-            <div className="sf-fact">
-              <h2>{location?.name ?? "Store"}</h2>
-              <address>
-                {address.street}
-                <br />
-                {address.locality}
-              </address>
-              {mapsQuery ? (
-                <a
-                  className="sf-link"
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Directions
-                  <ArrowUpRight aria-hidden="true" className="sf-icon" />
-                </a>
-              ) : null}
-            </div>
+            <li className="sf-row sf-fact">
+              <span className="sf-fact__label">{location?.name ?? "Store"}</span>
+              <span className="sf-leader" aria-hidden="true" />
+              <span className="sf-row__value">
+                <address>{address.full}</address>
+                {mapsQuery ? (
+                  <a className="sf-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`} target="_blank" rel="noreferrer">
+                    Directions
+                    <ArrowUpRight aria-hidden="true" className="sf-icon" />
+                  </a>
+                ) : null}
+              </span>
+            </li>
           ) : null}
           {location?.phone ? (
-            <div className="sf-fact">
-              <h2>Phone</h2>
-              <a className="sf-fact__phone sf-mono" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>
-                {location.phone}
-              </a>
-            </div>
+            <li className="sf-row sf-fact">
+              <span className="sf-fact__label">Phone</span>
+              <span className="sf-leader" aria-hidden="true" />
+              <a className="sf-row__value sf-mono" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>{location.phone}</a>
+            </li>
           ) : null}
-          {categories.length ? (
-            <div className="sf-fact">
-              <h2>Aisles</h2>
-              <a href="#aisles" className="sf-fact__count">
-                <span className="sf-dotnum">{categories.length}</span>
-                <span>{itemCount(categories.reduce((sum, category) => sum + category.products.length, 0))}</span>
-              </a>
-            </div>
-          ) : null}
-        </div>
+        </ul>
         <form action="/shop" method="get" role="search" className="sf-scan">
           <label htmlFor="sf-hero-search" className="sf-sr">
             Search products
