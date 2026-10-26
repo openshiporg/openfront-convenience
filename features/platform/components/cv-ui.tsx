@@ -114,7 +114,9 @@ export function SectionTitle({ children, meta, id }: { children: ReactNode; meta
       <h2 id={id} className="text-[14px] font-semibold text-foreground">
         {children}
       </h2>
-      {meta ? <span className="font-mono text-xs tabular-nums text-muted-foreground">{meta}</span> : null}
+      {meta ? (
+        <span className={cn("text-xs text-muted-foreground", typeof meta === "number" && "font-mono tabular-nums")}>{meta}</span>
+      ) : null}
     </div>
   );
 }
@@ -224,7 +226,7 @@ export function CountBoxes({
     <dl
       style={columns ? ({ "--cv-count-cols": columns } as CSSProperties) : undefined}
       className={cn(
-        "grid min-w-0 grid-cols-2 border-l border-t border-foreground/70 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]",
+        "grid min-w-0 grid-cols-2 border-l border-t border-foreground/70 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] max-sm:[&>*:last-child:nth-child(odd)]:col-span-2",
         columns && "lg:[grid-template-columns:var(--cv-count-cols)]",
         className,
       )}

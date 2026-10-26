@@ -144,6 +144,15 @@ export async function FuelPage({
   return (
     <PlatformPage title="Fuel" showMetrics={false} {...state}>
       {projection && !sites.length ? (
+        <CountBoxes
+          items={[
+            { label: "Paid", value: "–" },
+            { label: "Dispensed, confirmed", value: "–" },
+            { label: "Paid, not dispensed", value: "–" },
+          ]}
+        />
+      ) : null}
+      {projection && !sites.length ? (
         <PrereqNotice title="No fuel site set up">
           <ActionDisclosure label="Set up fuel site" primary id="fuel-setup">
             {topologyForm}
