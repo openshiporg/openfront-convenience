@@ -7,7 +7,7 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { DataTable, SectionTitle, StatusText, Td, Th, Tr, statusLabel, type DotTone } from "../components/cv-ui";
+import { CountBoxes, DataTable, SectionTitle, StatusText, Td, Th, Tr, statusLabel, type DotTone } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
 import { ActionBar, ActionDisclosure, PrereqNotice, QueueClear, ToneText, When, isToday } from "../fuel/ops-kit";
 import { getPlatformProjection, type PlatformProjection, type PlatformSearch } from "../lib/projection";
@@ -112,7 +112,9 @@ export async function RestrictedSalesPage({ searchParams }: { searchParams: Plat
         (SEVERITY_RANK[incidentParts(left).severity] ?? 9) - (SEVERITY_RANK[incidentParts(right).severity] ?? 9) ||
         (left.occurredAt ?? "").localeCompare(right.occurredAt ?? ""),
     );
-  const notPassedToday = verifications.filter((row) => row.status !== "passed" && isToday(row.occurredAt, timeZone));
+  const checksToday = verifications.filter((row) => isToday(row.occurredAt, timeZone));
+  const notPassedToday = checksToday.filter((row) => row.status !== "passed");
+  const declinedToday = checksToday.filter((row) => row.status === "declined").length;
 
   return <PlatformPage
     title="Restricted Sales"
@@ -179,6 +181,14 @@ export async function RestrictedSalesPage({ searchParams }: { searchParams: Plat
             </FormGrid>
           </ActionDisclosure>
         </ActionBar>
+
+        <CountBoxes
+          items={[
+            { label: "ID checks today", value: checksToday.length },
+            { label: "Declined today", value: declinedToday },
+            { label: "Open incidents", value: openIncidents.length, variance: openIncidents.some((row) => SEVERITY_TONE[incidentParts(row).severity] === "danger") ? -1 : null },
+          ]}
+        />
 
         <section className="min-w-0 space-y-2" aria-label="Open incidents">
           <SectionTitle meta={openIncidents.length || undefined}>Open incidents</SectionTitle>

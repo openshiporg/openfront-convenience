@@ -59,7 +59,7 @@ export async function StoreResources({
               </tbody>
             </DataTable>
           ) : (
-            <NoteLine>No registers yet. Add one before opening a till.</NoteLine>
+            <NoteLine>No registers yet</NoteLine>
           )}
           <ActionBar>
             <Disclosure label="Add or update a register" title="Register" defaultOpen={!registers.length}>
@@ -101,7 +101,7 @@ export async function StoreResources({
               </tbody>
             </DataTable>
           ) : (
-            <NoteLine>No stock locations yet. Add one before receiving stock.</NoteLine>
+            <NoteLine>No stock locations yet</NoteLine>
           )}
           <ActionBar>
             <Disclosure label="Add or update a location" title="Stock location" defaultOpen={!locations.length}>

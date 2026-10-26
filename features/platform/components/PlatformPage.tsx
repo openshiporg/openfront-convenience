@@ -112,10 +112,11 @@ export function PlatformPage({
   );
 }
 
-export function MetricsBand({ metrics }: { metrics: PlatformProjection["metrics"] }) {
+export function MetricsBand({ metrics, columns }: { metrics: PlatformProjection["metrics"]; columns?: string }) {
   // The store's figures as ruled count boxes; a critical figure is written in red pencil.
   return (
     <CountBoxes
+      columns={columns}
       items={metrics.map((metric) => {
         const tone = toneOf(metric.tone);
         return {

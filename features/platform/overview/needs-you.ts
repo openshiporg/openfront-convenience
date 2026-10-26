@@ -256,7 +256,7 @@ export async function loadNeedsYou(scope: Scope, q: string): Promise<QueueItem[]
       state: "Negative",
       title: variantName(level),
       reference: level.variant?.sku || undefined,
-      detail: "On hand below zero · count it",
+      detail: "On hand below zero",
       figure: String(Number(level.onHandQuantity)),
       figureTone: "short",
       href: level.variant?.product ? link(`products/${level.variant.product.id}`) : link("stock"),

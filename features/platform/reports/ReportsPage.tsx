@@ -104,7 +104,16 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
       {summary ? <section className="min-w-0 space-y-6" aria-labelledby="report-results">
         <div className="min-w-0">
           <SectionTitle id="report-results" meta={`${startDate} – ${endDate} · ${summary.dayCount} ${summary.dayCount === 1 ? "day" : "days"}`}>Cash</SectionTitle>
-          {summary.dayCount === 0 ? <EmptyState title="No closed store days in this period" /> : (
+          {summary.dayCount === 0 ? (
+            <CountBoxes
+              items={[
+                { label: "Cash taken", value: "–" },
+                { label: "Deposited", value: "–" },
+                { label: "Over / short", value: "–", note: "No closed store days" },
+                { label: "Exceptions", value: "–" },
+              ]}
+            />
+          ) : (
             <CountBoxes
               items={[
                 { label: "Cash taken", value: m(summary.cashTenderCents) },

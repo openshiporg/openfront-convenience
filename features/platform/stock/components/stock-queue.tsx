@@ -161,7 +161,7 @@ export function StockQueueRows({
         entry.kind === "stock" ? (
           <Tr key={`s-${entry.row.id}`}>
             <Td className={monoCellClass}>{entry.row.variant?.sku ?? "—"}</Td>
-            <Td>
+            <Td className="max-w-[24rem] truncate whitespace-nowrap">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${entry.row.variant?.product?.id ?? ""}${q}`}>
                 {itemName(entry.row)}
               </Link>
@@ -182,7 +182,7 @@ export function StockQueueRows({
         ) : (
           <Tr key={`l-${entry.lot.id}`}>
             <Td className={monoCellClass}>{entry.lot.variant?.sku ?? "—"}</Td>
-            <Td>
+            <Td className="max-w-[24rem] truncate whitespace-nowrap">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${entry.lot.variant?.product?.id ?? ""}${q}`}>
                 {entry.lot.variant?.product?.title ?? "Item"}
               </Link>
@@ -196,7 +196,7 @@ export function StockQueueRows({
               —
             </Td>
             <Td>
-              <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+              <span className="inline-flex items-baseline gap-x-1.5 whitespace-nowrap">
                 <StateText {...lotState(entry.lot)} />
                 <span className="text-xs text-muted-foreground max-sm:hidden">{formatWhen(entry.lot.expiresAt, timeZone)}</span>
               </span>
@@ -240,7 +240,7 @@ export function StockPositionRow({
   return (
     <Tr>
       <Td className={monoCellClass}>{row.variant?.sku ?? "—"}</Td>
-      <Td>
+      <Td className="max-w-[24rem] truncate whitespace-nowrap">
         <Link className={cellLinkClass} href={`/dashboard/platform/products/${row.variant?.product?.id ?? ""}${scopeQuery(scope)}`}>
           {itemName(row)}
         </Link>
@@ -251,7 +251,7 @@ export function StockPositionRow({
       <Td priority={3} className="text-muted-foreground">
         {row.location?.name ?? "—"}
       </Td>
-      <Td align="right" className={condition === "negative" ? "font-medium text-[oklch(0.52_0.19_27)] dark:text-red-400" : undefined}>
+      <Td align="right" className={condition === "negative" ? "whitespace-nowrap font-medium text-[oklch(0.52_0.19_27)] dark:text-red-400" : "whitespace-nowrap"}>
         {quantityText(row.onHandQuantity)}
         <span className="ml-1 font-sans text-xs text-muted-foreground">{row.variant?.unitOfMeasure ?? ""}</span>
       </Td>

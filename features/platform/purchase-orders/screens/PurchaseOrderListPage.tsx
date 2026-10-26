@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { DataTable, StatusText, Td, Th, Tr } from "../../components/cv-ui";
+import { CountBoxes, DataTable, StatusText, Td, Th, Tr } from "../../components/cv-ui";
 import { QueueListShell, QueueSection, StateText, cellLinkClass, monoCellClass } from "../../stock/components/table-kit";
 import { shortRef } from "../../lib/labels";
 import { loadPlatformList } from "../../lib/list-query";
@@ -80,6 +80,8 @@ export async function PurchaseOrderListPage({ searchParams }: { searchParams: Pl
       );
     });
   const overdue = toReceive.filter((entry) => entry.due === "overdue").length;
+  const dueToday = toReceive.filter((entry) => entry.due === "today").length;
+  const partlyReceived = receivable.items.filter((order) => order.status === "partially_received").length;
   const dueState = {
     overdue: { tone: "danger" as const, label: "Overdue" },
     today: { tone: "warn" as const, label: "Due today" },
@@ -104,51 +106,62 @@ export async function PurchaseOrderListPage({ searchParams }: { searchParams: Pl
       entity={{ singular: "purchase order", plural: "purchase orders" }}
       empty="No purchase orders"
       queue={
-        <QueueSection title="To receive today" count={toReceive.length} empty="Nothing due to receive today">
-          <DataTable>
-            <thead>
-              <tr>
-                <Th>PO</Th>
-                <Th>Vendor</Th>
-                <Th align="right" priority={3}>
-                  Lines
-                </Th>
-                <Th priority={2}>Expected</Th>
-                <Th align="right" priority={2}>
-                  Total
-                </Th>
-                <Th>Due</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {toReceive.map(({ order, due }) => (
-                <Tr key={order.id}>
-                  <Td className={monoCellClass}>
-                    <Link className={`${cellLinkClass} font-mono text-xs`} href={`/dashboard/platform/purchase-orders/${order.id}${q}`}>
-                      {shortRef(order.poNumber)}
-                    </Link>
-                  </Td>
-                  <Td>{order.vendor?.name ?? "—"}</Td>
-                  <Td align="right" priority={3} className="text-muted-foreground">
-                    {order.linesCount}
-                  </Td>
-                  <Td priority={2} className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatWhen(order.expectedAt, scope.timezone)}
-                  </Td>
-                  <Td align="right" priority={2}>
-                    {formatMoney(order.totalCents, order.currencyCode)}
-                  </Td>
-                  <Td>
-                    <span className="inline-flex flex-wrap items-baseline gap-x-2">
-                      <StateText {...dueState[due as keyof typeof dueState]} />
-                      {order.status === "partially_received" ? <span className="text-xs text-muted-foreground">Partly received</span> : null}
-                    </span>
-                  </Td>
-                </Tr>
-              ))}
-            </tbody>
-          </DataTable>
-        </QueueSection>
+        <>
+          {receivable.error ? null : (
+            <CountBoxes
+              items={[
+                { label: "Due today", value: dueToday, note: overdue ? `${overdue} overdue` : undefined },
+                { label: "Open", value: receivable.count, note: "Approved or partly received" },
+                { label: "Partly received", value: partlyReceived },
+              ]}
+            />
+          )}
+          <QueueSection title="To receive today" count={toReceive.length} empty="Nothing due to receive today">
+            <DataTable>
+              <thead>
+                <tr>
+                  <Th>PO</Th>
+                  <Th>Vendor</Th>
+                  <Th align="right" priority={3}>
+                    Lines
+                  </Th>
+                  <Th priority={2}>Expected</Th>
+                  <Th align="right" priority={2}>
+                    Total
+                  </Th>
+                  <Th>Due</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {toReceive.map(({ order, due }) => (
+                  <Tr key={order.id}>
+                    <Td className={monoCellClass}>
+                      <Link className={`${cellLinkClass} font-mono text-xs`} href={`/dashboard/platform/purchase-orders/${order.id}${q}`}>
+                        {shortRef(order.poNumber)}
+                      </Link>
+                    </Td>
+                    <Td>{order.vendor?.name ?? "—"}</Td>
+                    <Td align="right" priority={3} className="text-muted-foreground">
+                      {order.linesCount}
+                    </Td>
+                    <Td priority={2} className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatWhen(order.expectedAt, scope.timezone)}
+                    </Td>
+                    <Td align="right" priority={2}>
+                      {formatMoney(order.totalCents, order.currencyCode)}
+                    </Td>
+                    <Td>
+                      <span className="inline-flex flex-wrap items-baseline gap-x-2">
+                        <StateText {...dueState[due as keyof typeof dueState]} />
+                        {order.status === "partially_received" ? <span className="text-xs text-muted-foreground">Partly received</span> : null}
+                      </span>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </QueueSection>
+        </>
       }
       head={
         <>

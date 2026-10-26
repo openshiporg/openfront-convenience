@@ -100,39 +100,43 @@ export async function StorefrontPage() {
 
         {aisles.length ? <AisleSigns aisles={aisles} allHref="/shop" hrefFor={(name) => aisleHref(name)} /> : null}
 
-        {shelfNames.map((name, index) => {
-          const data = shelves[index];
-          const products = data?.products.slice(0, SHELF_TAGS) ?? [];
-          if (!data || !products.length) return null;
-          const aisle = aisleOf(name);
-          const id = `sf-shelf-${index}`;
-          return (
-            <section key={name} className="sf-shelf" aria-labelledby={id}>
-              <AisleHead aisle={aisle} name={name} id={id}>
-                <Link href={aisleHref(name)} className="sf-more">
-                  {data.total > products.length ? `All ${data.total} items` : "View aisle"}
-                  <ArrowRight aria-hidden="true" className="sf-icon" />
-                </Link>
-              </AisleHead>
-              <ul className="sf-tags">
-                {products.map((product) => (
-                  <li key={product.id}>
-                    <ShelfTag product={product} currency={data.currency} madeInStore={madeInStore.has(product.id)} />
-                  </li>
-                ))}
-              </ul>
+        {/* Shelves in the wide track; the hours board takes the narrow one beside them, or its own row. */}
+        <div className="sf-home__floor">
+          <div className="sf-home__shelves">
+            {shelfNames.map((name, index) => {
+              const data = shelves[index];
+              const products = data?.products.slice(0, SHELF_TAGS) ?? [];
+              if (!data || !products.length) return null;
+              const aisle = aisleOf(name);
+              const id = `sf-shelf-${index}`;
+              return (
+                <section key={name} className="sf-shelf" aria-labelledby={id}>
+                  <AisleHead aisle={aisle} name={name} id={id}>
+                    <Link href={aisleHref(name)} className="sf-more">
+                      {data.total > products.length ? `All ${data.total} items` : "View aisle"}
+                      <ArrowRight aria-hidden="true" className="sf-icon" />
+                    </Link>
+                  </AisleHead>
+                  <ul className="sf-tags">
+                    {products.map((product) => (
+                      <li key={product.id}>
+                        <ShelfTag product={product} currency={data.currency} madeInStore={madeInStore.has(product.id)} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+          {location && hasHours ? (
+            <section className="sf-board" aria-labelledby="sf-hours-title">
+              <h2 id="sf-hours-title" className="sf-board__title">
+                Hours
+              </h2>
+              <HoursList hours={location.hours} timeZone={location.timezone} />
             </section>
-          );
-        })}
-
-        {location && hasHours ? (
-          <section className="sf-board" aria-labelledby="sf-hours-title">
-            <h2 id="sf-hours-title" className="sf-board__title">
-              Hours
-            </h2>
-            <HoursList hours={location.hours} timeZone={location.timezone} />
-          </section>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </ShopShell>
   );

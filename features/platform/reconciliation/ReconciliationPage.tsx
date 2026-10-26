@@ -67,6 +67,24 @@ async function loadDay(id: string | undefined): Promise<DayDetail | null> {
   return response.success ? response.data.storeDay : null;
 }
 
+/** Cash expected in the tills still open; the same read the Tills queue uses. */
+async function loadOpenTills(storeId: string | null): Promise<{ count: number; expectedCents: number } | null> {
+  if (!storeId) return null;
+  const response = await keystoneClient<{ registerSessions: Array<{ expectedCashCents: number }> }>(
+    `query PlatformReconOpenTills($where: RegisterSessionWhereInput!) {
+      registerSessions(where: $where, take: 200) { expectedCashCents }
+    }`,
+    {
+      where: {
+        AND: [{ store: { id: { equals: storeId } } }, { status: { in: ["open", "closing", "suspended"] } }],
+      },
+    },
+  );
+  if (!response.success) return null;
+  const sessions = response.data.registerSessions;
+  return { count: sessions.length, expectedCents: sessions.reduce((sum, session) => sum + session.expectedCashCents, 0) };
+}
+
 const QUEUE_ORDER: Record<string, number> = { out_of_date: 0, reopened: 1, in_review: 2, reconciled: 3 };
 
 export async function ReconciliationPage({ searchParams }: { searchParams: PlatformSearch }) {
@@ -77,6 +95,7 @@ export async function ReconciliationPage({ searchParams }: { searchParams: Platf
   const today = zonedNowInput(projection?.timezone).slice(0, 10);
   const latest = rows[0];
   const day = projection ? await loadDay(latest?.id) : null;
+  const openTills = projection && !day ? await loadOpenTills(projection.storeId) : null;
   const money = (cents: number) => formatMoney(cents, day?.currencyCode || projection?.currencyCode);
 
   const todayRow = rows.find((row) => row.title === today);
@@ -102,7 +121,22 @@ export async function ReconciliationPage({ searchParams }: { searchParams: Platf
           </ActionBar>
 
           {day ? <DayCount day={day} today={today} money={money} /> : (
-            <EmptyState title="No store day generated yet" />
+            <section className="min-w-0" aria-labelledby="day-count">
+              <SectionTitle id="day-count" meta="No store day generated yet">
+                <span className="font-mono tabular-nums">{today}</span>
+              </SectionTitle>
+              <CountBoxes
+                items={[
+                  {
+                    label: "Expected",
+                    value: openTills ? money(openTills.expectedCents) : "–",
+                    note: openTills ? `${openTills.count} ${openTills.count === 1 ? "till" : "tills"} open` : undefined,
+                  },
+                  { label: "Counted", value: "–" },
+                  { label: "Over / short", value: "–" },
+                ]}
+              />
+            </section>
           )}
 
           <NeedsYou projection={projection} />
@@ -134,7 +168,7 @@ export async function ReconciliationPage({ searchParams }: { searchParams: Platf
                             <TextField label="Notes" name="notes" />
                           </FormGrid>
                         ) : (
-                          <NoteLine>No unlocked store day to deposit. Generate the store day first.</NoteLine>
+                          <NoteLine>No unlocked store day to deposit</NoteLine>
                         )}
                       </Disclosure>
                     </ActionBar>
@@ -326,8 +360,8 @@ function NeedsYou({ projection }: { projection: PlatformProjection }) {
                       {entry.status === "out_of_date"
                         ? entry.detail
                         : entry.status === "reconciled"
-                          ? "Approved; lock to make it final"
-                          : `Approve the close · ${entry.detail}`}
+                          ? "Approved, not locked"
+                          : `Awaiting approval · ${entry.detail}`}
                     </Td>
                   </>
                 }

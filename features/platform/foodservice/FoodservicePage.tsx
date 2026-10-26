@@ -14,7 +14,7 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { DataTable, PanelGrid, StatusText, Td, Th, Tr, formatMeasure, type DotTone } from "../components/cv-ui";
+import { DataTable, PanelGrid, SectionTitle, StatusText, Td, Th, Tr, formatMeasure, type DotTone } from "../components/cv-ui";
 import { formatWhen } from "../lib/scope";
 import { FormDisclosure, QueueSection, StateText, TableSection, monoCellClass } from "../stock/components/table-kit";
 import { Workbench } from "../components/Workbench";
@@ -188,7 +188,7 @@ export async function FoodservicePage({ searchParams }: { searchParams: Platform
                     </Tr>
                   ))}
                 </TableSection>
-                <FormDisclosure summary="Start or complete a batch" defaultOpen={!batches.length}>
+                <FormDisclosure summary="Start or complete a batch">
                 <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                   <LookupForm
                     action={path}
@@ -231,8 +231,9 @@ export async function FoodservicePage({ searchParams }: { searchParams: Platform
                     empty={state.foodserviceEmployeeNumberSearch && !controls.employeeLookup?.length ? "No employee with that number" : false}
                   />
                 </div>
-                <PanelGrid>
-                  <ActionPanel title="Start prep batch">
+                <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
+                  <section className="min-w-0" aria-labelledby="prep-start">
+                    <SectionTitle id="prep-start">Start prep batch</SectionTitle>
                     <FormGrid action={startPrepBatchAction} submit="Start batch">
                       <HiddenScope projection={projection} returnPath={path} />
                       <SelectField label="Recipe" name="recipeId" options={recipeSelectorOptions} />
@@ -241,8 +242,9 @@ export async function FoodservicePage({ searchParams }: { searchParams: Platform
                       <TextField label="Expiry (ISO + offset)" name="expiresAt" placeholder="2026-07-20T14:00:00-04:00" />
                       <TextField label="Notes" name="notes" />
                     </FormGrid>
-                  </ActionPanel>
-                  <ActionPanel title="Complete prep batch">
+                  </section>
+                  <section className="min-w-0" aria-labelledby="prep-complete">
+                    <SectionTitle id="prep-complete">Complete prep batch</SectionTitle>
                     <FormGrid action={completePrepBatchAction} submit="Complete batch">
                       <HiddenScope projection={projection} returnPath={path} />
                       <SelectField label="Prep batch" name="prepBatchId" options={openPrepBatchSelectorOptions} />
@@ -252,8 +254,8 @@ export async function FoodservicePage({ searchParams }: { searchParams: Platform
                       <TextField label="Lot number (optional)" name="lotNumber" />
                       <TextField label="Expiry (ISO + offset)" name="expiresAt" placeholder="2026-07-20T14:00:00-04:00" />
                     </FormGrid>
-                  </ActionPanel>
-                </PanelGrid>
+                  </section>
+                </div>
                 </FormDisclosure>
               </>
             ),

@@ -67,7 +67,7 @@ export async function InventoryPage({ searchParams }: { searchParams: PlatformSe
     {projection && queue ? (
       <>
         <CountBoxes
-          className="sm:grid-cols-4"
+          columns="repeat(4, minmax(0, 1fr))"
           items={[
             { label: "Negative on hand", value: queue.counts.negative, variance: queue.counts.negative ? -queue.counts.negative : 0 },
             { label: "At or below reorder", value: queue.counts.reorder, note: queue.counts.low ? `${queue.counts.low} more under par` : undefined },

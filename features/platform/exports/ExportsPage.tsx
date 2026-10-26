@@ -69,7 +69,7 @@ export async function ExportsPage({
             )}
           </ActionBar>
           {!destinations.length ? (
-            <NoteLine>Add an accounting destination before generating a batch.</NoteLine>
+            <NoteLine>No accounting destination</NoteLine>
           ) : null}
 
           <section className="min-w-0" aria-labelledby="export-queue">

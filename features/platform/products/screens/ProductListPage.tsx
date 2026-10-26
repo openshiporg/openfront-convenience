@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-import { StatusText, Td, Th, Tr } from "../../components/cv-ui";
+import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+
+import { CountBoxes, StatusText, Td, Th, Tr } from "../../components/cv-ui";
 import { QueueListShell, cellLinkClass, monoCellClass } from "../../stock/components/table-kit";
 import { loadPlatformList } from "../../lib/list-query";
 import { quantityText } from "../../lib/labels";
@@ -26,10 +28,29 @@ type ProductRow = {
   variants: Array<{ sku: string; defaultPriceCents: number; stockLevels: Array<{ onHandQuantity: string }> }>;
 };
 
+/** Catalog-wide counts for the strip, independent of the tab, search and page. */
+async function loadCounts(businessId: string | null) {
+  if (!businessId) return null;
+  const base = { business: { id: { equals: businessId } } };
+  const response = await keystoneClient<{ active: number; negative: number; noPrice: number }>(
+    `query PlatformProductCounts($active: ProductWhereInput!, $negative: ProductWhereInput!, $noPrice: ProductWhereInput!) {
+      active: productsCount(where: $active)
+      negative: productsCount(where: $negative)
+      noPrice: productsCount(where: $noPrice)
+    }`,
+    {
+      active: { AND: [base, { status: { equals: "active" } }] },
+      negative: { AND: [base, { variants: { some: { stockLevels: { some: { onHandQuantity: { lt: "0" } } } } } }] },
+      noPrice: { AND: [base, { status: { equals: "active" } }, { variants: { some: { defaultPriceCents: { lte: 0 } } } }] },
+    },
+  );
+  return response.success ? response.data : null;
+}
+
 export async function ProductListPage({ searchParams }: { searchParams: PlatformSearch }) {
   const search = await searchParams;
   const scope = await getPlatformScope(search);
-  const result = await loadPlatformList<ProductRow>({
+  const [result, counts] = await Promise.all([loadPlatformList<ProductRow>({
     path: "products",
     search,
     scopeWhere: { business: { id: { equals: scope.businessId ?? "" } } },
@@ -38,7 +59,7 @@ export async function ProductListPage({ searchParams }: { searchParams: Platform
       categories(take: 2) { name }
       variantsCount
       variants(take: 12, orderBy: { sku: asc }) { sku defaultPriceCents stockLevels { onHandQuantity } }`,
-  });
+  }), loadCounts(scope.businessId)]);
   const q = scopeQuery(scope);
   return (
     <QueueListShell
@@ -50,6 +71,17 @@ export async function ProductListPage({ searchParams }: { searchParams: Platform
       result={result}
       entity={{ singular: "product", plural: "products" }}
       empty="No products"
+      queue={
+        counts ? (
+          <CountBoxes
+            items={[
+              { label: "Active", value: counts.active },
+              { label: "Negative on hand", value: counts.negative, variance: counts.negative ? -1 : null },
+              { label: "No price", value: counts.noPrice },
+            ]}
+          />
+        ) : null
+      }
       head={
         <>
           <Th priority={2}>SKU</Th>
@@ -84,13 +116,13 @@ export async function ProductListPage({ searchParams }: { searchParams: Platform
             <Td priority={2} className={monoCellClass}>
               {product.variants[0]?.sku ?? "—"}
             </Td>
-            <Td>
+            <Td className="max-w-[28rem] truncate whitespace-nowrap">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${product.id}${q}`}>
                 {product.title}
               </Link>
               {tags.length ? <span className="ml-2 text-xs text-muted-foreground">{tags.join(" · ")}</span> : null}
             </Td>
-            <Td priority={3} className="text-muted-foreground">
+            <Td priority={3} className="max-w-[14rem] truncate whitespace-nowrap text-muted-foreground">
               {product.categories.map((category) => category.name).join(", ") || "—"}
             </Td>
             <Td align="right" priority={3} className="text-muted-foreground">

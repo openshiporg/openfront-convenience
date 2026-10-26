@@ -129,7 +129,7 @@ export async function PurchasingPage({
                   </TableSection>
                   <FormDisclosure summary="Create or move a purchase order" defaultOpen={!orders.length}>
                   {!vendors.length && !state.vendorSearch ? (
-                    <Prerequisite text="Add a vendor before creating a purchase order." href={`/dashboard/platform/vendors${q}`} link="Vendors" />
+                    <Prerequisite text="No vendors yet" href={`/dashboard/platform/vendors${q}`} link="Vendors" />
                   ) : null}
                   <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                     <LookupForm

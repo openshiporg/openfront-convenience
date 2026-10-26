@@ -25,6 +25,13 @@ export async function OverviewPage({ searchParams }: { searchParams: PlatformSea
   const queue = projection ? await loadNeedsYou(projection, q) : [];
   const metric = (label: string) => projection?.metrics.find((entry) => entry.label === label)?.value;
   const urgent = queue.filter((item) => item.tone === "danger").length;
+  const keyFigures = [
+    { label: "Net sales today", value: formatMeasure(metric("Net sales today") ?? "0") },
+    { label: "Transactions today", value: metric("Transactions today") ?? "0" },
+    ...(metric("Refunds today") ? [{ label: "Refunds today", value: formatMeasure(metric("Refunds today") ?? "0") }] : []),
+    { label: "Drawers open", value: metric("Registers open") ?? "0" },
+    { label: "People on shift", value: metric("People on shift") ?? "0" },
+  ];
   return (
     <PlatformPage
       title="Overview"
@@ -42,15 +49,8 @@ export async function OverviewPage({ searchParams }: { searchParams: PlatformSea
     >
       {projection ? (
         <>
-          <CountBoxes
-            items={[
-              { label: "Net sales today", value: formatMeasure(metric("Net sales today") ?? "0") },
-              { label: "Transactions today", value: metric("Transactions today") ?? "0" },
-              ...(metric("Refunds today") ? [{ label: "Refunds today", value: formatMeasure(metric("Refunds today") ?? "0") }] : []),
-              { label: "Drawers open", value: metric("Registers open") ?? "0" },
-              { label: "People on shift", value: metric("People on shift") ?? "0" },
-            ]}
-          />
+          {/* One track per key figure, edge to edge with the queue table below. */}
+          <CountBoxes items={keyFigures} columns={`repeat(${keyFigures.length}, minmax(0, 1fr))`} />
           <section aria-labelledby="needs-you-heading" className="min-w-0">
             <div className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-foreground/15 pb-2">
               <h2 id="needs-you-heading" className="flex items-baseline gap-2 text-[14px] font-semibold text-foreground">

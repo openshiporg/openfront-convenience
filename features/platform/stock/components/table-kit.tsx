@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 /** The record link inside a table cell: a 40px target on phones. */
 export const cellLinkClass =
-  "inline-flex min-h-8 items-center font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring max-sm:min-h-10 [overflow-wrap:anywhere]";
+  "inline-flex min-h-5 items-center font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring max-sm:min-h-10 [overflow-wrap:anywhere]";
 
 export const monoCellClass = "font-mono text-xs tabular-nums text-muted-foreground";
 

@@ -1,290 +1,361 @@
 ---
-name: Openfront Convenience Storefront
-description: The store's register receipt, printed at night.
+name: Openfront Convenience
+description: The shelf edge at night for customers; the shift log and safe-drop envelope for the store manager.
 colors:
-  counter-ground: "oklch(15.5% 0.014 44)"
-  receipt-paper: "oklch(20% 0.016 44)"
-  receipt-paper-raised: "oklch(24.5% 0.018 44)"
-  counter-well: "oklch(12% 0.012 44)"
-  thermal-ink: "oklch(95.5% 0.012 85)"
-  faded-ink: "oklch(81% 0.014 80)"
-  ghost-ink: "oklch(68% 0.014 80)"
-  perforation: "oklch(34% 0.018 44)"
-  lit-sign: "oklch(73% 0.17 44)"
-  lit-sign-bright: "oklch(80% 0.15 44)"
-  lit-sign-ink: "oklch(17% 0.04 44)"
-  void-red: "oklch(71% 0.19 25)"
+  channel-ground: "oklch(17% 0.014 44)"
+  channel-strip: "oklch(11.5% 0.01 44)"
+  channel-floor: "oklch(6% 0.006 44)"
+  channel-lip: "oklch(31% 0.016 44)"
+  channel-well: "oklch(21.5% 0.016 44)"
+  channel-line: "oklch(34% 0.016 44)"
+  night-ink: "oklch(96% 0.006 44)"
+  night-ink-2: "oklch(84% 0.01 44)"
+  night-ink-3: "oklch(70% 0.012 44)"
+  tag-plate: "oklch(97.5% 0.004 95)"
+  tag-unlit: "oklch(89% 0.006 44)"
+  tag-ink: "oklch(19% 0.012 44)"
+  tag-ink-2: "oklch(44% 0.014 44)"
+  tag-rule: "oklch(88% 0.006 44)"
+  aisle-sign: "oklch(48% 0.19 44)"
+  aisle-sign-hi: "oklch(50% 0.19 44)"
+  aisle-sign-ink: "oklch(98.5% 0.004 44)"
+  hanger-wire: "oklch(46% 0.012 44)"
+  focus-ring: "oklch(80% 0.12 44)"
+  lamp-open: "oklch(80% 0.17 150)"
+  lamp-warn: "oklch(84% 0.14 82)"
+  lamp-danger: "oklch(71% 0.19 25)"
+  lamp-off: "oklch(62% 0.012 44)"
+  alert-ground: "oklch(29% 0.08 27)"
+  alert-ink: "oklch(93% 0.035 27)"
+  field-white: "oklch(100% 0 0)"
+  field-rule: "oklch(76% 0.01 44)"
+  envelope-kraft: "oklch(97.5% 0.018 80)"
+  red-pencil: "oklch(52% 0.19 27)"
+  green-ink: "oklch(50.8% 0.118 165.6)"
 typography:
-  display:
-    fontFamily: "Doto, Sofia Sans Semi Condensed, ui-sans-serif, sans-serif"
-    fontSize: "clamp(2.75rem, calc((min(100vw, 1360px) - 2 * var(--sf-gutter)) / (var(--len, 14) * 0.6)), 12rem)"
-    fontWeight: 900
-    lineHeight: 0.92
-    letterSpacing: "-0.04em"
   headline:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2rem, 1.4rem + 2.6vw, 3.5rem)"
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "clamp(2.25rem, 1.6rem + 2.4vw, 3.5rem)"
+    fontWeight: 700
+    lineHeight: 0.95
+    letterSpacing: "-0.01em"
+  headline-product:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "clamp(2rem, 1.5rem + 2vw, 3rem)"
     fontWeight: 700
     lineHeight: 1
-    letterSpacing: "-0.02em"
-  title-aisle:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(1.375rem, 1.1rem + 1vw, 1.875rem)"
-    fontWeight: 800
+    letterSpacing: "-0.01em"
+  price-hero:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "3.5rem"
+    fontWeight: 700
+    lineHeight: 0.92
+    letterSpacing: "-0.005em"
+    fontFeature: "tnum"
+  price:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "2.25rem"
+    fontWeight: 700
+    lineHeight: 0.92
+    letterSpacing: "-0.005em"
+    fontFeature: "tnum"
+  sign:
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 700
     lineHeight: 1.1
-    letterSpacing: "-0.01em"
   title:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
     fontSize: "1.5rem"
-    fontWeight: 800
-    letterSpacing: "-0.01em"
-  lead:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem)"
-    lineHeight: 1.35
+    fontWeight: 700
+    lineHeight: 1
   body:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.0625rem"
+    fontFamily: "Barlow, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Sofia Sans Semi Condensed, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Barlow, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 600
-  price:
-    fontFamily: "Doto, Sofia Sans Semi Condensed, ui-sans-serif, sans-serif"
-    fontSize: "2rem"
-    fontWeight: 900
-    lineHeight: 1
-    letterSpacing: "-0.02em"
-  price-hero:
-    fontFamily: "Doto, Sofia Sans Semi Condensed, ui-sans-serif, sans-serif"
-    fontSize: "clamp(3.5rem, 2.6rem + 3vw, 5.5rem)"
-    fontWeight: 900
-    lineHeight: 1
-    letterSpacing: "-0.02em"
-  price-fuel:
-    fontFamily: "Doto, Sofia Sans Semi Condensed, ui-sans-serif, sans-serif"
-    fontSize: "clamp(2rem, 1.5rem + 1.6vw, 2.75rem)"
-    fontWeight: 900
-    lineHeight: 1
-    letterSpacing: "-0.02em"
+    lineHeight: 1.25
+  tag-size:
+    fontFamily: "Barlow, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 500
+    lineHeight: 1.2
+  ops-title:
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 600
+    letterSpacing: "-0.025em"
+  ops-figure:
+    fontFamily: "Geist Mono, ui-monospace, monospace"
+    fontSize: "20px"
+    fontWeight: 500
+    letterSpacing: "-0.025em"
+    fontFeature: "tnum"
+  ops-section:
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+  ops-body:
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+  ops-label:
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 500
 rounded:
-  edge: "3px"
-  dot: "50%"
+  tag: "2px"
+  control: "3px"
+  ops-control: "4px"
+  ops-panel: "6px"
 spacing:
   gutter: "clamp(16px, 2.6vw, 36px)"
-  slip: "clamp(18px, 2.4vw, 28px)"
-  tight: "8px"
-  row: "16px"
-  block: "24px"
-  container: "1360px"
+  tag-pad: "9px 10px 10px"
+  shelf-row: "26px"
+  ops-cell: "8px 12px"
+  ops-row: "36px"
 components:
+  tag-plate:
+    backgroundColor: "{colors.tag-plate}"
+    textColor: "{colors.tag-ink}"
+    rounded: "{rounded.tag}"
+    padding: "9px 10px 10px"
+  tag-plate-ask:
+    backgroundColor: "{colors.tag-unlit}"
+    textColor: "{colors.tag-ink-2}"
+    rounded: "{rounded.tag}"
+    padding: "9px 10px 10px"
+  aisle-sign:
+    backgroundColor: "{colors.aisle-sign}"
+    textColor: "{colors.aisle-sign-ink}"
+    typography: "{typography.sign}"
+    rounded: "{rounded.tag}"
+    padding: "6px 16px 6px 6px"
+    height: "52px"
+  aisle-sign-hover:
+    backgroundColor: "{colors.aisle-sign-hi}"
+  aisle-sign-current:
+    backgroundColor: "{colors.aisle-sign-ink}"
+    textColor: "{colors.aisle-sign}"
   button-primary:
-    backgroundColor: "{colors.lit-sign}"
-    textColor: "{colors.lit-sign-ink}"
-    rounded: "{rounded.edge}"
+    backgroundColor: "{colors.aisle-sign}"
+    textColor: "{colors.aisle-sign-ink}"
+    rounded: "{rounded.control}"
     padding: "0 22px"
     height: "48px"
   button-primary-hover:
-    backgroundColor: "{colors.lit-sign-bright}"
-    textColor: "{colors.lit-sign-ink}"
+    backgroundColor: "{colors.aisle-sign-hi}"
   button-quiet:
-    backgroundColor: "transparent"
-    textColor: "{colors.thermal-ink}"
-    rounded: "{rounded.edge}"
+    textColor: "{colors.night-ink}"
+    rounded: "{rounded.control}"
     padding: "0 22px"
     height: "48px"
-  pill:
-    backgroundColor: "transparent"
-    textColor: "{colors.faded-ink}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
-    height: "40px"
-  pill-current:
-    backgroundColor: "{colors.lit-sign}"
-    textColor: "{colors.lit-sign-ink}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
-    height: "40px"
-  chip:
-    backgroundColor: "{colors.receipt-paper-raised}"
-    textColor: "{colors.faded-ink}"
-    rounded: "{rounded.edge}"
-    padding: "0 7px"
-    height: "22px"
-  input:
-    backgroundColor: "{colors.counter-well}"
-    textColor: "{colors.thermal-ink}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
+  search-field:
+    backgroundColor: "{colors.channel-well}"
+    textColor: "{colors.night-ink}"
+    rounded: "{rounded.control}"
+    padding: "0 14px 0 40px"
     height: "44px"
-  input-scan:
-    backgroundColor: "{colors.receipt-paper}"
-    textColor: "{colors.thermal-ink}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px 0 48px"
-    height: "56px"
-  slip:
-    backgroundColor: "{colors.receipt-paper}"
-    textColor: "{colors.thermal-ink}"
-    rounded: "{rounded.edge}"
-    padding: "{spacing.slip}"
+  form-field:
+    backgroundColor: "{colors.field-white}"
+    textColor: "{colors.tag-ink}"
+    rounded: "{rounded.control}"
+    padding: "0 12px"
+    height: "48px"
+  panel-plate:
+    backgroundColor: "{colors.tag-plate}"
+    textColor: "{colors.tag-ink}"
+    rounded: "{rounded.tag}"
+    padding: "18px 20px"
+  count-box:
+    backgroundColor: "{colors.envelope-kraft}"
+    typography: "{typography.ops-figure}"
+    padding: "6px 12px 8px"
+  ops-button:
+    typography: "{typography.ops-body}"
+    rounded: "{rounded.ops-control}"
+    padding: "0 16px"
+    height: "36px"
+  ops-input:
+    typography: "{typography.ops-body}"
+    rounded: "{rounded.ops-control}"
+    padding: "0 12px"
+    height: "36px"
+  nav-link:
+    textColor: "{colors.night-ink-2}"
+    typography: "{typography.label}"
+    rounded: "{rounded.control}"
+    padding: "0 12px"
+    height: "44px"
+  nav-link-current:
+    textColor: "{colors.night-ink}"
+  ops-tab:
+    typography: "{typography.ops-body}"
+    padding: "0 12px"
+    height: "36px"
+  ops-table-row:
+    typography: "{typography.ops-body}"
+    padding: "8px 12px"
+    height: "36px"
 ---
 
-# Design System: Openfront Convenience Storefront
+# Design System: Openfront Convenience
 
-Scope: the customer storefront (`features/storefront`). The merchant dashboard is a shared platform shell and is not governed by this file.
+Two surfaces, one store. The public storefront (`features/storefront`, scoped under `.sf`) is a dark shelf edge; the operator pages (`features/platform`) sit inside the fixed shared dashboard shell and use its neutrals, adding only the safe-drop envelope's ruled count boxes and red pencil. The shared shell itself is out of scope and is not described here.
 
 ## Overview
 
-**Creative North Star: "The Night Receipt"**
+**Creative North Star: "The Shelf Edge at Night" (storefront) / "The Shift Log and the Safe-Drop Envelope" (platform)**
 
-The storefront is the store's own register receipt, printed at night. Every fact the store knows (today's open state, address, phone, fuel, aisles, items, a customer's receipts) is set as an itemised line: the name at one end, the value at the other, joined by a dotted leader. The lines sit on slips of receipt paper that end in a torn, zigzag foot, laid on a near-black counter. The page is dense in the way a receipt is dense, with no hero imagery and no grid of product cards.
+The storefront is the black plastic channel strip that runs along every shelf in the store. The page ground is charcoal, tinted a few degrees toward the store's logo hue. Every item is a white tag plate clipped to that channel: price big, size small. Aisles are logo-hue plates hung on two wires. Prices and signs are set in condensed shelf-tag type, and nothing is decorated beyond tags and signs. An item with no price still gets a designed unlit tag. It is never left blank.
 
-There are three inks and one light. The counter, paper and well are warm near-blacks tinted a few degrees toward the store's logo hue. Thermal-white ink carries the text in three strengths. The single lit-sign accent, also in the logo hue, marks what is live or actionable. The store name, prices and totals print in Doto, a dot-matrix face, and everything else is set in Sofia Sans Semi Condensed.
+The platform is the store's counted-money paperwork. Each page leads with ruled figure boxes (expected, counted, over or short) on a pale kraft tint, followed by a dense hairline queue of whatever is short, open or unconfirmed. Entry forms sit behind it. Figures, register, till and pack numbers are in mono. Red pencil appears only where a figure is short or critical.
 
-The whole palette follows the store. `ShopShell` sets `--sf-h` from the store's logo colour at runtime, and every grounded and accented token rotates with it. The values recorded here are the default hue (44, a warm orange), not a fixed brand colour.
+Both surfaces are dense, flat and squared-off. Depth on the storefront is physical (tags a hair proud of the channel, signs hanging lower). The platform has no depth beyond the shell's own.
 
 **Key Characteristics:**
-- Itemised rows with dotted leaders are the main layout device.
-- Receipt slips have square-ish top corners and a torn zigzag foot.
-- Dot-matrix numerals for the store name, prices and totals only.
-- One accent in the store's logo hue, for live state and action only.
-- Selected states are solid fills and everything else is outlined.
-- The home receipt feeds out top-down once on load, like a printer.
+- Storefront: charcoal channel ground that follows the logo hue (`--sf-h`, default 44), never grey-washed.
+- White tag plates for every item, receipt, rewards panel and the hours board.
+- Barlow Condensed 700 for prices, signs and titles; Barlow for text; tabular figures wherever money appears.
+- Platform: shell neutrals, kraft count boxes with a 1px ink rule, Geist Mono figures, underline tabs, 36px hairline table rows.
+- Corners: 2px tags, 3px storefront controls, 4px platform controls, 6px platform panels. No pills.
 
 ## Colors
 
-A warm near-black counter, thermal-white ink in three strengths, and one lit-sign accent that rotates with the store's logo hue.
+The storefront palette is a night channel, white plates and one chromatic voice (the logo hue). The platform palette is the shell's neutrals plus three ledger inks.
 
 ### Primary
-- **Lit Sign** (lit-sign): the only accent. It colours the open-status dot, the primary button, the current aisle or nav pill, today's marker in the hours list, the posted fuel prices, the focus ring, text selection, and hover on aisle names, product titles and footer links.
-- **Lit Sign Bright** (lit-sign-bright): hover fill for the primary button only.
-- **Lit Sign Ink** (lit-sign-ink): text on any lit-sign fill (primary button, current pill, selection).
+- **Aisle-Sign Hue** (`aisle-sign`, hover `aisle-sign-hi`): aisle signs, aisle plates on shelf heads, the aisle number chip in titles and the back link, the one filled action per screen, text selection, and the 7px "Made in store" mark. The hue is rotated live from the store's logo colour (`(260 + logoHue) % 360`). The frontmatter values show the default hue of 44.
+- **Red Pencil** (`red-pencil`): platform only. A short (negative) variance or a critical metric in a count box. In dark mode it falls back to the shell's red-400.
+
+### Secondary
+- **Green Ink** (`green-ink`): platform only. A variance that balances to exactly zero.
 
 ### Neutral
-- **Counter Ground** (counter-ground): the page ground.
-- **Receipt Paper** (receipt-paper): slips, receipts, account panels, the hero search field, and the phone menu sheet.
-- **Raised Paper** (receipt-paper-raised): chips, photo placeholders, and hover on linked receipt panels.
-- **Counter Well** (counter-well): the darkest layer. Used for the top strip, the sticky header bar and form inputs.
-- **Thermal Ink** (thermal-ink): primary text and values.
-- **Faded Ink** (faded-ink): labels, secondary rows, aisle item lists, the header strip.
-- **Ghost Ink** (ghost-ink): counts, metadata, placeholders, icons inside fields, muted status dots.
-- **Perforation** (perforation): dotted leaders, dotted row dividers, outlines on quiet buttons, pills and inputs.
-
-### Semantic
-- **Void Red** (void-red): error alerts (outlined) and the danger status dot only.
+- **Channel Ground** (`channel-ground`): the storefront page floor.
+- **Channel Strip** (`channel-strip`) with **Lip** (`channel-lip`) and **Floor** (`channel-floor`): the top channel, footer, phone menu sheet, the channel behind each shelf row and behind the product's size tags. The lip is a 2px inset highlight on top and the floor a 1px inset shadow below.
+- **Well** (`channel-well`): search fields and the photo backing on dark ground.
+- **Line** (`channel-line`): hairlines, control strokes and link underlines on dark ground. On plates it is replaced by **Tag Rule** (`tag-rule`).
+- **Night Ink 1/2/3** (`night-ink`, `night-ink-2`, `night-ink-3`): primary, secondary and tertiary text on the dark ground.
+- **Tag Plate** (`tag-plate`) with **Tag Ink** (`tag-ink`, `tag-ink-2`): every white plate and the text printed on it.
+- **Unlit Tag** (`tag-unlit`): the plate for an item with no price on file.
+- **Hanger Wire** (`hanger-wire`): the sign wires and the outline of the "All aisles" sign.
+- **Focus Ring** (`focus-ring`): focus outlines, caret and the active phone-menu link on dark ground.
+- **Envelope Kraft** (`envelope-kraft`): platform count-box cells in light mode only. Dark mode uses the shell's muted at 30%.
+- **Status lamps** (`lamp-open`, `lamp-warn`, `lamp-danger`, `lamp-off`): the 8px lamp on dark ground. On plates they shift darker (open 58%, warn 64%, danger 55%) so they still read.
+- **Alert** (`alert-ground`, `alert-ink`): the storefront error strip.
+- **Field White / Field Rule** (`field-white`, `field-rule`): sign-in and sign-up inputs, which sit on a white plate.
 
 ### Named Rules
-**The One Light Rule.** The lit-sign accent is reserved for live state, action, the current location, and the posted fuel price. Body text, headings and paper never take it at rest.
+**The Logo Hue Rule.** Every chromatic storefront value derives its hue from `--sf-h`. No fixed brand colour is ever written into storefront CSS, apart from the reserved deal pair (hue 95/27) and the state lamps.
 
-**The Store's Hue Rule.** Grounds, perforation and accent are written as `oklch(L C var(--sf-h))`. Never hard-code a hue. The store's logo sets it.
+**The Earned Yellow Rule.** Deal-yellow plates with red digits are declared (`--sf-deal`, `--sf-deal-digits`) but draw only where the data marks an item as a deal. The public catalog carries no such field today, so none are drawn, and none may be faked.
+
+**The Red Pencil Rule.** On the platform, red pencil appears only on short or negative figures and critical metrics. Green ink appears only on a variance that balances to zero. An over (positive) variance stays in ordinary ink.
+
+**The Kraft Envelope Rule.** The kraft tint sits only behind count boxes. It never washes a panel, table or page.
 
 ## Typography
 
-**Display Font:** Doto (with Sofia Sans Semi Condensed, ui-sans-serif fallback), weights 700 and 900
-**Body Font:** Sofia Sans Semi Condensed (with ui-sans-serif, system-ui fallback)
+**Display Font:** Barlow Condensed 600/700 (with Arial Narrow, sans-serif), loaded as `--sf-tagface`
+**Body Font:** Barlow 400–700 (with ui-sans-serif, system-ui), loaded as `--sf-text`
+**Platform:** Geist and Geist Mono, inherited from the shared shell
 
-**Character:** A receipt printer's dot matrix set against a narrow, sturdy grotesk. The matrix carries the store's name and its numbers, and the grotesk carries everything a person reads.
+**Character:** The storefront type is shelf-tag printing: tall, narrow, heavy figures next to a plain grotesque that does the reading. The platform type is ledger handwriting set in Geist: small, even UI sizes, with every number in mono.
 
 ### Hierarchy
-- **Display** (Doto 900, length-fitted up to 12rem, 0.92): the store name on the home page, sized from its character count (`--len`) so it spans the measure on one line.
-- **Headline** (Sofia 700, fluid 2 to 3.5rem, 1): page and product titles. Balanced wrap.
-- **Title, aisle** (Sofia 800, fluid 1.375 to 1.875rem, 1.1): aisle names on the home receipt.
-- **Title** (Sofia 800, 1.5rem): slip and section heads (Aisles, Fuel, Hours, Receipts), followed by a small ghost-ink count.
-- **Lead** (fluid 1.25 to 1.5rem, 1.35): the store tagline (max 40ch) and today's open line.
-- **Body** (Sofia 400, 1.0625rem, 1.5): default text. Product descriptions run 1.125rem with a 62ch max.
-- **Label** (Sofia 600, 0.875rem): row labels, counts, metadata, the header strip.
-- **Price** (Doto 900, 2rem; 1.75rem on phones): currency symbol and cents set at 0.5em and raised beside the units. Hero price is fluid 3.5 to 5.5rem, and fuel prices are fluid 2 to 2.75rem in lit-sign.
+- **Headline** (Barlow Condensed 700, `clamp(2.25rem, 1.6rem + 2.4vw, 3.5rem)`, 0.95): shop and account page titles, prefixed with the aisle number chip when an aisle is selected.
+- **Headline Product** (700, `clamp(2rem, 1.5rem + 2vw, 3rem)`, 1): the product title.
+- **Price Hero** (700, 3.5rem; 3rem on phone): the single-size product price.
+- **Price** (700, 2.25rem; 2rem on phone, 0.92, tabular): every shelf-tag price. The currency symbol is 0.5em and the cents 0.52em, both raised to the top of the units. "From" is set in Barlow 0.75rem at the baseline.
+- **Sign** (700, 1.25rem, 1.1): aisle sign names, aisle plates, the phone-menu links and the "Ask at counter" tag.
+- **Title** (700, 1.5rem): store name, hours-board title, fuel prices, profile name, receipt totals. The 2.5rem figure step is used for rewards balances.
+- **Body** (Barlow 400, 1rem, 1.5): running text. Product descriptions are capped at 65ch.
+- **Label** (Barlow 600, 0.875rem): tag names (two-line clamp), field labels, the channel line, the today line.
+- **Tag Size** (Barlow 500, 0.75rem): the size or unit under a price, fuel grade, stock and "Made in store" marks.
+- **Platform**: page title 24px/600 tight; count-box figure 20px Geist Mono 500 tabular; section title 14px/600 over a 15% foreground rule; table, controls and body 13px; labels, table heads and count-box labels 12px.
 
 ### Named Rules
-**The Printer's Numbers Rule.** Doto sets only the store name, prices and receipt totals. Page titles, product titles and all running text stay in Sofia. Phone numbers and hours use tabular numerals in Sofia, not Doto.
+**The Printed Figure Rule.** On the storefront, money is always set in Barlow Condensed 700 with tabular figures. On the platform, money, quantities, and register, till, pack and PO numbers are always Geist Mono tabular. Right-aligned table cells are mono by default.
 
-**The Plain Case Rule.** Nothing is uppercased or letter-spaced into a label. Hierarchy comes from weight and size.
+**The No Letterspaced Caps Rule.** Neither surface sets running labels in tracked uppercase. Storefront tracking is limited to small negative values on large condensed type. Mono uppercase is used only for literal codes such as ISO currency.
 
 ## Layout
 
-The receipt column is the grid. Content sits in a 1360px container with a fluid gutter (16 to 36px). The home page opens with the full-width store name, then the store facts slip (Today, Address, Phone), then a wide search line with Search and Shop the store. Below that, a counter splits 7fr / 5fr: the aisles receipt on the left and a sticky side column (top 92px) with Fuel and Hours slips. The shop page is one itemised slip of product rows, and the product page is one receipt (max 720px, or 5fr / 6fr beside a photo when there is one).
+The storefront wraps content at 1360px with a fluid gutter (`clamp(16px, 2.6vw, 36px)`). The top channel is a single row (min 68px): logo, today line, search (max 420px), nav. It wraps under 1080px. On the home page a second channel row carries address, phone and fuel tags. Shelves are one grid (`auto-fill, minmax(10.5rem, 1fr)`, no column gap, 26px row gap) across the full content width. Each item spans two subgrid rows, photo then tag, so every tag in a row sits on one continuous channel; the last item's channel runs on to the shelf's end, so empty trailing slots read as bare channel. On home the hours board takes a 280–340px column beside the shelves from 1100px, and its own full-width row below that. Aisle signs wrap with an 18px by 12px gap and 16px of headroom for the wires.
 
-Rows are flex lines: label, a flexible dotted leader (min 24px), value. When a value can wrap, the leader stays on the first line. Spacing steps are 8px inside rows, 16px between row groups, 24px between blocks, and fluid section gaps (40 to 72px).
+Under 760px the nav and header search move into a `<details>` sheet. The today line drops to its own row. The channel strip and the aisle signs scroll sideways with snap and bleed to the screen edge. Shelves go to two columns and prices step down. The product page goes from a 0.9fr/1.1fr split to one column. Account content is capped at 760px, receipts at 560px and auth at 460px.
 
-Breakpoints: at 1080px the counter stacks and the side column becomes an auto-fit grid (min 280px). At 760px the header search and nav collapse into a phone menu, the hero search wraps with the input on its own line, product rows drop their leader and photos shrink to 52px. At 420px, fact rows wrap.
-
-**The Itemised Line Rule.** Any fact with a name and a value is a row joined by a dotted leader, never a label stacked over a value in a box.
+The platform uses the shell's `PageContainer` with 16/24px side padding and 24px vertical rhythm. Each page shows a title line (with a lamp and the store label), then the count-box strip, the needs-you queue table, underline tabs and the ledger. Count boxes run two up and then auto-fit at a 9rem minimum. Panels sit two up from xl. Table columns marked priority 2 hide under md and priority 3 under lg. Phones get extra bottom room for the floating assistant.
 
 ## Elevation & Depth
 
-The surfaces are flat. Depth comes from three tonal layers (well, ground, paper, with raised paper for hover and chips), not from shadows. The only shadow is under the phone menu sheet, which floats over content.
+On the storefront, depth is literal shelf hardware. Tags sit a hair proud of the channel, signs hang lower, and channels are recessed with an inset lip highlight and floor shadow. All shadows are soft and black. There are no offset or coloured shadows. The platform is flat: hairline borders and the shell's surfaces only.
 
 ### Shadow Vocabulary
-- **Menu drop** (`box-shadow: 0 24px 40px -16px rgb(0 0 0 / 0.7)`): the phone menu sheet only.
+- **Tag** (`box-shadow: 0 2px 3px oklch(0% 0 0 / 0.5)`): every tag plate, fuel tag, panel and hours board at rest.
+- **Lift** (`box-shadow: 0 6px 10px -2px oklch(0% 0 0 / 0.5)`): a tag or receipt panel on hover, with a 2px rise.
+- **Hang** (`box-shadow: 0 8px 14px -8px oklch(0% 0 0 / 0.8)`): aisle signs.
+- **Channel edge** (`box-shadow: inset 0 2px 0 <lip>, inset 0 -1px 0 <floor>`): the channel behind each shelf row and behind the size tags.
+- **Top strip** (`box-shadow: inset 0 -1px 0 <lip>, 0 6px 14px -8px oklch(0% 0 0 / 0.8)`): the header channel. The footer uses only the inset top lip.
 
-**The Paper-On-Counter Rule.** A surface is lifted by being lighter paper, not by a shadow or a border.
+### Named Rules
+**The Hardware Depth Rule.** A shadow on the storefront always stands for a physical relationship (clipped, lifted, hung, recessed). Nothing glows, and no card floats for decoration.
 
 ## Shapes
 
-Corners are nearly square (3px) on everything: buttons, pills, inputs, chips, photos. Receipt slips round only their top corners and end in a torn foot: a 10px band of repeated 16px-wide downward triangles in the same paper colour, masked below the slip. Dividers inside receipts are 2px dotted perforation lines. The only circles are the 8px status dots and the 6px today marker.
+Corners are nearly square throughout. Storefront tags, signs, plates, panels and the hours board use 2px. Storefront controls (buttons, search, fields, nav links, pager, the account switch) use 3px. The active nav link drops to 0 with a 2px logo-hue underline. The only round shape is the 8px status lamp, which reads as a lamp. Platform controls use 4px and panels, tables and list bands use 6px. The platform status dot is an 8px square with a 1px radius. Count boxes are square ruled cells: a 1px ink border at 70% foreground, with a dashed 25% label line under each label.
 
-**The Torn Foot Rule.** A slip that represents a printed receipt (store facts, aisles, fuel, hours, shop list, product receipt, receipt detail, footer, auth form) ends in the torn foot. Panels that are not printed receipts (profile, order and rewards panels, empty cards) are fully rounded at 3px with no tear.
+**The Six Pixel Ceiling Rule.** No corner on either surface exceeds 6px. Pills and capsule tabs are not used.
 
 ## Components
 
 ### Buttons
-Firm and plain, with press feedback.
-- **Shape:** near-square (3px), 1.5px border, min height 48px (44px small).
-- **Primary:** lit-sign fill and border, lit-sign-ink text, 700 weight, 1rem.
-- **Hover / Focus:** hover brightens to lit-sign-bright on fine pointers. Active scales to 0.97. Focus is a 2px lit-sign outline at 3px offset.
-- **Quiet:** transparent with a perforation border and thermal-ink text. Hover lifts the border to faded ink.
+- **Shape:** squared (3px storefront, 4px platform).
+- **Storefront primary:** filled aisle-sign hue with sign ink, 48px tall (52px beside the home search line), 22px side padding, weight 700. Hover goes to `aisle-sign-hi`. Pressed moves down 1px. Only one filled action per screen.
+- **Storefront quiet:** transparent, with a 1.5px stroke of currentColor at 38% that goes to full currentColor on hover.
+- **Platform primary:** shell foreground fill with background text, 36px tall (44px on phone), 13px semibold. Hover is the foreground at 85%.
+- **Platform secondary / danger:** 1px input border on the background, hover muted. The danger variant uses a destructive border at 40% and destructive text.
 
-### Pills (aisle and nav tracks)
-- **Style:** 40px tall, 1.5px perforation outline, faded-ink 600 text. Header nav pills drop the outline.
-- **State:** the current page is a solid lit-sign fill. Hover on others lifts the border to ghost ink and the text to thermal ink. On phones the aisle track scrolls horizontally, edge to edge.
+### Tag Plate (signature)
+The storefront's unit of content. A white plate (2px corners, tag shadow, padding 9/10/10) holds the item name (two lines at most), then a row with the price on the left and the size on the right. An optional rule-topped "Made in store" mark carries a 7px logo-hue square. Hover lifts it 2px and underlines the name. With no priced variant, the plate switches to the unlit tone and prints "Ask at counter" in sign type. The same plate holds fuel prices (min 84px), product sizes (150–220px, on a channel), the hours board, rewards panels, receipts and auth forms.
 
-### Chips
-- **Style:** raised-paper fill, faded-ink 700 text at 0.8125rem, 22px tall. Used for the "Made in store" fact on items.
-
-### Slips / Receipts
-- **Corner Style:** 3px top corners, torn foot below.
-- **Background:** receipt paper on the counter ground.
-- **Shadow Strategy:** none (see Elevation).
-- **Border:** none. Inner rows divide with 2px dotted perforation.
-- **Internal Padding:** fluid 18 to 28px.
+### Aisle Signs (signature)
+A logo-hue plate, 52px tall, hung on two 1.5px wires 16px tall. A sign-ink number chip (40px square) sits before a condensed name. Hover brightens the sign and, when motion is allowed, rotates it -1.5deg around a pivot above the wires. This is the storefront's one authored motion (320ms, `cubic-bezier(0.23, 1, 0.32, 1)`). The current aisle inverts to a sign-ink plate with a 2px hue inset. "All aisles" is an outlined sign with no number. Aisle numbers follow category order on every page and repeat in shelf heads and the back link.
 
 ### Inputs / Fields
-- **Style:** counter-well fill, 1.5px perforation border, 3px corners, 44px tall (48px in auth forms), 16px text, ghost-ink placeholder. The home search line is taller (56px) on receipt paper, with the search icon inset at 18px.
-- **Focus:** the border turns lit-sign.
-- **Error:** an outlined void-red alert with a danger dot above the form.
+- **Search:** well background, 1px line stroke, 3px corners, 44px tall (52px on the home search line), with a leading icon in ink-3. Focus changes the border to the focus ring.
+- **Account fields:** white field on a white plate with a 1.5px field-rule stroke, 48px tall. Focus changes the border and caret to the sign hue.
+- **Platform:** 36px (44px on phone) with a 4px input border. Focus gives a ring border plus a 3px ring at 25%.
 
 ### Navigation
-- **Style:** a counter-well strip (36px) carries today's status, address and phone. Below it is a sticky counter-well bar (68px; 60px on phones) with the store logo and name (800, 1.125rem), a header search (up to 380px), and Shop / Account pills. On phones, a bordered 44px menu toggle opens a receipt-paper sheet with 1.375rem links divided by dotted perforation, the current link in lit-sign.
+- **Storefront:** 44px nav links in ink-2, weight 600, going to ink on hover. The current link takes a 2px logo-hue underline. The phone menu is a `<details>` sheet in the channel colour, with 48px condensed links on hairlines, dropping in over 220ms.
+- **Platform tabs:** underline tabs on a hairline track. Each is 36px, 13px medium, muted, with a 2px foreground underline when active. Radio choices use the same underline track.
 
-### Itemised Row (signature)
-A label in faded ink (600), a flexible 2px dotted leader, and a value in thermal ink or Doto price. Used for store facts, footer lines, aisles (name, leader, item count, arrow), product rows (photo, title and meta, leader, price), product options and receipt totals.
+### Count Boxes (signature, platform)
+A `<dl>` grid of ruled cells (1px ink border at 70%, kraft tint in light mode). Each cell has a 12px muted label over a dashed rule, a 20px mono figure, and an optional 12px note. Variance figures are red pencil when short and green ink when balanced. `MetricsBand` renders every page's metrics as count boxes, and critical non-zero metrics are written in red pencil.
 
-### Status Dot (signature)
-An 8px circle before a status label: lit-sign for open or active, faded ink for warning, void red for danger, ghost ink for muted or closed.
-
-### Printer Feed (signature motion)
-On load, home receipt lines fade in from 10px above, staggered 40ms per line after a 120ms delay (560ms, `cubic-bezier(0.23, 1, 0.32, 1)`). The store name prints in with a top-down clip over 700ms. All of it is gated on `prefers-reduced-motion: no-preference` and runs once.
+### Data Table (platform)
+A 6px bordered panel that scrolls horizontally. The sticky 36px head is 12px muted on muted/60. Rows are 36px, 13px, with hairline separators and a muted/40 hover. Right-aligned cells are mono tabular. Status shows as a square dot plus a sentence-case label.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** derive every grounded and accented colour from `--sf-h` so the storefront follows the store's logo hue.
-- **Do** set any name/value fact as an itemised row with a 2px dotted leader.
-- **Do** end printed-receipt slips with the torn foot, in the slip's own paper colour.
-- **Do** keep the lit-sign accent for live state, the primary action, the current location and posted fuel prices.
-- **Do** make selected states solid and leave the rest outlined.
-- **Do** use Doto 900 for the store name, prices and totals, with cents and currency raised at 0.5em.
-- **Do** gate hover on `(hover: hover) and (pointer: fine)` and motion on `prefers-reduced-motion: no-preference`; keep 0.97 press feedback on buttons and pills.
-- **Do** keep touch targets at 44px or larger.
+- **Do** draw every storefront item, price, receipt and account panel as a white tag plate (2px corners, tag shadow) on the charcoal channel.
+- **Do** derive every storefront hue from `--sf-h` so the store's logo colour sets the sign and action colour.
+- **Do** print an item with no price as the unlit "Ask at counter" tag.
+- **Do** set storefront money in Barlow Condensed 700 tabular with raised cents, and platform figures and record numbers in Geist Mono tabular.
+- **Do** lead platform pages with count boxes and a queue table, and put entry forms behind a primary action or below the ledger.
+- **Do** keep the sign sway behind `prefers-reduced-motion: no-preference` and fine-pointer hover.
 
 ### Don't:
-- **Don't** build a hero-plus-card-grid shop page; products are rows on a slip.
-- **Don't** return to light paper grounds or flat grey neutrals; every neutral is tinted toward the store's hue.
-- **Don't** add shadows to slips or cards; lift with lighter paper.
-- **Don't** introduce a second accent hue. Void red is for errors only.
-- **Don't** set running text, page titles or phone numbers in Doto.
-- **Don't** round corners past 3px or soften the torn foot into a curve.
-- **Don't** uppercase or letter-space labels into eyebrows above headings.
+- **Don't** use corners above 6px, pills, or capsule tabs on either surface.
+- **Don't** put a grey or washed-out ground or a generic floating card on the storefront. Dark ground and white plates only.
+- **Don't** draw deal-yellow tags or red price digits unless the data marks the item as a deal.
+- **Don't** use red pencil on the platform for anything except short, negative or critical figures, and don't spread the kraft tint beyond count boxes.
+- **Don't** imply online payment or ordering in any storefront control.
+- **Don't** add offset, coloured or glowing shadows. Storefront shadows are soft black hardware shadows, and the platform is flat.

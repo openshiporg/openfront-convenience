@@ -27,9 +27,11 @@
   --sf-tag-rule: oklch(88% 0.006 var(--sf-h));
   --sf-deal: oklch(88% 0.17 95);
   --sf-deal-digits: oklch(52% 0.21 27);
-  /* Aisle signs and the one primary action, in the logo hue. */
-  --sf-sign: oklch(50% 0.13 var(--sf-h));
-  --sf-sign-hi: oklch(56% 0.14 var(--sf-h));
+  /* Aisle signs and the one primary action, in the logo colour: the logo's
+     hue at near-logo chroma, darkened so white sign text holds >=4.5:1 at
+     every hue even where sRGB clips the chroma (worst case ~4.9:1, hover ~4.6:1). */
+  --sf-sign: oklch(48% 0.19 var(--sf-h));
+  --sf-sign-hi: oklch(50% 0.19 var(--sf-h));
   --sf-sign-ink: oklch(98.5% 0.004 var(--sf-h));
   --sf-wire: oklch(46% 0.012 var(--sf-h));
   --sf-ring: oklch(80% 0.12 var(--sf-h));
@@ -754,12 +756,15 @@
   }
 }
 
-/* One shelf grid: photos stand on the shelf, tags line up on its channel. */
+/* One shelf grid: photos stand on the shelf, tags line up on its channel.
+   Fixed column tracks across the full content width; the last item's channel
+   runs on to the shelf's end, so empty trailing slots read as bare channel. */
 .sf-tags {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   column-gap: 0;
   row-gap: 26px;
+  overflow-x: clip;
 }
 /* Each item spans two shared rows (photo, tag) so every tag in a row sits on
    one continuous channel; inside an item the rows touch. */
@@ -776,6 +781,13 @@
   grid-column: 1;
   background: var(--sf-channel);
   box-shadow: var(--sf-channel-edge);
+}
+.sf-tags > li:last-child > .sf-item::before {
+  margin-inline-end: -100vw;
+}
+/* The shelf clips its run-on channel at the edge, so the focus ring sits inside the item. */
+.sf-tags .sf-item:focus-visible {
+  outline-offset: -2px;
 }
 .sf-item__photo {
   grid-row: 1;
@@ -920,12 +932,37 @@
   color: var(--sf-tag-ink-2);
 }
 
+/* Home floor: shelves in the wide track, the hours board in the narrow one
+   beside them on wide screens; below that the board takes its own row. */
+.sf-home__floor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px 36px;
+  align-items: start;
+}
+.sf-home__shelves:empty {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .sf-home__floor:has(> .sf-home__shelves:not(:empty)):has(> .sf-board) {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+  .sf-home__floor > .sf-home__shelves:not(:empty) + .sf-board {
+    margin-top: 16px;
+  }
+}
+@media (max-width: 1099px) {
+  .sf-home__floor > .sf-board .sf-hours {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    column-gap: 32px;
+  }
+}
+
 /* Hours board. */
 .sf-board {
   display: grid;
   gap: 10px;
-  width: min(100%, 380px);
-  margin-top: 24px;
+  width: 100%;
   padding: 16px 18px 14px;
   border-radius: var(--sf-r-tag);
   background: var(--sf-tag);
@@ -1016,6 +1053,12 @@
 }
 .sf-signs {
   margin-top: 12px;
+}
+/* Same 40px from the sign row to the first aisle head as on home. */
+@media (min-width: 761px) {
+  .sf-signs + .sf-shelf {
+    margin-top: 40px;
+  }
 }
 .sf-filterline {
   display: flex;

@@ -75,7 +75,7 @@ export async function PaymentsPage({ searchParams }: { searchParams: PlatformSea
               </Disclosure>
             )}
           </ActionBar>
-          {!providers.length ? <NoteLine>Add a payment provider before reconciling a settlement.</NoteLine> : null}
+          {!providers.length ? <NoteLine>No payment provider</NoteLine> : null}
 
           <section className="min-w-0" aria-labelledby="payments-queue">
             <SectionTitle id="payments-queue" meta={queue.length || undefined}>Needs you</SectionTitle>

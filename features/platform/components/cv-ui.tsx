@@ -3,7 +3,7 @@
 // count boxes for expected/counted/variance, and mono figures, built on the
 // dashboard's own tokens so pages sit naturally in the shared shell in light and dark.
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -72,11 +72,11 @@ export const trackClass =
 export const pillClass =
   "-mb-px inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50 data-[active=true]:border-foreground data-[active=true]:text-foreground aria-selected:border-foreground aria-selected:text-foreground max-sm:min-h-10";
 
-/** Primary action: the raised pill sitting in its own recessed track. */
+/** Primary action: a flat ink button with 4px corners. */
 export const primaryButtonClass =
   "inline-flex min-h-9 items-center justify-center gap-2 rounded-[4px] bg-foreground px-4 text-[13px] font-semibold text-background transition hover:bg-foreground/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-50 max-sm:min-h-11";
 
-/** Secondary action: a raised white pill in a recessed track. */
+/** Secondary action: an outlined button with 4px corners. */
 export const buttonClass =
   "inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-[4px] border border-input bg-background px-3.5 text-[13px] font-medium text-foreground transition hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 max-sm:min-h-11";
 
@@ -209,13 +209,26 @@ export function SegmentedRadio({
  */
 export function CountBoxes({
   items,
+  columns,
   className,
 }: {
   items: Array<{ label: ReactNode; value: ReactNode; variance?: number | null; note?: ReactNode }>;
+  /**
+   * A `grid-template-columns` value used from lg up, so the strip can share the
+   * page's column grid (e.g. one track per key figure under a table of the same width).
+   */
+  columns?: string;
   className?: string;
 }) {
   return (
-    <dl className={cn("grid min-w-0 grid-cols-2 border-l border-t border-foreground/70 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]", className)}>
+    <dl
+      style={columns ? ({ "--cv-count-cols": columns } as CSSProperties) : undefined}
+      className={cn(
+        "grid min-w-0 grid-cols-2 border-l border-t border-foreground/70 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]",
+        columns && "lg:[grid-template-columns:var(--cv-count-cols)]",
+        className,
+      )}
+    >
       {items.map((item, index) => {
         const v = item.variance;
         const tone = v == null ? "" : v < 0 ? "text-[oklch(0.52_0.19_27)] dark:text-red-400" : v === 0 ? "text-emerald-700 dark:text-emerald-400" : "text-foreground";

@@ -83,26 +83,34 @@ export async function TillListPage({ searchParams }: { searchParams: PlatformSea
   const queue = (queueResponse?.success ? queueResponse.data.registerSessions : [])
     .slice()
     .sort((a, b) => queueRank(a) - queueRank(b));
+  const loaded = Boolean(queueResponse?.success);
   const live = queue.filter((session) => session.status !== "closed");
   const expectedLive = live.reduce((sum, session) => sum + session.expectedCashCents, 0);
   const floatLive = live.reduce((sum, session) => sum + session.openingCashCents, 0);
   const shortClosed = queue.filter((session) => session.status === "closed");
   const shortTotal = shortClosed.reduce((sum, session) => sum + (session.overShortCents ?? 0), 0);
+  const countedClosed = shortClosed.filter((session) => session.countedCashCents != null);
+  const countedTotal = countedClosed.reduce((sum, session) => sum + (session.countedCashCents ?? 0), 0);
 
   const lead = (
     <>
-      {live.length || shortClosed.length ? (
-        <CountBoxes
-          items={[
-            { label: "Drawers open", value: live.length },
-            { label: "Opening floats", value: money(floatLive) },
-            { label: "Expected in drawers", value: money(expectedLive) },
-            ...(shortClosed.length
-              ? [{ label: `Short on close (${shortClosed.length})`, value: `−${money(Math.abs(shortTotal))}`, variance: -1 }]
-              : []),
-          ]}
-        />
-      ) : null}
+      <CountBoxes
+        items={[
+          { label: "Drawers open", value: loaded ? live.length : "–" },
+          { label: "Opening floats", value: loaded ? money(floatLive) : "–" },
+          { label: "Expected in drawers", value: loaded ? money(expectedLive) : "–" },
+          {
+            label: "Counted",
+            value: countedClosed.length ? money(countedTotal) : "–",
+          },
+          {
+            label: "Over / short",
+            value: shortClosed.length ? `−${money(Math.abs(shortTotal))}` : "–",
+            variance: shortClosed.length ? shortTotal : null,
+            note: shortClosed.length ? `${shortClosed.length} short ${shortClosed.length === 1 ? "close" : "closes"}` : undefined,
+          },
+        ]}
+      />
       <section aria-labelledby="till-queue" className="min-w-0">
         <SectionTitle id="till-queue" meta={queue.length || undefined}>
           Needs you

@@ -10,10 +10,11 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { DataTable, SectionTitle, Td, Th, Tr, statusLabel, type DotTone } from "../components/cv-ui";
+import { CountBoxes, DataTable, SectionTitle, Td, Th, Tr, statusLabel, type DotTone } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
 import { employeeName, type EmployeeRef } from "../lib/people";
 import { getPlatformProjection, type PlatformProjection, type PlatformSearch } from "../lib/projection";
+import { isToday } from "../fuel/ops-kit";
 import { ActionBar, Disclosure, NoteLine, StateText, ageText } from "../reconciliation/ledger-ui";
 import { QueueRow } from "../reconciliation/QueueRow";
 
@@ -32,6 +33,7 @@ type Alert = {
   thresholdValue: string | null;
   detectedAt: string | null;
   acknowledgedAt: string | null;
+  resolvedAt: string | null;
   store: { name: string } | null;
   acknowledgedBy: EmployeeRef;
 };
@@ -54,7 +56,7 @@ async function loadAlerts(projection: PlatformProjection): Promise<Alert[] | nul
         orderBy: [{ detectedAt: desc }]
         take: $take
       ) {
-        id alertNumber type title message severity status resourceType observedValue thresholdValue detectedAt acknowledgedAt
+        id alertNumber type title message severity status resourceType observedValue thresholdValue detectedAt acknowledgedAt resolvedAt
         store { name }
         acknowledgedBy { employeeNumber user { name } }
       }
@@ -81,6 +83,7 @@ function fromRows(rows: PlatformProjection["rows"]): Alert[] {
       thresholdValue: null,
       detectedAt: row.occurredAt,
       acknowledgedAt: null,
+      resolvedAt: null,
       store: null,
       acknowledgedBy: null,
     };
@@ -95,7 +98,8 @@ const sourceLabel = (alert: Alert) =>
 export async function ExceptionsPage({ searchParams }: { searchParams: PlatformSearch }) {
   const state = await getPlatformProjection("exceptions", searchParams);
   const projection = state.projection;
-  const alerts = projection ? ((await loadAlerts(projection)) ?? fromRows(projection.rows)) : [];
+  const detailed = projection ? await loadAlerts(projection) : null;
+  const alerts = projection ? (detailed ?? fromRows(projection.rows)) : [];
   const now = Date.now();
   const open = alerts
     .filter((alert) => alert.status === "open" || alert.status === "acknowledged")
@@ -108,6 +112,10 @@ export async function ExceptionsPage({ searchParams }: { searchParams: PlatformS
   const closed = alerts.filter((alert) => alert.status !== "open" && alert.status !== "acknowledged");
   const critical = open.filter((alert) => alert.severity === "critical").length;
   const unowned = open.filter((alert) => alert.status === "open").length;
+  // Resolution times come only from the detailed read; without it the box stays blank.
+  const resolvedToday = detailed
+    ? closed.filter((alert) => alert.status === "resolved" && isToday(alert.resolvedAt, projection?.timezone)).length
+    : null;
   const pageState: { tone: DotTone; label: string } | null = projection
     ? open.length
       ? { tone: critical ? "danger" : "warn", label: `${open.length} open${critical ? ` · ${critical} critical` : ""}${unowned ? ` · ${unowned} unowned` : ""}` }
@@ -128,6 +136,14 @@ export async function ExceptionsPage({ searchParams }: { searchParams: PlatformS
               </FormGrid>
             </Disclosure>
           </ActionBar>
+
+          <CountBoxes
+            items={[
+              { label: "Open", value: open.length, variance: critical ? -1 : null, note: critical ? `${critical} critical` : undefined },
+              { label: "Unowned", value: unowned },
+              { label: "Resolved today", value: resolvedToday ?? "–" },
+            ]}
+          />
 
           <Workbench
             scope="exceptions"
@@ -189,7 +205,7 @@ export async function ExceptionsPage({ searchParams }: { searchParams: PlatformS
                         </tbody>
                       </DataTable>
                     ) : (
-                      <NoteLine tone="ok">No open exceptions. Evaluate controls to check the store again.</NoteLine>
+                      <NoteLine tone="ok">No open exceptions</NoteLine>
                     )}
                   </section>
                 ),

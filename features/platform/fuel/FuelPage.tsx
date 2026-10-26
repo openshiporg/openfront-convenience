@@ -173,15 +173,21 @@ export async function FuelPage({
 
           <section className="min-w-0 space-y-3" aria-label="Unconfirmed dispenses">
             <SectionTitle meta={unconfirmed.length || undefined}>Unconfirmed dispenses</SectionTitle>
-            {unconfirmed.length ? (
-              <CountBoxes
-                items={[
-                  { label: "Paid", value: money(paidCents, currency), note: `${unconfirmed.length} authorizations` },
-                  { label: "Dispensed, confirmed", value: money(0, currency), note: "No controller record yet" },
-                  { label: "Paid, not dispensed", value: money(-paidCents, currency), variance: -paidCents },
-                ]}
-              />
-            ) : null}
+            <CountBoxes
+              items={
+                unconfirmed.length
+                  ? [
+                      { label: "Paid", value: money(paidCents, currency), note: `${unconfirmed.length} authorizations` },
+                      { label: "Dispensed, confirmed", value: money(0, currency), note: "No controller record yet" },
+                      { label: "Paid, not dispensed", value: money(-paidCents, currency), variance: -paidCents },
+                    ]
+                  : [
+                      { label: "Paid", value: "–" },
+                      { label: "Dispensed, confirmed", value: "–" },
+                      { label: "Paid, not dispensed", value: "–" },
+                    ]
+              }
+            />
             {unconfirmed.length ? (
               <DataTable>
                 <thead>
