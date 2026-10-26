@@ -18,6 +18,7 @@ import {
   toneOf,
   trackClass,
   type DotTone,
+  CountBoxes,
 } from "./cv-ui";
 import { PendingSubmitButton } from "./PendingSubmitButton";
 import {
@@ -83,7 +84,7 @@ export function PlatformPage({
         {error ? (
           <p
             role="alert"
-            className="flex items-baseline gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            className="flex items-baseline gap-2 rounded-[4px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           >
             <Dot tone="danger" />
             {error}
@@ -92,7 +93,7 @@ export function PlatformPage({
         {notice ? (
           <p
             role="status"
-            className="flex items-baseline gap-2 rounded-xl border border-emerald-600/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300"
+            className="flex items-baseline gap-2 rounded-[4px] border border-emerald-600/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300"
           >
             <Dot tone="ok" />
             {notice}
@@ -112,27 +113,23 @@ export function PlatformPage({
 }
 
 export function MetricsBand({ metrics }: { metrics: PlatformProjection["metrics"] }) {
+  // The store's figures as ruled count boxes; a critical figure is written in red pencil.
   return (
-    <dl
-      className={`grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 ${
-        metrics.length % 3 === 0 ? "md:grid-cols-3 2xl:grid-cols-6" : "md:grid-cols-4"
-      }`}
-    >
-      {metrics.map((metric) => {
+    <CountBoxes
+      items={metrics.map((metric) => {
         const tone = toneOf(metric.tone);
-        return (
-          <div key={metric.label} className="min-w-0 bg-background px-4 py-3.5">
-            <dt className="flex items-baseline gap-1.5 text-xs font-medium text-muted-foreground">
+        return {
+          label: (
+            <span className="flex items-baseline gap-1.5">
               {tone !== "muted" && metric.value !== "0" ? <Dot tone={tone} /> : null}
               <span className="truncate">{metric.label}</span>
-            </dt>
-            <dd className="mt-1 font-mono text-2xl font-medium tabular-nums tracking-tight text-foreground [overflow-wrap:anywhere]">
-              {formatMeasure(metric.value)}
-            </dd>
-          </div>
-        );
+            </span>
+          ),
+          value: formatMeasure(metric.value),
+          variance: tone === "danger" && metric.value !== "0" ? -1 : null,
+        };
       })}
-    </dl>
+    />
   );
 }
 
@@ -185,7 +182,7 @@ function ScopeSelect({
         id={`scope-${name}`}
         name={name}
         defaultValue={value ?? ""}
-        className="h-8 min-w-0 max-w-56 truncate rounded-full border-0 bg-background px-3 text-[13px] font-medium text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.14)] focus-visible:outline-2 focus-visible:outline-ring dark:bg-zinc-800 max-sm:h-10"
+        className="h-8 min-w-0 max-w-56 truncate rounded-[4px] border border-input bg-background px-3 text-[13px] font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring dark:bg-zinc-800 max-sm:h-10"
       >
         {options.map((option) => (
           <option key={option.id} value={option.id}>
@@ -195,7 +192,7 @@ function ScopeSelect({
       </select>
       <button
         type="submit"
-        className="inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
+        className="inline-flex min-h-8 items-center rounded-[4px] px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
       >
         {label === "Business" ? "Switch" : "Apply"}
       </button>
@@ -287,7 +284,7 @@ export function ActionPanel({
 }) {
   return (
     <section className={panelClass}>
-      <h3 className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight text-foreground">
+      <h3 className="flex items-baseline gap-2 text-[14px] font-semibold tracking-tight text-foreground">
         {tone ? <Dot tone={tone} /> : null}
         {title}
       </h3>
@@ -518,7 +515,7 @@ export function LookupForm({
 
 export function EmptyState({ title }: { title: string; detail?: string }) {
   return (
-    <div className="rounded-2xl border border-dashed px-4 py-10 text-center">
+    <div className="rounded-md border border-dashed px-4 py-8 text-center">
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
     </div>
   );

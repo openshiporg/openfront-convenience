@@ -16,7 +16,6 @@ import {
 import {
   ActionPanel,
   EnumField,
-  EvidenceTable,
   FormGrid,
   HiddenScope,
   LookupForm,
@@ -24,7 +23,9 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { PanelGrid } from "../components/cv-ui";
+import Link from "next/link";
+
+import { DataTable, PanelGrid, SectionTitle, StatusText, Td, Th, Tr, formatMeasure } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 import { DurableOfflineQueue } from "./DurableOfflineQueue";
@@ -37,6 +38,15 @@ import { registerCloseActorId } from "./register-close-actions";
 import { zonedNowInput } from "../lib/form-values";
 
 const path = "/dashboard/platform/pos";
+
+function storeTime(value: string, timeZone: string | null | undefined): string {
+  const options: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
+  try {
+    return new Date(value).toLocaleString("en-US", { ...options, timeZone: timeZone || "UTC" });
+  } catch {
+    return new Date(value).toLocaleString("en-US", { ...options, timeZone: "UTC" });
+  }
+}
 
 export async function PosPage({
   searchParams,
@@ -86,7 +96,7 @@ export async function PosPage({
     />
   ) : null;
   return (
-    <PlatformPage title="POS & Cash" {...state}>
+    <PlatformPage title="POS & Cash" {...state} showMetrics={false}>
       {projection ? (
         <Workbench
           scope="pos"
@@ -96,7 +106,6 @@ export async function PosPage({
               label: "Checkout",
               content: (
                 <>
-                  {itemLookup}
                   <FastCheckoutStation
                     businessId={projection.businessId!}
                     storeId={projection.storeId!}
@@ -106,6 +115,7 @@ export async function PosPage({
                     variants={controls.productVariants ?? []}
                     currencyCode={projection.currencyCode ?? "USD"}
                   />
+                  {itemLookup}
                 </>
               ),
             },
@@ -664,7 +674,7 @@ export async function PosPage({
                           { value: "unknown", label: "Unknown" },
                         ]}
                       />
-                      <details className="grid gap-3 rounded-xl border border-dashed p-3 sm:col-span-2">
+                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
                         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund</summary>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           <TextField
@@ -761,7 +771,41 @@ export async function PosPage({
                     sales={controls.receiptLookupSales ?? []}
                     search={state.receiptSearch}
                   />
-                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Recent receipts" rowHref="/dashboard/platform/sales" />
+                  <section className="min-w-0" aria-label="Recent receipts">
+                    <SectionTitle meta={projection.rows.length || undefined}>Recent receipts</SectionTitle>
+                    {projection.rows.length ? (
+                      <DataTable aria-label="Recent receipts">
+                        <thead>
+                          <tr>
+                            <Th>Receipt</Th>
+                            <Th priority={3}>Number</Th>
+                            <Th priority={2}>Completed</Th>
+                            <Th align="right">Total</Th>
+                            <Th>Status</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {projection.rows.map((row) => (
+                            <Tr key={row.id}>
+                              <Td>
+                                <Link href={`/dashboard/platform/sales/${row.id}`} className="inline-flex min-h-6 items-center font-mono text-[12px] font-medium hover:underline max-sm:min-h-10">
+                                  {row.title}
+                                </Link>
+                              </Td>
+                              <Td priority={3} className="font-mono text-[12px] text-muted-foreground [overflow-wrap:anywhere]">{row.detail}</Td>
+                              <Td priority={2} className="whitespace-nowrap text-muted-foreground">
+                                {row.occurredAt ? <time dateTime={row.occurredAt}>{storeTime(row.occurredAt, projection.timezone)}</time> : "—"}
+                              </Td>
+                              <Td align="right" className="whitespace-nowrap">{row.metric ? formatMeasure(row.metric) : "—"}</Td>
+                              <Td><StatusText status={row.status} /></Td>
+                            </Tr>
+                          ))}
+                        </tbody>
+                      </DataTable>
+                    ) : (
+                      <p className="py-2 text-sm text-muted-foreground">No receipts yet</p>
+                    )}
+                  </section>
                 </>
               ),
             },

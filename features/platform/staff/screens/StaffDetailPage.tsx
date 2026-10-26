@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
-import { BandRow, DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
+import { DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
 import { ActionPanel, EnumField, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
-import { ListBand, labelClass, primaryButtonClass } from "../../components/cv-ui";
+import { DataTable, StatusText, Td, Th, Tr, labelClass, primaryButtonClass } from "../../components/cv-ui";
 import { shortRef } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { formatMoney, formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
@@ -114,47 +114,71 @@ export async function StaffDetailPage({ params, searchParams }: { params: Promis
       />
       <DetailSection title="Shifts" meta={employee.shifts.length}>
         {employee.shifts.length ? (
-          <ListBand>
-            {employee.shifts.map((shift) => (
-              <BandRow
-                key={shift.id}
-                title={shortRef(shift.shiftNumber)}
-                status={shift.status}
-                meta={[
-                  `${formatWhen(shift.startsAt, scope.timezone)} – ${formatWhen(shift.endsAt, scope.timezone)}`,
-                  shift.clockedInAt ? `in ${formatWhen(shift.clockedInAt, scope.timezone)}` : null,
-                  shift.clockedOutAt ? `out ${formatWhen(shift.clockedOutAt, scope.timezone)}` : null,
-                  shift.breakMinutes ? `${shift.breakMinutes} min break` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-            ))}
-          </ListBand>
+          <DataTable aria-label="Shifts">
+            <thead>
+              <tr>
+                <Th>Shift</Th>
+                <Th>Status</Th>
+                <Th>Scheduled</Th>
+                <Th priority={2}>Clocked in</Th>
+                <Th priority={2}>Clocked out</Th>
+                <Th align="right" priority={3}>Break</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {employee.shifts.map((shift) => (
+                <Tr key={shift.id}>
+                  <Td className="font-mono tabular-nums">{shortRef(shift.shiftNumber)}</Td>
+                  <Td><StatusText status={shift.status} /></Td>
+                  <Td className="text-muted-foreground">
+                    {formatWhen(shift.startsAt, scope.timezone)} – {formatWhen(shift.endsAt, scope.timezone)}
+                  </Td>
+                  <Td priority={2} className="whitespace-nowrap text-muted-foreground">{shift.clockedInAt ? formatWhen(shift.clockedInAt, scope.timezone) : "—"}</Td>
+                  <Td priority={2} className="whitespace-nowrap text-muted-foreground">{shift.clockedOutAt ? formatWhen(shift.clockedOutAt, scope.timezone) : "—"}</Td>
+                  <Td align="right" priority={3}>{shift.breakMinutes ? `${shift.breakMinutes} min` : "—"}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
         ) : (
           <p className="text-sm text-muted-foreground">No shifts</p>
         )}
       </DetailSection>
       <DetailSection title="Tills" meta={employee.registerSessions.length}>
         {employee.registerSessions.length ? (
-          <ListBand>
-            {employee.registerSessions.map((session) => (
-              <Link key={session.id} href={`/dashboard/platform/tills/${session.id}${q}`} className="block hover:bg-background">
-                <BandRow
-                  title={`${session.register?.name ?? "Till"} · ${shortRef(session.sessionNumber)}`}
-                  status={session.status}
-                  meta={formatWhen(session.openedAt, scope.timezone)}
-                  figure={
-                    session.status === "closed"
-                      ? session.overShortCents
-                        ? `${session.overShortCents > 0 ? "+" : "−"}${formatMoney(Math.abs(session.overShortCents), scope.currencyCode)}`
-                        : "Balanced"
-                      : undefined
-                  }
-                />
-              </Link>
-            ))}
-          </ListBand>
+          <DataTable aria-label="Tills">
+            <thead>
+              <tr>
+                <Th>Till</Th>
+                <Th>Status</Th>
+                <Th priority={2}>Opened</Th>
+                <Th align="right">Over / short</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {employee.registerSessions.map((session) => {
+                const variance = session.overShortCents ?? 0;
+                return (
+                  <Tr key={session.id} className="relative">
+                    <Td>
+                      <Link href={`/dashboard/platform/tills/${session.id}${q}`} className="after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                        {session.register?.name ?? "Till"} <span className="font-mono text-[12px] text-muted-foreground">{shortRef(session.sessionNumber)}</span>
+                      </Link>
+                    </Td>
+                    <Td><StatusText status={session.status} /></Td>
+                    <Td priority={2} className="whitespace-nowrap text-muted-foreground">{formatWhen(session.openedAt, scope.timezone)}</Td>
+                    <Td align="right" className={session.status === "closed" && variance < 0 ? "text-[oklch(0.52_0.19_27)] dark:text-red-400" : ""}>
+                      {session.status === "closed"
+                        ? variance
+                          ? `${variance > 0 ? "+" : "−"}${formatMoney(Math.abs(variance), scope.currencyCode)}`
+                          : "Balanced"
+                        : "—"}
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </tbody>
+          </DataTable>
         ) : (
           <p className="text-sm text-muted-foreground">No till sessions</p>
         )}

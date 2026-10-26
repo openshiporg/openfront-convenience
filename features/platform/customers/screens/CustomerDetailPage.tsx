@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { adjustLoyaltyAction } from "../../actions";
-import { BandRow, DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
+import { DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
 import { ActionPanel, FormGrid, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
-import { ListBand, statusLabel } from "../../components/cv-ui";
+import { DataTable, StatusText, Td, Th, Tr } from "../../components/cv-ui";
 import { shortRef } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { getStoreOptions } from "../../lib/store-options";
@@ -85,29 +85,63 @@ export async function CustomerDetailPage({ params, searchParams }: { params: Pro
       />
       <DetailSection title="Points activity" meta={account.entries.length}>
         {account.entries.length ? (
-          <ListBand>
-            {account.entries.map((entry) => (
-              <BandRow
-                key={entry.id}
-                title={statusLabel(entry.type)}
-                meta={[formatWhen(entry.occurredAt, scope.timezone), entry.description || null, entry.sale ? shortRef(entry.sale.receiptNumber) : null].filter(Boolean).join(" · ")}
-                figure={`${entry.pointsDelta > 0 ? "+" : ""}${entry.pointsDelta} → ${entry.balanceAfter}`}
-              />
-            ))}
-          </ListBand>
+          <DataTable aria-label="Points activity">
+            <thead>
+              <tr>
+                <Th>When</Th>
+                <Th>Type</Th>
+                <Th priority={2}>Detail</Th>
+                <Th align="right">Points</Th>
+                <Th align="right" priority={2}>Balance</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {account.entries.map((entry) => (
+                <Tr key={entry.id}>
+                  <Td className="whitespace-nowrap text-muted-foreground">{formatWhen(entry.occurredAt, scope.timezone)}</Td>
+                  <Td><StatusText status={entry.type} /></Td>
+                  <Td priority={2} className="text-muted-foreground [overflow-wrap:anywhere]">
+                    {[entry.description || null, entry.sale ? shortRef(entry.sale.receiptNumber) : null].filter(Boolean).join(" · ") || "—"}
+                  </Td>
+                  <Td align="right" className={entry.pointsDelta < 0 ? "text-[oklch(0.52_0.19_27)] dark:text-red-400" : ""}>
+                    {entry.pointsDelta > 0 ? "+" : entry.pointsDelta < 0 ? "−" : ""}
+                    {Math.abs(entry.pointsDelta)}
+                  </Td>
+                  <Td align="right" priority={2}>{entry.balanceAfter}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
         ) : (
           <p className="text-sm text-muted-foreground">No points activity</p>
         )}
       </DetailSection>
       <DetailSection title="Purchases" meta={response.data.sales.length}>
         {response.data.sales.length ? (
-          <ListBand>
-            {response.data.sales.map((sale) => (
-              <Link key={sale.id} href={`/dashboard/platform/sales/${sale.id}${q}`} className="block hover:bg-background">
-                <BandRow title={shortRef(sale.receiptNumber)} status={sale.status} meta={formatWhen(sale.completedAt, scope.timezone)} figure={formatMoney(sale.totalCents, sale.currencyCode)} />
-              </Link>
-            ))}
-          </ListBand>
+          <DataTable aria-label="Purchases">
+            <thead>
+              <tr>
+                <Th>Receipt</Th>
+                <Th>Status</Th>
+                <Th priority={2}>Completed</Th>
+                <Th align="right">Total</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {response.data.sales.map((sale) => (
+                <Tr key={sale.id} className="relative">
+                  <Td className="font-mono tabular-nums">
+                    <Link href={`/dashboard/platform/sales/${sale.id}${q}`} className="after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                      {shortRef(sale.receiptNumber)}
+                    </Link>
+                  </Td>
+                  <Td><StatusText status={sale.status} /></Td>
+                  <Td priority={2} className="whitespace-nowrap text-muted-foreground">{formatWhen(sale.completedAt, scope.timezone)}</Td>
+                  <Td align="right">{formatMoney(sale.totalCents, sale.currencyCode)}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
         ) : (
           <p className="text-sm text-muted-foreground">No purchases</p>
         )}

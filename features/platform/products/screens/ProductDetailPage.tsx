@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { configureCatalogItemAction, setRetailPriceAction } from "../../actions";
-import { BandRow, DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
+import { FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
 import { ActionPanel, FormGrid, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
-import { ListBand, pillClass, statusLabel, trackClass } from "../../components/cv-ui";
+import { StatusText, Td, Th, Tr, buttonClass, statusLabel } from "../../components/cv-ui";
+import { StockConditionText, stockCondition } from "../../stock/components/stock-queue";
+import { FormDisclosure, StateText, TableSection, cellLinkClass, monoCellClass } from "../../stock/components/table-kit";
 import { zonedNowInput } from "../../lib/form-values";
 import { quantityText } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
@@ -27,7 +29,7 @@ type Variant = {
   allowNegativeInventory: boolean;
   barcodes: Array<{ id: string; value: string; format: string; isPrimary: boolean; status: string }>;
   priceEntries: Array<{ id: string; amountCents: number; minQuantity: string; startsAt: string | null; endsAt: string | null; priceBook: { name: string } | null }>;
-  stockLevels: Array<{ id: string; onHandQuantity: string; reorderPoint: string; location: { name: string } | null; store: { name: string } | null }>;
+  stockLevels: Array<{ id: string; onHandQuantity: string; reorderPoint: string; parQuantity: string; location: { name: string } | null; store: { name: string } | null }>;
   vendorItems: Array<{ id: string; vendorSku: string; unitCostCents: number; casePackQuantity: number | null; vendor: { id: string; name: string } | null }>;
   lots: Array<{ id: string; lotNumber: string; quantityRemaining: string; expiresAt: string | null; location: { name: string } | null }>;
 };
@@ -82,7 +84,7 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
           id title sku status sellBy unitOfMeasure defaultPriceCents costCents trackInventory allowNegativeInventory
           barcodes(orderBy: { value: asc }) { id value format isPrimary status }
           priceEntries(where: { status: { equals: active } }, orderBy: { startsAt: desc }, take: 10) { id amountCents minQuantity startsAt endsAt priceBook { name } }
-          stockLevels { id onHandQuantity reorderPoint location { name } store { name } }
+          stockLevels { id onHandQuantity reorderPoint parQuantity location { name } store { name } }
           vendorItems { id vendorSku unitCostCents casePackQuantity vendor { id name } }
           lots(where: { status: { equals: active } }, orderBy: { expiresAt: asc }, take: 10) { id lotNumber quantityRemaining expiresAt location { name } }
         }
@@ -193,159 +195,286 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
       />
       {description ? <p className="whitespace-pre-line text-sm text-muted-foreground">{description}</p> : null}
 
-      <ProductPhotos productId={product.id} productTitle={product.title} scope={scope} returnPath={path} />
-
-      <DetailSection title="Variants" meta={product.variants.length}>
-        <ListBand>
-          {product.variants.map((variant) => (
-            <Link
-              key={variant.id}
-              href={`${path}${scopeQuery(scope, { variant: variant.id })}`}
-              aria-current={variant.id === selectedVariant?.id ? "true" : undefined}
-              className="block bg-background/60 hover:bg-background aria-[current=true]:bg-background aria-[current=true]:shadow-[inset_3px_0_0_var(--color-foreground)]"
-            >
-              <BandRow
-                title={`${variant.title} · ${variant.sku}`}
-                status={variant.status}
-                meta={[
-                  variant.barcodes.map((barcode) => barcode.value).join(", ") || "No barcode",
-                  variant.trackInventory ? `${quantityText(onHand(variant).toFixed(4))} ${variant.unitOfMeasure} on hand` : "Not stock-tracked",
-                  variant.costCents != null ? `cost ${money(variant.costCents)}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                figure={money(variant.defaultPriceCents)}
-              />
-            </Link>
-          ))}
-        </ListBand>
-      </DetailSection>
+      <TableSection
+        title="Variants"
+        count={product.variants.length}
+        empty="No variants"
+        head={
+          <>
+            <Th>SKU</Th>
+            <Th>Variant</Th>
+            <Th priority={3}>Barcode</Th>
+            <Th align="right" priority={2}>
+              On hand
+            </Th>
+            <Th align="right" priority={3}>
+              Cost
+            </Th>
+            <Th align="right">Price</Th>
+            <Th>Status</Th>
+          </>
+        }
+      >
+        {product.variants.map((variant) => {
+          const selected = variant.id === selectedVariant?.id;
+          const total = onHand(variant);
+          return (
+            <Tr key={variant.id} className={selected ? "bg-muted/50" : undefined}>
+              <Td className={monoCellClass}>{variant.sku}</Td>
+              <Td>
+                <Link
+                  className={cellLinkClass}
+                  href={`${path}${scopeQuery(scope, { variant: variant.id })}`}
+                  aria-current={selected ? "true" : undefined}
+                >
+                  {variant.title}
+                </Link>
+                {selected ? <span className="ml-2 text-xs text-muted-foreground">Selected</span> : null}
+              </Td>
+              <Td priority={3} className={monoCellClass}>
+                {variant.barcodes.map((barcode) => barcode.value).join(", ") || "—"}
+              </Td>
+              <Td align="right" priority={2} className={total < 0 ? "font-medium text-[oklch(0.52_0.19_27)] dark:text-red-400" : undefined}>
+                {variant.trackInventory ? `${quantityText(total.toFixed(4))}` : "—"}
+                {variant.trackInventory ? <span className="ml-1 font-sans text-xs text-muted-foreground">{variant.unitOfMeasure}</span> : null}
+              </Td>
+              <Td align="right" priority={3} className="text-muted-foreground">
+                {variant.costCents != null ? money(variant.costCents) : "—"}
+              </Td>
+              <Td align="right">{money(variant.defaultPriceCents)}</Td>
+              <Td>
+                <StatusText status={variant.status} />
+              </Td>
+            </Tr>
+          );
+        })}
+      </TableSection>
 
       {selectedVariant ? (
         <>
-          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
-            <DetailSection title="Prices" meta={selectedVariant.priceEntries.length || undefined}>
-              {selectedVariant.priceEntries.length ? (
-                <ListBand>
-                  {selectedVariant.priceEntries.map((entry) => (
-                    <BandRow
-                      key={entry.id}
-                      title={entry.priceBook?.name ?? "Price book"}
-                      meta={`From ${formatWhen(entry.startsAt, scope.timezone)}${entry.endsAt ? ` to ${formatWhen(entry.endsAt, scope.timezone)}` : ""} · min ${quantityText(entry.minQuantity)}`}
-                      figure={money(entry.amountCents)}
-                    />
-                  ))}
-                </ListBand>
-              ) : (
-                <p className="text-sm text-muted-foreground">Default price only</p>
-              )}
-            </DetailSection>
-            <DetailSection title="Stock by location">
-              {selectedVariant.stockLevels.length ? (
-                <ListBand>
-                  {selectedVariant.stockLevels.map((level) => (
-                    <BandRow
-                      key={level.id}
-                      title={level.location?.name ?? "Location"}
-                      state={Number(level.onHandQuantity) <= Number(level.reorderPoint) ? { tone: "warn", label: "Low" } : null}
-                      meta={`${level.store?.name ?? ""} · reorder at ${quantityText(level.reorderPoint)}`}
-                      figure={quantityText(level.onHandQuantity)}
-                    />
-                  ))}
-                </ListBand>
-              ) : (
-                <p className="text-sm text-muted-foreground">No stock recorded</p>
-              )}
-            </DetailSection>
-            <DetailSection title="Lots" meta={selectedVariant.lots.length || undefined}>
-              {selectedVariant.lots.length ? (
-                <ListBand>
-                  {selectedVariant.lots.map((lot) => (
-                    <BandRow
-                      key={lot.id}
-                      title={lot.lotNumber}
-                      meta={`${lot.location?.name ?? ""} · expires ${lot.expiresAt ? formatWhen(lot.expiresAt, scope.timezone) : "never"}`}
-                      figure={quantityText(lot.quantityRemaining)}
-                    />
-                  ))}
-                </ListBand>
-              ) : (
-                <p className="text-sm text-muted-foreground">No open lots</p>
-              )}
-            </DetailSection>
-            <DetailSection title="Vendors" meta={selectedVariant.vendorItems.length || undefined}>
-              {selectedVariant.vendorItems.length ? (
-                <ListBand>
-                  {selectedVariant.vendorItems.map((item) => (
-                    <Link key={item.id} href={`/dashboard/platform/vendors/${item.vendor?.id ?? ""}${scopeQuery(scope)}`} className="block hover:bg-background">
-                      <BandRow
-                        title={item.vendor?.name ?? "Vendor"}
-                        meta={`${item.vendorSku}${item.casePackQuantity ? ` · case of ${item.casePackQuantity}` : ""}`}
-                        figure={money(item.unitCostCents)}
-                      />
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
+            <TableSection
+              title={`Stock · ${selectedVariant.title}`}
+              count={selectedVariant.stockLevels.length}
+              empty={selectedVariant.trackInventory ? "No stock recorded" : "Not stock-tracked"}
+              head={
+                <>
+                  <Th>Location</Th>
+                  <Th align="right">On hand</Th>
+                  <Th align="right" priority={2}>
+                    Reorder at
+                  </Th>
+                  <Th align="right" priority={2}>
+                    Par
+                  </Th>
+                  <Th>Status</Th>
+                </>
+              }
+            >
+              {selectedVariant.stockLevels.map((level) => {
+                const condition = stockCondition(level);
+                return (
+                  <Tr key={level.id}>
+                    <Td>
+                      {level.location?.name ?? "Location"}
+                      {level.store?.name ? <span className="ml-2 text-xs text-muted-foreground max-sm:hidden">{level.store.name}</span> : null}
+                    </Td>
+                    <Td align="right" className={condition === "negative" ? "font-medium text-[oklch(0.52_0.19_27)] dark:text-red-400" : undefined}>
+                      {quantityText(level.onHandQuantity)}
+                    </Td>
+                    <Td align="right" priority={2} className="text-muted-foreground">
+                      {quantityText(level.reorderPoint)}
+                    </Td>
+                    <Td align="right" priority={2} className="text-muted-foreground">
+                      {Number(level.parQuantity) ? quantityText(level.parQuantity) : "—"}
+                    </Td>
+                    <Td>
+                      <StockConditionText condition={condition} />
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </TableSection>
+            <TableSection
+              title="Lots"
+              count={selectedVariant.lots.length}
+              empty="No open lots"
+              head={
+                <>
+                  <Th>Lot</Th>
+                  <Th priority={2}>Location</Th>
+                  <Th align="right">Remaining</Th>
+                  <Th>Expires</Th>
+                </>
+              }
+            >
+              {selectedVariant.lots.map((lot) => {
+                const expired = lot.expiresAt ? new Date(lot.expiresAt) < new Date() : false;
+                return (
+                  <Tr key={lot.id}>
+                    <Td className={monoCellClass}>{lot.lotNumber}</Td>
+                    <Td priority={2} className="text-muted-foreground">
+                      {lot.location?.name ?? "—"}
+                    </Td>
+                    <Td align="right">{quantityText(lot.quantityRemaining)}</Td>
+                    <Td className="whitespace-nowrap text-xs text-muted-foreground">
+                      {expired ? <StateText tone="danger" label="Expired" /> : lot.expiresAt ? formatWhen(lot.expiresAt, scope.timezone) : "Never"}
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </TableSection>
+            <TableSection
+              title="Prices"
+              count={selectedVariant.priceEntries.length}
+              empty="Default price only"
+              head={
+                <>
+                  <Th>Price book</Th>
+                  <Th priority={2}>From</Th>
+                  <Th priority={3}>To</Th>
+                  <Th align="right" priority={3}>
+                    Min qty
+                  </Th>
+                  <Th align="right">Price</Th>
+                </>
+              }
+            >
+              {selectedVariant.priceEntries.map((entry) => (
+                <Tr key={entry.id}>
+                  <Td>{entry.priceBook?.name ?? "Price book"}</Td>
+                  <Td priority={2} className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatWhen(entry.startsAt, scope.timezone)}
+                  </Td>
+                  <Td priority={3} className="whitespace-nowrap text-xs text-muted-foreground">
+                    {entry.endsAt ? formatWhen(entry.endsAt, scope.timezone) : "—"}
+                  </Td>
+                  <Td align="right" priority={3} className="text-muted-foreground">
+                    {quantityText(entry.minQuantity)}
+                  </Td>
+                  <Td align="right">{money(entry.amountCents)}</Td>
+                </Tr>
+              ))}
+            </TableSection>
+            <TableSection
+              title="Vendors"
+              count={selectedVariant.vendorItems.length}
+              empty="No vendor items"
+              head={
+                <>
+                  <Th>Vendor</Th>
+                  <Th priority={2}>Vendor SKU</Th>
+                  <Th align="right" priority={3}>
+                    Case
+                  </Th>
+                  <Th align="right">Unit cost</Th>
+                </>
+              }
+            >
+              {selectedVariant.vendorItems.map((item) => (
+                <Tr key={item.id}>
+                  <Td>
+                    <Link className={cellLinkClass} href={`/dashboard/platform/vendors/${item.vendor?.id ?? ""}${scopeQuery(scope)}`}>
+                      {item.vendor?.name ?? "Vendor"}
                     </Link>
-                  ))}
-                </ListBand>
-              ) : (
-                <p className="text-sm text-muted-foreground">No vendor items</p>
-              )}
-            </DetailSection>
+                  </Td>
+                  <Td priority={2} className={monoCellClass}>
+                    {item.vendorSku}
+                  </Td>
+                  <Td align="right" priority={3} className="text-muted-foreground">
+                    {item.casePackQuantity ?? "—"}
+                  </Td>
+                  <Td align="right">{money(item.unitCostCents)}</Td>
+                </Tr>
+              ))}
+            </TableSection>
           </div>
 
-          <ActionPanel title={`Edit ${selectedVariant.title}`}>
-            <FormGrid action={configureCatalogItemAction} submit="Save">
-              <HiddenScope projection={scope} returnPath={path} />
-              <CatalogItemFields
-                defaults={variantDefaults(selectedVariant)}
-                taxCategories={taxOptions}
-                priceBooks={bookOptions}
-                withDescription={descriptionReadable}
-                lockIdentity
-              />
-            </FormGrid>
-          </ActionPanel>
+          <div className="flex min-w-0 flex-wrap gap-2">
+            <Link className={buttonClass} href={`/dashboard/platform/inventory${scopeQuery(scope)}`}>
+              Count or adjust
+            </Link>
+            <Link className={buttonClass} href={`/dashboard/platform/purchasing${scopeQuery(scope)}`}>
+              Order more
+            </Link>
+            <Link className={buttonClass} href={`/dashboard/platform/pricing${scopeQuery(scope)}`}>
+              Pricing
+            </Link>
+          </div>
+
+          <ProductPhotos productId={product.id} productTitle={product.title} scope={scope} returnPath={path} />
+
+          <FormDisclosure summary={`Edit ${selectedVariant.title}`}>
+            <ActionPanel title={`Edit ${selectedVariant.title}`}>
+              <FormGrid action={configureCatalogItemAction} submit="Save">
+                <HiddenScope projection={scope} returnPath={path} />
+                <CatalogItemFields
+                  defaults={variantDefaults(selectedVariant)}
+                  taxCategories={taxOptions}
+                  priceBooks={bookOptions}
+                  withDescription={descriptionReadable}
+                  lockIdentity
+                />
+              </FormGrid>
+            </ActionPanel>
+          </FormDisclosure>
         </>
-      ) : null}
+      ) : (
+        <ProductPhotos productId={product.id} productTitle={product.title} scope={scope} returnPath={path} />
+      )}
 
-      <ActionPanel title="Add a variant">
-        <FormGrid action={configureCatalogItemAction} submit="Add variant">
-          <HiddenScope projection={scope} returnPath={path} />
-          <CatalogItemFields
-            defaults={{ ...productDefaults, status: "active", trackInventory: true }}
-            taxCategories={taxOptions}
-            priceBooks={bookOptions}
-          />
-        </FormGrid>
-      </ActionPanel>
+      <FormDisclosure summary="Add a variant">
+        <ActionPanel title="Add a variant">
+          <FormGrid action={configureCatalogItemAction} submit="Add variant">
+            <HiddenScope projection={scope} returnPath={path} />
+            <CatalogItemFields
+              defaults={{ ...productDefaults, status: "active", trackInventory: true }}
+              taxCategories={taxOptions}
+              priceBooks={bookOptions}
+            />
+          </FormGrid>
+        </ActionPanel>
+      </FormDisclosure>
 
-      <DetailSection title="Recent stock movements" meta={inventoryLedgerEntries.length || undefined}>
-        {inventoryLedgerEntries.length ? (
-          <ListBand>
-            {inventoryLedgerEntries.map((entry) => (
-              <BandRow
-                key={entry.id}
-                title={`${statusLabel(entry.type)} · ${entry.variant?.sku ?? ""}`}
-                meta={`${entry.location?.name ?? ""} · ${formatWhen(entry.occurredAt, scope.timezone)}${entry.reason ? ` · ${entry.reason}` : ""}`}
-                figure={`${Number(entry.quantityDelta) > 0 ? "+" : ""}${quantityText(entry.quantityDelta)} → ${quantityText(entry.balanceAfter)}`}
-              />
-            ))}
-          </ListBand>
-        ) : (
-          <p className="text-sm text-muted-foreground">No movements</p>
-        )}
-      </DetailSection>
-
-      <div className={trackClass}>
-        <Link className={pillClass} href={`/dashboard/platform/pricing${scopeQuery(scope)}`}>
-          Pricing
-        </Link>
-        <Link className={pillClass} href={`/dashboard/platform/inventory${scopeQuery(scope)}`}>
-          Count or adjust
-        </Link>
-        <Link className={pillClass} href={`/dashboard/platform/purchasing${scopeQuery(scope)}`}>
-          Order more
-        </Link>
-      </div>
+      <TableSection
+        title="Recent stock movements"
+        count={inventoryLedgerEntries.length}
+        empty="No movements"
+        head={
+          <>
+            <Th>When</Th>
+            <Th>Type</Th>
+            <Th priority={2}>SKU</Th>
+            <Th priority={3}>Location</Th>
+            <Th align="right">Change</Th>
+            <Th align="right" priority={2}>
+              Balance
+            </Th>
+          </>
+        }
+      >
+        {inventoryLedgerEntries.map((entry) => (
+          <Tr key={entry.id}>
+            <Td className="whitespace-nowrap text-xs text-muted-foreground">{formatWhen(entry.occurredAt, scope.timezone)}</Td>
+            <Td>
+              {statusLabel(entry.type)}
+              {entry.reason ? <span className="ml-2 text-xs text-muted-foreground max-sm:hidden">{entry.reason}</span> : null}
+            </Td>
+            <Td priority={2} className={monoCellClass}>
+              {entry.variant?.sku ?? "—"}
+            </Td>
+            <Td priority={3} className="text-muted-foreground">
+              {entry.location?.name ?? "—"}
+            </Td>
+            <Td align="right" className={Number(entry.quantityDelta) < 0 ? "text-[oklch(0.52_0.19_27)] dark:text-red-400" : undefined}>
+              {`${Number(entry.quantityDelta) > 0 ? "+" : ""}${quantityText(entry.quantityDelta)}`}
+            </Td>
+            <Td align="right" priority={2} className={Number(entry.balanceAfter) < 0 ? "font-medium text-[oklch(0.52_0.19_27)] dark:text-red-400" : undefined}>
+              {quantityText(entry.balanceAfter)}
+            </Td>
+          </Tr>
+        ))}
+      </TableSection>
     </PlatformDetailShell>
   );
 }

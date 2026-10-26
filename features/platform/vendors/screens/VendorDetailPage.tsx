@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { configureVendorAction, configureVendorItemAction } from "../../actions";
-import { BandRow, DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
+import { FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
 import { ActionPanel, EnumField, FormGrid, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
-import { ListBand } from "../../components/cv-ui";
+import { StatusText, Td, Th, Tr } from "../../components/cv-ui";
+import { FormDisclosure, TableSection, cellLinkClass, monoCellClass } from "../../stock/components/table-kit";
 import { shortRef } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { formatMoney, formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
@@ -52,6 +53,37 @@ export async function VendorDetailPage({ params, searchParams }: { params: Promi
     label: variant.product?.title ? `${variant.product.title} — ${variant.title}` : variant.title,
     detail: variant.sku,
   }));
+  const closed = ["received", "cancelled"];
+  const openOrders = vendor.purchaseOrders.filter((order) => !closed.includes(order.status));
+  const closedOrders = vendor.purchaseOrders.filter((order) => closed.includes(order.status));
+  const orderHead = (
+    <>
+      <Th>PO</Th>
+      <Th priority={2}>Ordered</Th>
+      <Th priority={3}>Expected</Th>
+      <Th align="right">Total</Th>
+      <Th>Status</Th>
+    </>
+  );
+  const orderRow = (order: Vendor["purchaseOrders"][number]) => (
+    <Tr key={order.id}>
+      <Td>
+        <Link className={`${cellLinkClass} font-mono text-xs`} href={`/dashboard/platform/purchase-orders/${order.id}${q}`}>
+          {shortRef(order.poNumber)}
+        </Link>
+      </Td>
+      <Td priority={2} className="whitespace-nowrap text-xs text-muted-foreground">
+        {formatWhen(order.orderedAt, scope.timezone)}
+      </Td>
+      <Td priority={3} className="whitespace-nowrap text-xs text-muted-foreground">
+        {formatWhen(order.expectedAt, scope.timezone)}
+      </Td>
+      <Td align="right">{money(order.totalCents, order.currencyCode)}</Td>
+      <Td>
+        <StatusText status={order.status} />
+      </Td>
+    </Tr>
+  );
   return (
     <PlatformDetailShell
       section="Vendors"
@@ -87,60 +119,80 @@ export async function VendorDetailPage({ params, searchParams }: { params: Promi
         ]}
       />
       {vendor.notes ? <p className="whitespace-pre-line text-sm text-muted-foreground">{vendor.notes}</p> : null}
-      <DetailSection title="Items" meta={vendor.items.length}>
-        {vendor.items.length ? (
-          <ListBand>
-            {vendor.items.map((item) => (
-              <Link key={item.id} href={`/dashboard/platform/products/${item.variant?.product?.id ?? ""}${q}`} className="block hover:bg-background">
-                <BandRow
-                  title={`${item.variant?.product?.title ?? "Item"} — ${item.variant?.title ?? ""}`}
-                  status={item.status}
-                  meta={`${item.vendorSku} · ${item.variant?.sku ?? ""}${item.unitsPerCase ? ` · ${item.unitsPerCase} per case` : ""}`}
-                  figure={money(item.unitCostCents)}
-                />
+      <TableSection
+        title="Open purchase orders"
+        count={openOrders.length}
+        empty="No open purchase orders"
+        head={orderHead}
+      >
+        {openOrders.map(orderRow)}
+      </TableSection>
+      <TableSection
+        title="Items"
+        count={vendor.items.length}
+        empty="No items"
+        head={
+          <>
+            <Th>Vendor SKU</Th>
+            <Th>Item</Th>
+            <Th priority={2}>Our SKU</Th>
+            <Th align="right" priority={3}>
+              Per case
+            </Th>
+            <Th align="right">Unit cost</Th>
+            <Th>Status</Th>
+          </>
+        }
+      >
+        {vendor.items.map((item) => (
+          <Tr key={item.id}>
+            <Td className={monoCellClass}>{item.vendorSku}</Td>
+            <Td>
+              <Link className={cellLinkClass} href={`/dashboard/platform/products/${item.variant?.product?.id ?? ""}${q}`}>
+                {[item.variant?.product?.title ?? "Item", item.variant?.title].filter(Boolean).join(" — ")}
               </Link>
-            ))}
-          </ListBand>
-        ) : (
-          <p className="text-sm text-muted-foreground">No items</p>
-        )}
-      </DetailSection>
-      <DetailSection title="Purchase orders" meta={vendor.purchaseOrders.length}>
-        {vendor.purchaseOrders.length ? (
-          <ListBand>
-            {vendor.purchaseOrders.map((order) => (
-              <Link key={order.id} href={`/dashboard/platform/purchase-orders/${order.id}${q}`} className="block hover:bg-background">
-                <BandRow
-                  title={shortRef(order.poNumber)}
-                  status={order.status}
-                  meta={`ordered ${formatWhen(order.orderedAt, scope.timezone)}${order.expectedAt ? ` · expected ${formatWhen(order.expectedAt, scope.timezone)}` : ""}`}
-                  figure={money(order.totalCents, order.currencyCode)}
-                />
-              </Link>
-            ))}
-          </ListBand>
-        ) : (
-          <p className="text-sm text-muted-foreground">No purchase orders</p>
-        )}
-      </DetailSection>
-      <ActionPanel title="Edit vendor">
-        <FormGrid action={configureVendorAction} submit="Save vendor">
-          <HiddenScope projection={scope} returnPath={path} />
-          <TextField label="Name" name="name" defaultValue={vendor.name} required />
-          <input type="hidden" name="vendorNumber" value={vendor.vendorNumber} />
-          <EnumField
-            label="Payment terms"
-            name="paymentTerms"
-            defaultValue={vendor.paymentTerms}
-            values={["cod", "net_7", "net_15", "net_30", "net_60", "prepaid"].map((value) => ({ value, label: value.replaceAll("_", " ").toUpperCase() }))}
-          />
-          <TextField label="Contact" name="contactName" defaultValue={vendor.contactName} />
-          <TextField label="Email" name="email" type="email" defaultValue={vendor.email} />
-          <TextField label="Phone" name="phone" type="tel" defaultValue={vendor.phone} />
-          <TextField label="Lead time (days)" name="leadTimeDays" type="number" min="0" step="1" defaultValue={vendor.leadTimeDays} />
-          <TextField label="Minimum order" name="minimumOrderCents" defaultValue={vendor.minimumOrderCents} />
-        </FormGrid>
-      </ActionPanel>
+            </Td>
+            <Td priority={2} className={monoCellClass}>
+              {item.variant?.sku ?? "—"}
+            </Td>
+            <Td align="right" priority={3} className="text-muted-foreground">
+              {item.unitsPerCase ?? "—"}
+            </Td>
+            <Td align="right">{money(item.unitCostCents)}</Td>
+            <Td>
+              <StatusText status={item.status} />
+            </Td>
+          </Tr>
+        ))}
+      </TableSection>
+      <TableSection
+        title="Order history"
+        count={closedOrders.length}
+        empty="No received or cancelled orders"
+        head={orderHead}
+      >
+        {closedOrders.map(orderRow)}
+      </TableSection>
+      <FormDisclosure summary="Edit vendor">
+        <ActionPanel title="Edit vendor">
+          <FormGrid action={configureVendorAction} submit="Save vendor">
+            <HiddenScope projection={scope} returnPath={path} />
+            <TextField label="Name" name="name" defaultValue={vendor.name} required />
+            <input type="hidden" name="vendorNumber" value={vendor.vendorNumber} />
+            <EnumField
+              label="Payment terms"
+              name="paymentTerms"
+              defaultValue={vendor.paymentTerms}
+              values={["cod", "net_7", "net_15", "net_30", "net_60", "prepaid"].map((value) => ({ value, label: value.replaceAll("_", " ").toUpperCase() }))}
+            />
+            <TextField label="Contact" name="contactName" defaultValue={vendor.contactName} />
+            <TextField label="Email" name="email" type="email" defaultValue={vendor.email} />
+            <TextField label="Phone" name="phone" type="tel" defaultValue={vendor.phone} />
+            <TextField label="Lead time (days)" name="leadTimeDays" type="number" min="0" step="1" defaultValue={vendor.leadTimeDays} />
+            <TextField label="Minimum order" name="minimumOrderCents" defaultValue={vendor.minimumOrderCents} />
+          </FormGrid>
+        </ActionPanel>
+      </FormDisclosure>
     </PlatformDetailShell>
   );
 }

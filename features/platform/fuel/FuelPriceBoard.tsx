@@ -1,42 +1,72 @@
-import { Dot, ListBand, SectionTitle } from "../components/cv-ui";
+import { DataTable, SectionTitle, Td, Th, Tr } from "../components/cv-ui";
 import { EmptyState } from "../components/PlatformPage";
 import type { PlatformOption } from "../lib/projection";
+import { ToneText, When } from "./ops-kit";
 
-/** Grade × tier with the price at the pump now and anything scheduled. */
-export function FuelPriceBoard({ prices, timeZone }: { prices: PlatformOption[]; timeZone: string | null }) {
+/** Grade × tier with the price at the pump now and anything scheduled; grades with no price are called out. */
+export function FuelPriceBoard({
+  prices,
+  timeZone,
+  grades = [],
+  title = "Posted prices",
+}: {
+  prices: PlatformOption[];
+  timeZone: string | null;
+  grades?: PlatformOption[];
+  title?: string;
+}) {
   // detail is "price|Current or Scheduled|ISO start" (see the fuel projection).
   const rows = prices.map((option) => {
     const [price = "", state = "", startsAt = ""] = (option.detail ?? "").split("|");
-    return { id: option.id, label: option.label, price, state, startsAt };
+    const [grade = option.label, tier = ""] = option.label.split(" · ");
+    return { id: option.id, grade, tier, price, state, startsAt };
   });
-  const when = (value: string) => {
-    try {
-      return new Date(value).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short", timeZone: timeZone || "UTC" });
-    } catch {
-      return value;
-    }
-  };
+  const unpriced = grades.filter(
+    (grade) => !rows.some((row) => row.grade === grade.label && row.state === "Current"),
+  );
   return (
-    <section className="min-w-0" aria-label="Price board">
-      <SectionTitle meta={rows.length || undefined}>Price board</SectionTitle>
-      {rows.length ? (
-        <ListBand>
-          {rows.map((row) => (
-            <div key={row.id} className="grid min-w-0 gap-x-6 gap-y-1 bg-background/60 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-3">
-                  <h3 className="text-sm font-medium">{row.label}</h3>
-                  <span className="inline-flex items-baseline gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Dot tone={row.state === "Current" ? "ok" : "warn"} />
-                    {row.state}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">From {when(row.startsAt)}</p>
-              </div>
-              <p className="font-mono text-lg tabular-nums sm:text-right">{row.price}</p>
-            </div>
-          ))}
-        </ListBand>
+    <section className="min-w-0" aria-label={title}>
+      <SectionTitle meta={rows.length || undefined}>{title}</SectionTitle>
+      {rows.length || unpriced.length ? (
+        <DataTable>
+          <thead>
+            <tr>
+              <Th>Grade</Th>
+              <Th>Tier</Th>
+              <Th align="right">Price</Th>
+              <Th>State</Th>
+              <Th priority={2}>From</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {unpriced.map((grade) => (
+              <Tr key={`unpriced-${grade.id}`}>
+                <Td className="font-medium">{grade.label}</Td>
+                <Td className="text-muted-foreground">—</Td>
+                <Td align="right" className="text-muted-foreground">—</Td>
+                <Td>
+                  <ToneText tone="danger">No current price</ToneText>
+                </Td>
+                <Td priority={2} />
+              </Tr>
+            ))}
+            {rows.map((row) => (
+              <Tr key={row.id}>
+                <Td className="font-medium">{row.grade}</Td>
+                <Td className="text-muted-foreground">{row.tier || "—"}</Td>
+                <Td align="right" className="text-[14px] text-foreground">
+                  {row.price}
+                </Td>
+                <Td>
+                  <ToneText tone={row.state === "Current" ? "ok" : "info"}>{row.state}</ToneText>
+                </Td>
+                <Td priority={2}>
+                  <When value={row.startsAt} timeZone={timeZone} />
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </DataTable>
       ) : (
         <EmptyState title="No fuel prices set" />
       )}

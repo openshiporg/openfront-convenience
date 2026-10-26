@@ -28,7 +28,7 @@ export function ReceiptLookup({
       className={panelClass}
       aria-labelledby="receipt-lookup-title"
     >
-      <h2 id="receipt-lookup-title" className="text-[15px] font-semibold tracking-tight">
+      <h2 id="receipt-lookup-title" className="text-[14px] font-semibold">
         Receipt reprint
       </h2>
       <form

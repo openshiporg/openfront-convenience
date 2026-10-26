@@ -1,9 +1,12 @@
-import { ListRow, PlatformListShell } from "../../components/PlatformListShell";
+import Link from "next/link";
+
+import { DataTable, Dot, SectionTitle, StatusText, Td, Th, Tr, statusLabel } from "../../components/cv-ui";
 import { shortRef } from "../../lib/labels";
 import { loadPlatformList } from "../../lib/list-query";
 import { employeeName, type EmployeeRef } from "../../lib/people";
 import type { PlatformSearch } from "../../lib/projection";
 import { formatMoney, formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
+import { LedgerListShell } from "../LedgerListShell";
 
 const STATUSES = [
   { value: "completed", label: "Completed" },
@@ -40,8 +43,27 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
       cashier { employeeNumber user { name } }
       tenders { method }`,
   });
+  const q = scopeQuery(scope);
+  const openCount = result.statusCounts.open ?? 0;
+  const lead = openCount ? (
+    <section aria-labelledby="sales-queue" className="min-w-0">
+      <SectionTitle id="sales-queue" meta={openCount}>
+        Needs you
+      </SectionTitle>
+      <Link
+        href={`/dashboard/platform/sales${scopeQuery(scope, { status: "open" })}`}
+        className="flex min-h-10 min-w-0 items-baseline justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <span className="inline-flex items-baseline gap-2 font-medium text-foreground">
+          <Dot tone="warn" />
+          {openCount} {openCount === 1 ? "sale" : "sales"} started but not completed
+        </span>
+        <span className="text-[12px] text-muted-foreground">Show open</span>
+      </Link>
+    </section>
+  ) : null;
   return (
-    <PlatformListShell
+    <LedgerListShell
       title="Sales"
       scope={scope}
       basePath="/dashboard/platform/sales"
@@ -50,26 +72,62 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
       result={result}
       entity={{ singular: "sale", plural: "sales" }}
       empty="No sales"
+      lead={lead}
     >
-      {result.items.map((sale) => (
-        <ListRow
-          key={sale.id}
-          href={`/dashboard/platform/sales/${sale.id}${scopeQuery(scope)}`}
-          title={<span className="font-mono">{shortRef(sale.receiptNumber)}</span>}
-          status={sale.status}
-          meta={[
-            formatWhen(sale.completedAt ?? sale.startedAt, scope.timezone),
-            `${sale.linesCount} ${sale.linesCount === 1 ? "line" : "lines"}`,
-            [...new Set(sale.tenders.map((tender) => tender.method.replaceAll("_", " ")))].join(" + ") || null,
-            employeeName(sale.cashier),
-            sale.source !== "pos" ? sale.source : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          figure={formatMoney(sale.totalCents, sale.currencyCode)}
-          figureMeta={sale.refundedCents ? `${formatMoney(sale.refundedCents, sale.currencyCode)} refunded` : undefined}
-        />
-      ))}
-    </PlatformListShell>
+      <DataTable aria-label="Sales">
+        <thead>
+          <tr>
+            <Th>Receipt</Th>
+            <Th priority={2}>Time</Th>
+            <Th align="right" priority={3}>
+              Lines
+            </Th>
+            <Th priority={3}>Tender</Th>
+            <Th priority={2}>Cashier</Th>
+            <Th align="right">Total</Th>
+            <Th align="right" priority={3}>
+              Refunded
+            </Th>
+            <Th>Status</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.items.map((sale) => (
+            <Tr key={sale.id}>
+              <Td>
+                <Link
+                  href={`/dashboard/platform/sales/${sale.id}${q}`}
+                  className="inline-flex min-h-6 items-center font-mono text-[12px] font-medium text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
+                >
+                  {shortRef(sale.receiptNumber)}
+                </Link>
+                {sale.source !== "pos" ? <span className="ml-2 text-[12px] text-muted-foreground">{statusLabel(sale.source)}</span> : null}
+              </Td>
+              <Td priority={2} className="whitespace-nowrap text-muted-foreground">
+                {formatWhen(sale.completedAt ?? sale.startedAt, scope.timezone)}
+              </Td>
+              <Td align="right" priority={3}>
+                {sale.linesCount}
+              </Td>
+              <Td priority={3} className="text-muted-foreground">
+                {[...new Set(sale.tenders.map((tender) => statusLabel(tender.method)))].join(" + ") || "—"}
+              </Td>
+              <Td priority={2} className="text-muted-foreground">
+                {employeeName(sale.cashier)}
+              </Td>
+              <Td align="right" className="whitespace-nowrap">
+                {formatMoney(sale.totalCents, sale.currencyCode)}
+              </Td>
+              <Td align="right" priority={3} className="whitespace-nowrap">
+                {sale.refundedCents ? `−${formatMoney(sale.refundedCents, sale.currencyCode)}` : <span className="text-muted-foreground">—</span>}
+              </Td>
+              <Td>
+                <StatusText status={sale.status} />
+              </Td>
+            </Tr>
+          ))}
+        </tbody>
+      </DataTable>
+    </LedgerListShell>
   );
 }

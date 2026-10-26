@@ -1,4 +1,7 @@
-import { ListRow, PlatformListShell } from "../../components/PlatformListShell";
+import Link from "next/link";
+
+import { StatusText, Td, Th, Tr } from "../../components/cv-ui";
+import { QueueListShell, cellLinkClass, monoCellClass } from "../../stock/components/table-kit";
 import { loadPlatformList } from "../../lib/list-query";
 import type { PlatformSearch } from "../../lib/projection";
 import { formatMoney, getPlatformScope, scopeQuery } from "../../lib/scope";
@@ -34,7 +37,7 @@ export async function VendorListPage({ searchParams }: { searchParams: PlatformS
     selection: `id name vendorNumber status paymentTerms leadTimeDays minimumOrderCents contactName phone itemsCount purchaseOrdersCount`,
   });
   return (
-    <PlatformListShell
+    <QueueListShell
       title="Vendors"
       scope={scope}
       basePath="/dashboard/platform/vendors"
@@ -43,26 +46,57 @@ export async function VendorListPage({ searchParams }: { searchParams: PlatformS
       result={result}
       entity={{ singular: "vendor", plural: "vendors" }}
       empty="No vendors"
+      head={
+        <>
+          <Th priority={2}>Vendor #</Th>
+          <Th>Vendor</Th>
+          <Th priority={2}>Terms</Th>
+          <Th align="right" priority={3}>
+            Lead time
+          </Th>
+          <Th priority={3}>Contact</Th>
+          <Th align="right">Items</Th>
+          <Th align="right" priority={2}>
+            Orders
+          </Th>
+          <Th align="right" priority={3}>
+            Minimum
+          </Th>
+          <Th>Status</Th>
+        </>
+      }
     >
       {result.items.map((vendor) => (
-        <ListRow
-          key={vendor.id}
-          href={`/dashboard/platform/vendors/${vendor.id}${scopeQuery(scope)}`}
-          title={vendor.name}
-          status={vendor.status}
-          meta={[
-            vendor.vendorNumber,
-            vendor.paymentTerms.replaceAll("_", " ").toUpperCase(),
-            `${vendor.leadTimeDays}-day lead time`,
-            vendor.contactName || null,
-            vendor.phone || null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          figure={`${vendor.itemsCount} ${vendor.itemsCount === 1 ? "item" : "items"}`}
-          figureMeta={`${vendor.purchaseOrdersCount} orders · min ${formatMoney(vendor.minimumOrderCents, scope.currencyCode)}`}
-        />
+        <Tr key={vendor.id}>
+          <Td priority={2} className={monoCellClass}>
+            {vendor.vendorNumber}
+          </Td>
+          <Td>
+            <Link className={cellLinkClass} href={`/dashboard/platform/vendors/${vendor.id}${scopeQuery(scope)}`}>
+              {vendor.name}
+            </Link>
+          </Td>
+          <Td priority={2} className="whitespace-nowrap text-muted-foreground">
+            {vendor.paymentTerms.replaceAll("_", " ").toUpperCase()}
+          </Td>
+          <Td align="right" priority={3} className="text-muted-foreground">
+            {vendor.leadTimeDays}d
+          </Td>
+          <Td priority={3} className="text-muted-foreground">
+            {[vendor.contactName, vendor.phone].filter(Boolean).join(" · ") || "—"}
+          </Td>
+          <Td align="right">{vendor.itemsCount}</Td>
+          <Td align="right" priority={2}>
+            {vendor.purchaseOrdersCount}
+          </Td>
+          <Td align="right" priority={3} className="text-muted-foreground">
+            {formatMoney(vendor.minimumOrderCents, scope.currencyCode)}
+          </Td>
+          <Td>
+            <StatusText status={vendor.status} />
+          </Td>
+        </Tr>
       ))}
-    </PlatformListShell>
+    </QueueListShell>
   );
 }

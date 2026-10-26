@@ -7,14 +7,15 @@ import {
 import {
   ActionPanel,
   EnumField,
-  EvidenceTable,
   FormGrid,
   HiddenScope,
   PlatformPage,
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { PanelGrid } from "../components/cv-ui";
+import { DataTable, PanelGrid, StatusText, Td, Th, Tr, formatMeasure } from "../components/cv-ui";
+import { formatWhen } from "../lib/scope";
+import { FormDisclosure, QueueSection, TableSection, monoCellClass } from "../stock/components/table-kit";
 import { Workbench } from "../components/Workbench";
 import { CatalogItemFields } from "../products/components/CatalogItemFields";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
@@ -29,11 +30,56 @@ export async function PricingPage({
   const state = await getPlatformProjection("pricing", searchParams);
   const projection = state.projection;
   const controls = projection?.controls ?? {};
+  // Projection rows are price entries: title is the item, detail is "Book · SKU".
+  const entries = (projection?.rows ?? []).map((row) => {
+    const [book, sku] = row.detail.split(" · ");
+    return { ...row, book: book ?? "", sku: sku ?? "" };
+  });
+  const notLive = entries.filter((entry) => entry.status !== "active");
+  const entryHead = (
+    <>
+      <Th priority={2}>SKU</Th>
+      <Th>Item</Th>
+      <Th priority={3}>Price book</Th>
+      <Th align="right">Price</Th>
+      <Th priority={3}>Updated</Th>
+      <Th>Status</Th>
+    </>
+  );
+  const entryRow = (entry: (typeof entries)[number]) => (
+    <Tr key={entry.id}>
+      <Td priority={2} className={monoCellClass}>
+        {entry.sku || "—"}
+      </Td>
+      <Td className="[overflow-wrap:anywhere]">{entry.title}</Td>
+      <Td priority={3} className="text-muted-foreground">
+        {entry.book || "—"}
+      </Td>
+      <Td align="right">{formatMeasure(entry.metric)}</Td>
+      <Td priority={3} className="whitespace-nowrap text-xs text-muted-foreground">
+        {entry.occurredAt ? formatWhen(entry.occurredAt, projection?.timezone) : "—"}
+      </Td>
+      <Td>
+        <StatusText status={entry.status} />
+      </Td>
+    </Tr>
+  );
   return (
     <PlatformPage
       title="Pricing"
       {...state}
+      showMetrics={false}
     >
+      {projection && notLive.length ? (
+        <QueueSection title="Not live" count={notLive.length} empty="">
+          <DataTable>
+            <thead>
+              <tr>{entryHead}</tr>
+            </thead>
+            <tbody>{notLive.map(entryRow)}</tbody>
+          </DataTable>
+        </QueueSection>
+      ) : null}
       {projection ? (
         <Workbench
           scope="pricing"
@@ -44,6 +90,10 @@ export async function PricingPage({
               count: projection.rows.length,
               content: (
                 <>
+                  <TableSection title="Price entries" count={entries.length} empty="No price entries yet" head={entryHead}>
+                    {entries.map(entryRow)}
+                  </TableSection>
+                  <FormDisclosure summary="Set retail price" defaultOpen={!entries.length}>
                   <PanelGrid>
                     <ActionPanel title="Set retail price">
                       <FormGrid action={setRetailPriceAction} submit="Publish price">
@@ -81,11 +131,7 @@ export async function PricingPage({
                       </FormGrid>
                     </ActionPanel>
                   </PanelGrid>
-                  <EvidenceTable
-                    rows={projection.rows}
-                    timeZone={projection.timezone}
-                    title="Effective price entries"
-                  />
+                  </FormDisclosure>
                 </>
               ),
             },

@@ -14,7 +14,7 @@ export function ApiKeyPanel({ projection }: { projection: PlatformProjection }) 
     ? `platform-api-key-after-${state.reference}`
     : initialIdempotencyKey;
   return <section className={panelClass}>
-    <h2 className="text-[15px] font-semibold tracking-tight">Issue store-scoped machine key</h2>
+    <h2 className="text-[14px] font-semibold">Issue store-scoped machine key</h2>
     <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <input type="hidden" name="businessId" value={projection.businessId ?? ""} />
@@ -27,7 +27,7 @@ export function ApiKeyPanel({ projection }: { projection: PlatformProjection }) 
     {state.status === "success" ? <div className="mt-3 border border-amber-500/40 bg-amber-500/5 p-3">
       <p className="text-xs font-semibold">{state.message}</p>
       <code className="mt-2 block overflow-x-auto whitespace-nowrap border bg-background p-2 text-xs" aria-label="One-time API token">{state.token}</code>
-      <p className="mt-2 text-[11px] text-muted-foreground">Public prefix: {state.reference}</p>
+      <p className="mt-2 text-[12px] text-muted-foreground">Public prefix: {state.reference}</p>
     </div> : null}
   </section>;
 }

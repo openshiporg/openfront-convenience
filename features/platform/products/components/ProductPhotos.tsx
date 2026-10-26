@@ -32,7 +32,7 @@ export async function ProductPhotos({
     <DetailSection title="Photos" meta={photos.length || undefined}>
       <div className="grid min-w-0 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))]">
         {photos.map((photo) => (
-          <figure key={photo.id} className="min-w-0 overflow-hidden rounded-xl border bg-background">
+          <figure key={photo.id} className="min-w-0 overflow-hidden rounded-md border bg-background">
             {photo.image?.url ? (
               // eslint-disable-next-line @next/next/no-img-element -- signed bucket URLs, shown as uploaded
               <img src={photo.image.url} alt={photo.altText || productTitle} className="aspect-square w-full object-contain bg-muted/30" loading="lazy" />
@@ -55,7 +55,7 @@ export async function ProductPhotos({
         <input type="hidden" name="productId" value={productId} />
         <label className={labelClass}>
           Photo
-          <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" required className={`${inputClass} py-2 file:mr-3 file:rounded-full file:border-0 file:bg-muted file:px-3 file:text-xs`} />
+          <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" required className={`${inputClass} py-2 file:mr-3 file:rounded-[4px] file:border-0 file:bg-muted file:px-3 file:text-xs`} />
         </label>
         <TextField label="Description (alt text)" name="altText" maxLength={200} />
         <TextField label="Order" name="order" type="number" min="0" step="1" defaultValue={photos.length} />

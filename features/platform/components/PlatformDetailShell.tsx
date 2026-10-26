@@ -57,13 +57,13 @@ export function PlatformDetailShell({
     <PageContainer title={title} header={header} breadcrumbs={breadcrumbs}>
       <div className="min-w-0 space-y-6 px-4 pb-10 max-sm:pb-28 md:px-6">
         {error ? (
-          <p role="alert" className="flex items-baseline gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <p role="alert" className="flex items-baseline gap-2 rounded-[4px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             <Dot tone="danger" />
             {error}
           </p>
         ) : null}
         {notice ? (
-          <p role="status" className="flex items-baseline gap-2 rounded-xl border border-emerald-600/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
+          <p role="status" className="flex items-baseline gap-2 rounded-[4px] border border-emerald-600/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
             <Dot tone="ok" />
             {notice}
           </p>
@@ -89,7 +89,7 @@ export function DetailSection({ title, meta, children }: { title: string; meta?:
 /** Label/value facts in a recessed band. */
 export function FactList({ facts }: { facts: Array<[string, ReactNode]> }) {
   return (
-    <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 sm:grid-cols-3">
+    <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-md bg-border ring-1 ring-border sm:grid-cols-3">
       {facts.map(([label, value]) => (
         <div key={label} className="min-w-0 bg-background px-4 py-3">
           <dt className="truncate text-xs font-medium text-muted-foreground">{label}</dt>

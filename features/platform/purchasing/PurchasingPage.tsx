@@ -8,7 +8,6 @@ import {
 import {
   ActionPanel,
   EnumField,
-  EvidenceTable,
   FormGrid,
   HiddenScope,
   LookupForm,
@@ -16,7 +15,20 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { PanelGrid } from "../components/cv-ui";
+import Link from "next/link";
+
+import { DataTable, PanelGrid, StatusText, Td, Th, Tr, formatMeasure, type DotTone } from "../components/cv-ui";
+import { shortRef } from "../lib/labels";
+import { formatWhen, scopeQuery } from "../lib/scope";
+import {
+  FormDisclosure,
+  Prerequisite,
+  QueueSection,
+  StateText,
+  TableSection,
+  cellLinkClass,
+  monoCellClass,
+} from "../stock/components/table-kit";
 import { Workbench } from "../components/Workbench";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 
@@ -30,109 +42,95 @@ export async function PurchasingPage({
   const state = await getPlatformProjection("purchasing", searchParams);
   const projection = state.projection;
   const controls = projection?.controls ?? {};
+  const q = projection ? scopeQuery(projection) : "";
+  // Projection rows are this store's purchase orders: title is the PO number, detail the vendor.
+  const orders = projection?.rows ?? [];
+  const NEXT: Record<string, { rank: number; tone: DotTone; label: string }> = {
+    approved: { rank: 0, tone: "warn", label: "Receive" },
+    partially_received: { rank: 0, tone: "warn", label: "Receive rest" },
+    submitted: { rank: 1, tone: "info", label: "Approve" },
+    draft: { rank: 2, tone: "muted", label: "Submit" },
+  };
+  const waiting = orders
+    .filter((order) => order.status in NEXT)
+    .sort(
+      (a, b) =>
+        NEXT[a.status].rank - NEXT[b.status].rank ||
+        new Date(a.occurredAt ?? 0).getTime() - new Date(b.occurredAt ?? 0).getTime(),
+    );
+  const orderCells = (order: (typeof orders)[number]) => (
+    <>
+      <Td>
+        <Link className={`${cellLinkClass} font-mono text-xs`} href={`/dashboard/platform/purchase-orders/${order.id}${q}`}>
+          {shortRef(order.title)}
+        </Link>
+      </Td>
+      <Td className="[overflow-wrap:anywhere]">{order.detail || "—"}</Td>
+      <Td priority={2} className="whitespace-nowrap text-xs text-muted-foreground">
+        {order.occurredAt ? formatWhen(order.occurredAt, projection?.timezone) : "—"}
+      </Td>
+      <Td align="right">{formatMeasure(order.metric)}</Td>
+    </>
+  );
+  const orderHead = (last: string) => (
+    <>
+      <Th>PO</Th>
+      <Th>Vendor</Th>
+      <Th priority={2}>Ordered</Th>
+      <Th align="right">Total</Th>
+      <Th>{last}</Th>
+    </>
+  );
+  const vendors = controls.vendors ?? [];
   return (
     <PlatformPage
       title="Purchasing"
       {...state}
+      showMetrics={false}
     >
+      {projection ? (
+        <QueueSection title="Needs you" count={waiting.length} empty="No purchase orders waiting to be received, approved or submitted">
+          <DataTable>
+            <thead>
+              <tr>{orderHead("Next")}</tr>
+            </thead>
+            <tbody>
+              {waiting.map((order) => (
+                <Tr key={order.id}>
+                  {orderCells(order)}
+                  <Td>
+                    <StateText tone={NEXT[order.status].tone} label={NEXT[order.status].label} />
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </QueueSection>
+      ) : null}
       {projection ? (
         <Workbench
           scope="purchasing"
           sections={[
             {
-              id: "receive",
-              label: "Receive",
-              content: (
-                <>
-                  <LookupForm
-                    action={path}
-                    keep={{ businessId: projection.businessId, storeId: projection.storeId, variantSearch: state.variantSearch, vendorItemSearch: state.vendorItemSearch, vendorSearch: state.vendorSearch, purchaseOrderSearch: state.purchaseOrderSearch }}
-                    name="purchaseOrderLineSearch"
-                    label="Receiving line"
-                    placeholder="Item or supplier SKU"
-                    defaultValue={state.purchaseOrderLineSearch}
-                    submit="Find"
-                    empty={false}
-                  />
-                  <PanelGrid>
-                    <ActionPanel title="Receive purchase-order line">
-                      <FormGrid
-                        action={receivePurchaseOrderAction}
-                        submit="Post receiving"
-                      >
-                        <HiddenScope projection={projection} returnPath={path} />
-                        <SelectField
-                          label="Purchase order"
-                          name="purchaseOrderId"
-                          options={controls.purchaseOrders ?? []}
-                        />
-                        <SelectField
-                          label="Purchase-order line"
-                          name="purchaseOrderLineId"
-                          options={controls.purchaseOrderLines ?? []}
-                        />
-                        <SelectField
-                          label="Inventory location"
-                          name="locationId"
-                          options={controls.inventoryLocations ?? []}
-                        />
-                        <SelectField
-                          label="Receiver"
-                          name="employeeId"
-                          options={controls.employees ?? []}
-                        />
-                        <TextField
-                          label="Vendor document / invoice"
-                          name="vendorDocumentNumber"
-                        />
-                        <TextField
-                          label="Accepted quantity"
-                          name="quantityAccepted"
-                          inputMode="decimal"
-                          required
-                        />
-                        <TextField
-                          label="Accepted unit cost (cents)"
-                          name="acceptedUnitCostCents"
-                          type="number"
-                          min="0"
-                          step="1"
-                          required
-                        />
-                        <TextField
-                          label="Rejected quantity"
-                          name="quantityRejected"
-                          inputMode="decimal"
-                          defaultValue="0"
-                        />
-                        <EnumField
-                          label="Rejection reason"
-                          name="rejectionReason"
-                          values={[
-                            { value: "none", label: "None" },
-                            { value: "damaged", label: "Damaged" },
-                            { value: "expired", label: "Expired" },
-                            { value: "wrong_item", label: "Wrong item" },
-                            { value: "overage", label: "Overage" },
-                            { value: "quality", label: "Quality" },
-                          ]}
-                        />
-                        <TextField label="Lot number" name="lotNumber" />
-                        <TextField label="Expiry (ISO)" name="expiresAt" />
-                        <TextField label="Discrepancy notes" name="discrepancyNotes" />
-                        <TextField label="Line notes" name="lineNotes" />
-                      </FormGrid>
-                    </ActionPanel>
-                  </PanelGrid>
-                </>
-              ),
-            },
-            {
               id: "orders",
               label: "Orders",
-              count: projection.rows.length,
+              count: orders.length,
               content: (
                 <>
+                  <TableSection title="Purchase orders" count={orders.length} empty="No purchase orders yet" head={orderHead("Status")}>
+                    {orders.map((order) => (
+                      <Tr key={order.id}>
+                        {orderCells(order)}
+                        <Td>
+                          <StatusText status={order.status} />
+                        </Td>
+                      </Tr>
+                    ))}
+                  </TableSection>
+                  <FormDisclosure summary="Create or move a purchase order" defaultOpen={!orders.length}>
+                  {!vendors.length && !state.vendorSearch ? (
+                    <Prerequisite text="Add a vendor before creating a purchase order." href={`/dashboard/platform/vendors${q}`} link="Vendors" />
+                  ) : null}
                   <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                     <LookupForm
                       action={path}
@@ -238,15 +236,134 @@ export async function PurchasingPage({
                       </FormGrid>
                     </ActionPanel>
                   </PanelGrid>
-                  <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Purchase-order queue" />
+                  </FormDisclosure>
+                </>
+              ),
+            },
+            {
+              id: "receive",
+              label: "Receive",
+              content: (
+                <>
+                  <LookupForm
+                    action={path}
+                    keep={{ businessId: projection.businessId, storeId: projection.storeId, variantSearch: state.variantSearch, vendorItemSearch: state.vendorItemSearch, vendorSearch: state.vendorSearch, purchaseOrderSearch: state.purchaseOrderSearch }}
+                    name="purchaseOrderLineSearch"
+                    label="Receiving line"
+                    placeholder="Item or supplier SKU"
+                    defaultValue={state.purchaseOrderLineSearch}
+                    submit="Find"
+                    empty={false}
+                  />
+                  {!(controls.purchaseOrderLines ?? []).length ? (
+                    <Prerequisite
+                      text={state.purchaseOrderLineSearch ? "No open line matches that search." : "No approved purchase-order lines are open to receive."}
+                      href={`/dashboard/platform/purchase-orders${q}`}
+                      link="Purchase orders"
+                    />
+                  ) : null}
+                  <PanelGrid>
+                    <ActionPanel title="Receive purchase-order line">
+                      <FormGrid
+                        action={receivePurchaseOrderAction}
+                        submit="Post receiving"
+                      >
+                        <HiddenScope projection={projection} returnPath={path} />
+                        <SelectField
+                          label="Purchase order"
+                          name="purchaseOrderId"
+                          options={controls.purchaseOrders ?? []}
+                        />
+                        <SelectField
+                          label="Purchase-order line"
+                          name="purchaseOrderLineId"
+                          options={controls.purchaseOrderLines ?? []}
+                        />
+                        <SelectField
+                          label="Inventory location"
+                          name="locationId"
+                          options={controls.inventoryLocations ?? []}
+                        />
+                        <SelectField
+                          label="Receiver"
+                          name="employeeId"
+                          options={controls.employees ?? []}
+                        />
+                        <TextField
+                          label="Vendor document / invoice"
+                          name="vendorDocumentNumber"
+                        />
+                        <TextField
+                          label="Accepted quantity"
+                          name="quantityAccepted"
+                          inputMode="decimal"
+                          required
+                        />
+                        <TextField
+                          label="Accepted unit cost (cents)"
+                          name="acceptedUnitCostCents"
+                          type="number"
+                          min="0"
+                          step="1"
+                          required
+                        />
+                        <TextField
+                          label="Rejected quantity"
+                          name="quantityRejected"
+                          inputMode="decimal"
+                          defaultValue="0"
+                        />
+                        <EnumField
+                          label="Rejection reason"
+                          name="rejectionReason"
+                          values={[
+                            { value: "none", label: "None" },
+                            { value: "damaged", label: "Damaged" },
+                            { value: "expired", label: "Expired" },
+                            { value: "wrong_item", label: "Wrong item" },
+                            { value: "overage", label: "Overage" },
+                            { value: "quality", label: "Quality" },
+                          ]}
+                        />
+                        <TextField label="Lot number" name="lotNumber" />
+                        <TextField label="Expiry (ISO)" name="expiresAt" />
+                        <TextField label="Discrepancy notes" name="discrepancyNotes" />
+                        <TextField label="Line notes" name="lineNotes" />
+                      </FormGrid>
+                    </ActionPanel>
+                  </PanelGrid>
                 </>
               ),
             },
             {
               id: "vendors",
               label: "Vendors",
+              count: vendors.length,
               content: (
                 <>
+                  <TableSection
+                    title={state.vendorSearch ? "Matching vendors" : "Active vendors"}
+                    count={vendors.length}
+                    empty={state.vendorSearch ? "No matching vendor" : "No vendors yet"}
+                    head={
+                      <>
+                        <Th>Vendor #</Th>
+                        <Th>Vendor</Th>
+                      </>
+                    }
+                  >
+                    {vendors.map((vendor) => (
+                      <Tr key={vendor.id}>
+                        <Td className={monoCellClass}>{vendor.detail || "—"}</Td>
+                        <Td>
+                          <Link className={cellLinkClass} href={`/dashboard/platform/vendors/${vendor.id}${q}`}>
+                            {vendor.label}
+                          </Link>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </TableSection>
+                  <FormDisclosure summary="Add a vendor or map an item" defaultOpen={!vendors.length && !state.vendorSearch}>
                   <div className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                     <LookupForm
                       action={path}
@@ -371,6 +488,7 @@ export async function PurchasingPage({
                       </FormGrid>
                     </ActionPanel>
                   </PanelGrid>
+                  </FormDisclosure>
                 </>
               ),
             },

@@ -7,10 +7,11 @@ import {
   transitionInventoryCountAction,
   transitionInventoryTransferAction,
 } from "../actions";
+import Link from "next/link";
+
 import {
   ActionPanel,
   EnumField,
-  EvidenceTable,
   FormGrid,
   HiddenScope,
   LookupForm,
@@ -18,11 +19,22 @@ import {
   SelectField,
   TextField,
 } from "../components/PlatformPage";
-import { PanelGrid } from "../components/cv-ui";
+import { CountBoxes, DataTable, PanelGrid } from "../components/cv-ui";
 import { Workbench } from "../components/Workbench";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
+import { scopeQuery } from "../lib/scope";
+import {
+  EXPIRY_WINDOW_DAYS,
+  StockPositionRow,
+  StockPositionsHead,
+  StockQueueHead,
+  StockQueueRows,
+  loadStockQueue,
+} from "../stock/components/stock-queue";
+import { QueueSection } from "../stock/components/table-kit";
 
 const path = "/dashboard/platform/inventory";
+const QUEUE_LIMIT = 10;
 
 export async function InventoryPage({ searchParams }: { searchParams: PlatformSearch }) {
   const state = await getPlatformProjection("inventory", searchParams);
@@ -42,7 +54,52 @@ export async function InventoryPage({ searchParams }: { searchParams: PlatformSe
     ...recentCountLineOptions,
     ...searchedCountLineOptions,
   ];
-  return <PlatformPage title="Inventory" {...state}>
+  // Same positions, lots and words as the Stock page.
+  const queue = projection?.storeId ? await loadStockQueue(projection.storeId) : null;
+  const countsOpen = projection?.metrics.find((metric) => metric.label === "Counts open")?.value ?? "0";
+  const queueCount = queue ? queue.short.length + queue.expiring.length : 0;
+  const stockHref = (view?: string) =>
+    `/dashboard/platform/stock${scopeQuery({ businessId: projection?.businessId ?? null, storeId: projection?.storeId ?? null }, view ? { view } : {})}`;
+  const pageState = queue?.counts.negative
+    ? { tone: "danger" as const, label: `${queue.counts.negative} negative on hand` }
+    : undefined;
+  return <PlatformPage title="Inventory" {...state} showMetrics={false} state={pageState}>
+    {projection && queue ? (
+      <>
+        <CountBoxes
+          className="sm:grid-cols-4"
+          items={[
+            { label: "Negative on hand", value: queue.counts.negative, variance: queue.counts.negative ? -queue.counts.negative : 0 },
+            { label: "At or below reorder", value: queue.counts.reorder, note: queue.counts.low ? `${queue.counts.low} more under par` : undefined },
+            { label: `Lots expiring · ${EXPIRY_WINDOW_DAYS} days`, value: queue.counts.expiring },
+            { label: "Counts open", value: countsOpen },
+          ]}
+        />
+        <QueueSection
+          title="Needs you"
+          count={queueCount}
+          empty="Nothing negative, at reorder, low or expiring"
+          action={
+            queueCount > QUEUE_LIMIT ? (
+              <Link className="text-xs font-medium text-foreground underline underline-offset-2" href={stockHref("low")}>
+                All {queueCount} in Stock
+              </Link>
+            ) : undefined
+          }
+        >
+          <DataTable>
+            <thead>
+              <tr>
+                <StockQueueHead />
+              </tr>
+            </thead>
+            <tbody>
+              <StockQueueRows short={queue.short} expiring={queue.expiring} scope={projection} timeZone={projection.timezone} limit={QUEUE_LIMIT} />
+            </tbody>
+          </DataTable>
+        </QueueSection>
+      </>
+    ) : null}
     {projection ? (
       <Workbench
         scope="inventory"
@@ -50,9 +107,31 @@ export async function InventoryPage({ searchParams }: { searchParams: PlatformSe
           {
             id: "stock",
             label: "Stock",
-            count: projection.rows.length,
-            content: (
-              <EvidenceTable rows={projection.rows} timeZone={projection.timezone} title="Stock positions" />
+            count: queue?.stock.count ?? 0,
+            content: queue?.error ? (
+              <p role="alert" className="text-sm text-destructive">{queue.error}</p>
+            ) : queue?.stock.items.length ? (
+              <>
+                <DataTable>
+                  <thead>
+                    <tr>
+                      <StockPositionsHead />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queue.stock.items.map((row) => (
+                      <StockPositionRow key={row.id} row={row} scope={projection} timeZone={projection.timezone} />
+                    ))}
+                  </tbody>
+                </DataTable>
+                {queue.stock.count > queue.stock.items.length ? (
+                  <Link className="text-xs font-medium text-foreground underline underline-offset-2" href={stockHref()}>
+                    All {queue.stock.count} positions in Stock
+                  </Link>
+                ) : null}
+              </>
+            ) : (
+              <p className="rounded-md border border-dashed px-4 py-8 text-center text-sm font-medium text-muted-foreground">No stock positions</p>
             ),
           },
           {

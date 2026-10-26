@@ -1,8 +1,11 @@
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
-import { ListRow, PlatformListShell } from "../../components/PlatformListShell";
+import Link from "next/link";
+
+import { PlatformListShell } from "../../components/PlatformListShell";
 import { ActionPanel, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
-import { primaryButtonClass } from "../../components/cv-ui";
+import { StatusText, Td, Th, Tr, primaryButtonClass } from "../../components/cv-ui";
+import { BareTable } from "../../reconciliation/ledger-ui";
 import { loadPlatformList } from "../../lib/list-query";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
@@ -79,25 +82,42 @@ export async function StaffListPage({ searchParams }: { searchParams: PlatformSe
         </details>
       }
     >
-      {result.items.map((employee) => (
-        <ListRow
-          key={employee.id}
-          href={`/dashboard/platform/staff/${employee.id}${scopeQuery(scope)}`}
-          title={employee.user?.name || employee.employeeNumber}
-          status={employee.status}
-          meta={[
-            employee.jobTitle || null,
-            employee.role?.name,
-            employee.stores.map((store) => store.name).join(", ") || "No store",
-            employee.employeeNumber,
-            employee.hireDate ? `since ${formatWhen(employee.hireDate, scope.timezone)}` : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          figure={`${employee.shiftsCount} ${employee.shiftsCount === 1 ? "shift" : "shifts"}`}
-          figureMeta={employee.user?.email}
-        />
-      ))}
+      <BareTable label="Staff">
+        <thead>
+          <tr>
+            <Th>Name</Th>
+            <Th>Status</Th>
+            <Th priority={2}>Role</Th>
+            <Th priority={3}>Stores</Th>
+            <Th priority={2}>Employee #</Th>
+            <Th priority={3}>Since</Th>
+            <Th align="right" priority={2}>Shifts</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.items.map((employee) => (
+            <Tr key={employee.id} className="relative">
+              <Td>
+                <Link
+                  href={`/dashboard/platform/staff/${employee.id}${scopeQuery(scope)}`}
+                  className="font-medium [overflow-wrap:anywhere] after:absolute after:inset-0 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {employee.user?.name || employee.employeeNumber}
+                </Link>
+                {employee.jobTitle || employee.user?.email ? (
+                  <span className="block text-[12px] text-muted-foreground [overflow-wrap:anywhere]">{employee.jobTitle || employee.user?.email}</span>
+                ) : null}
+              </Td>
+              <Td><StatusText status={employee.status} /></Td>
+              <Td priority={2} className="text-muted-foreground">{employee.role?.name ?? "—"}</Td>
+              <Td priority={3} className="text-muted-foreground">{employee.stores.map((store) => store.name).join(", ") || "No store"}</Td>
+              <Td priority={2} className="font-mono text-[12px] text-muted-foreground">{employee.employeeNumber}</Td>
+              <Td priority={3} className="whitespace-nowrap text-muted-foreground">{employee.hireDate ? formatWhen(employee.hireDate, scope.timezone) : "—"}</Td>
+              <Td align="right" priority={2}>{employee.shiftsCount}</Td>
+            </Tr>
+          ))}
+        </tbody>
+      </BareTable>
     </PlatformListShell>
   );
 }

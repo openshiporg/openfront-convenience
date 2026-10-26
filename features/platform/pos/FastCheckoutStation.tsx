@@ -472,7 +472,7 @@ export function FastCheckoutStation({
   }, [pendingIntent?.idempotencyKey]);
 
   const field = "grid min-w-0 gap-1.5 text-xs font-medium text-muted-foreground";
-  const control = `${inputClass} max-sm:h-11 h-11`;
+  const compact = `${inputClass} h-9 max-sm:h-11`;
   const money = (cents: number) => {
     try {
       return new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode }).format(cents / 100);
@@ -492,108 +492,9 @@ export function FastCheckoutStation({
       className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]"
       aria-labelledby="fast-checkout-heading"
     >
-      <div className={`${panelClass} min-w-0 space-y-5`}>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 id="fast-checkout-heading" className="text-lg font-semibold tracking-tight">
-            Register
-          </h2>
-          <span className="inline-flex items-baseline gap-1.5 text-sm text-muted-foreground">
-            <Dot tone={basketState.tone} />
-            {basketState.label}
-          </span>
-        </div>
-
-        {pendingIntent ? (
-          <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4" role="status">
-            <p className="flex items-baseline gap-2 text-sm font-medium">
-              <Dot tone="warn" />
-              Action awaiting confirmation
-            </p>
-            <p className="text-sm text-muted-foreground">{message}</p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={checkPendingOutcome} disabled={pending} className={buttonClass}>
-                Check result
-              </button>
-              {pendingCanRetry ? (
-                <button type="button" onClick={retryPendingIntent} disabled={pending} className={primaryButtonClass}>
-                  Retry same operation
-                </button>
-              ) : null}
-              {pendingOutcome === "not_found" ? (
-                <button type="button" onClick={discardUncommittedIntent} disabled={pending} className={dangerButtonClass}>
-                  Discard uncommitted action
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-          <label className={field}>
-            Basket
-            <select
-              value={cartId}
-              disabled={Boolean(pendingIntent)}
-              onChange={(event) => {
-                setCartId(event.target.value);
-                setSummary(null);
-                setSaleId(null);
-                focusScanner();
-              }}
-              className={control}
-            >
-              <option value="">Choose a basket</option>
-              {carts.map((cart) => (
-                <option key={cart.id} value={cart.id}>
-                  {cart.label} {cart.detail ? `· ${cart.detail}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={field}>
-            Till
-            <select
-              value={registerSessionId}
-              disabled={Boolean(pendingIntent)}
-              onChange={(event) => setRegisterSessionId(event.target.value)}
-              className={control}
-            >
-              {registerSessions.length ? null : <option value="">No open till</option>}
-              {registerSessions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={field}>
-            Cashier
-            <select
-              value={cashierId}
-              disabled={Boolean(pendingIntent)}
-              onChange={(event) => setCashierId(event.target.value)}
-              className={control}
-            >
-              {employees.length ? null : <option value="">No cashier</option>}
-              {employees.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={startBasket}
-            disabled={pending || Boolean(pendingIntent) || !registerSessionId || !cashierId}
-            className={buttonClass}
-          >
-            New basket
-          </button>
-        </div>
-
+      <div className={`${panelClass} min-w-0 space-y-4`}>
         <form
-          className={`grid min-w-0 gap-3 rounded-2xl bg-muted/45 p-3 shadow-[inset_0_1px_2px_rgb(0_0_0/0.05)] ring-1 ring-inset ring-border/60 sm:items-end ${
+          className={`grid min-w-0 gap-3 sm:items-end ${
             variants.length
               ? "sm:grid-cols-[minmax(0,1fr)_10rem_6rem_auto]"
               : "sm:grid-cols-[minmax(0,1fr)_6rem_auto]"
@@ -614,7 +515,7 @@ export function FastCheckoutStation({
               autoComplete="off"
               inputMode="numeric"
               placeholder="Scan, then Enter"
-              className={`${inputClass} h-12 font-mono text-base tracking-wide max-sm:h-12`}
+              className={`${inputClass} h-12 font-mono text-base max-sm:h-12`}
             />
           </label>
           {variants.length > 0 ? (
@@ -652,15 +553,115 @@ export function FastCheckoutStation({
             Add
           </button>
         </form>
+
+        {pendingIntent ? (
+          <div className="space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-4" role="status">
+            <p className="flex items-baseline gap-2 text-sm font-medium">
+              <Dot tone="warn" />
+              Action awaiting confirmation
+            </p>
+            <p className="text-sm text-muted-foreground">{message}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={checkPendingOutcome} disabled={pending} className={buttonClass}>
+                Check result
+              </button>
+              {pendingCanRetry ? (
+                <button type="button" onClick={retryPendingIntent} disabled={pending} className={primaryButtonClass}>
+                  Retry same operation
+                </button>
+              ) : null}
+              {pendingOutcome === "not_found" ? (
+                <button type="button" onClick={discardUncommittedIntent} disabled={pending} className={dangerButtonClass}>
+                  Discard uncommitted action
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="min-w-0 space-y-2 border-t pt-3">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="fast-checkout-heading" className="text-[14px] font-semibold">
+              Register
+            </h2>
+            <span className="inline-flex items-baseline gap-1.5 text-[13px] text-muted-foreground">
+              <Dot tone={basketState.tone} />
+              {basketState.label}
+            </span>
+          </div>
+          <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <label className={field}>
+              Basket
+              <select
+                value={cartId}
+                disabled={Boolean(pendingIntent)}
+                onChange={(event) => {
+                  setCartId(event.target.value);
+                  setSummary(null);
+                  setSaleId(null);
+                  focusScanner();
+                }}
+                className={compact}
+              >
+                <option value="">Choose a basket</option>
+                {carts.map((cart) => (
+                  <option key={cart.id} value={cart.id}>
+                    {cart.label} {cart.detail ? `· ${cart.detail}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={field}>
+              Till
+              <select
+                value={registerSessionId}
+                disabled={Boolean(pendingIntent)}
+                onChange={(event) => setRegisterSessionId(event.target.value)}
+                className={compact}
+              >
+                {registerSessions.length ? null : <option value="">No open till</option>}
+                {registerSessions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={field}>
+              Cashier
+              <select
+                value={cashierId}
+                disabled={Boolean(pendingIntent)}
+                onChange={(event) => setCashierId(event.target.value)}
+                className={compact}
+              >
+                {employees.length ? null : <option value="">No cashier</option>}
+                {employees.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={startBasket}
+              disabled={pending || Boolean(pendingIntent) || !registerSessionId || !cashierId}
+              className={buttonClass}
+            >
+              New basket
+            </button>
+          </div>
+        </div>
       </div>
 
       <aside
         aria-label="Current basket"
-        className="flex min-w-0 flex-col gap-4 rounded-2xl bg-muted/45 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.05)] ring-1 ring-inset ring-border/60"
+        className="flex min-w-0 flex-col rounded-md border bg-background"
       >
-        <div className="min-w-0 rounded-xl bg-background px-4 pb-4 pt-3 font-mono shadow-[0_1px_2px_rgb(0_0_0/0.1)] dark:bg-zinc-900">
-          <div className="flex items-baseline justify-between gap-3 border-b border-dashed pb-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="truncate">{shortRef(summary?.reference) || selectedCart?.label || "No basket"}</span>
+        <div className="min-w-0 px-4 pb-4 pt-3">
+          <div className="flex items-baseline justify-between gap-3 border-b border-dashed pb-2 text-[12px] text-muted-foreground">
+            <span className="truncate font-mono">{shortRef(summary?.reference) || selectedCart?.label || "No basket"}</span>
             <span className="tabular-nums">
               {lineCount} {lineCount === 1 ? "line" : "lines"}
             </span>
@@ -670,13 +671,13 @@ export function FastCheckoutStation({
               <div key={line.id} className="flex items-start justify-between gap-3 border-b border-dashed py-2 text-xs">
                 <div className="min-w-0 font-sans">
                   <p className="truncate font-medium">{line.title}</p>
-                  <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                  <p className="font-mono text-[12px] tabular-nums text-muted-foreground">
                     {quantityText(line.quantity)}{line.unitOfMeasure && line.unitOfMeasure !== "each" ? ` ${line.unitOfMeasure}` : ""} × {money(line.unitPriceCents)}
                     {line.discountCents ? ` · −${money(line.discountCents)}` : ""}
                     {line.taxCents ? ` · tax ${money(line.taxCents)}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 tabular-nums">{money(line.totalCents)}</span>
+                <span className="shrink-0 font-mono tabular-nums">{money(line.totalCents)}</span>
               </div>
             ))}
             {summary?.lineCount === 0 ? (
@@ -694,12 +695,12 @@ export function FastCheckoutStation({
               </div>
             ) : null}
           </div>
-          <div className="mt-3 flex items-baseline justify-between gap-3">
-            <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Total</span>
-            <span className="text-3xl font-semibold tabular-nums tracking-tight">{money(summary?.totalCents ?? 0)}</span>
+          <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-foreground/70 pt-2">
+            <span className="text-[12px] font-medium text-muted-foreground">Total</span>
+            <span className="font-mono text-4xl font-medium tabular-nums tracking-tight">{money(summary?.totalCents ?? 0)}</span>
           </div>
         </div>
-        <div className="space-y-3 px-3 pb-3">
+        <div className="space-y-3 border-t px-4 py-3">
           <button
             type="button"
             onClick={completeExactCash}

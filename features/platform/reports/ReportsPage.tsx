@@ -1,6 +1,6 @@
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
-import { Dot, ListBand, SectionTitle, inputClass, labelClass, panelClass, primaryButtonClass } from "../components/cv-ui";
+import { CountBoxes, DataTable, Dot, SectionTitle, Td, Th, Tr, inputClass, labelClass, primaryButtonClass, type DotTone } from "../components/cv-ui";
 import { EmptyState, PlatformPage } from "../components/PlatformPage";
 import { zonedNowInput } from "../lib/form-values";
 import { getPlatformProjection, searchValue, type PlatformSearch } from "../lib/projection";
@@ -55,54 +55,119 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
     if (response.success) summary = response.data.convenienceReportingSummary;
     else reportError = response.error || "Report failed";
   }
-  const figures: Array<[string, string]> = summary
+  const m = (cents: string) => money(cents, summary?.currencyCode || currencyCode || "USD");
+  // One set of definitions: item sales → less discounts → plus tax → less refunds = net receipts.
+  const statement: Array<[string, string, boolean?]> = summary
     ? [
-        // One set of definitions: item sales → less discounts → plus tax → less refunds = net receipts.
-        ["Item sales (before tax)", money(summary.grossSalesCents, summary.currencyCode)],
-        ["Discounts", money(summary.discountCents, summary.currencyCode)],
-        ["Tax", money(summary.taxCents, summary.currencyCode)],
-        ["Sales incl. tax", money(summary.totalSalesCents, summary.currencyCode)],
-        ["Refunds", money(summary.refundCents, summary.currencyCode)],
-        ["Net receipts", money(summary.netReceiptsCents, summary.currencyCode)],
-        ["Cash taken", money(summary.cashTenderCents, summary.currencyCode)],
-        ["Card and other", money(summary.nonCashTenderCents, summary.currencyCode)],
-        ["Transactions", summary.saleCount],
-        ["Cash variance", money(summary.cashOverShortCents, summary.currencyCode)],
-        ["Deposited cash", money(summary.depositedCashCents, summary.currencyCode)],
-        ["Lottery settlement", money(summary.lotteryNetCents, summary.currencyCode)],
-        ["Money-service settlement", money(summary.moneyServiceNetCents, summary.currencyCode)],
-        ["Store days", String(summary.dayCount)],
-        ["Exceptions", summary.exceptionCount],
+        ["Item sales (before tax)", m(summary.grossSalesCents)],
+        ["Discounts", m(summary.discountCents)],
+        ["Tax", m(summary.taxCents)],
+        ["Sales incl. tax", m(summary.totalSalesCents), true],
+        ["Refunds", m(summary.refundCents)],
+        ["Net receipts", m(summary.netReceiptsCents), true],
       ]
     : [];
-  return <PlatformPage title="Reports" {...state} error={state.error || reportError}>
+  const other: Array<[string, string]> = summary
+    ? [
+        ["Card and other tenders", m(summary.nonCashTenderCents)],
+        ["Lottery settlement", m(summary.lotteryNetCents)],
+        ["Money-service settlement", m(summary.moneyServiceNetCents)],
+        ["Transactions", summary.saleCount],
+        ["Refunds issued", summary.refundCount],
+      ]
+    : [];
+  const overShort = Number(summary?.cashOverShortCents ?? 0);
+  const stores = [...(summary?.stores ?? [])].sort(
+    (left, right) => Number(left.cashOverShortCents) - Number(right.cashOverShortCents) || Number(right.exceptionCount) - Number(left.exceptionCount),
+  );
+  const flagged = stores.filter((store) => Number(store.cashOverShortCents) < 0 || Number(store.exceptionCount) > 0).length;
+  const pageState: { tone: DotTone; label: string } | null = summary
+    ? summary.dayCount === 0
+      ? { tone: "muted", label: "No closed days in period" }
+      : overShort < 0
+        ? { tone: "danger", label: `Short ${m(String(Math.abs(overShort)))}` }
+        : Number(summary.exceptionCount) > 0
+          ? { tone: "warn", label: `${summary.exceptionCount} exceptions` }
+          : { tone: "ok", label: "Balanced" }
+    : null;
+  return <PlatformPage title="Reports" {...state} showMetrics={false} state={pageState} error={state.error || reportError}>
     {state.projection ? <>
-      <section className={panelClass} aria-labelledby="report-controls">
-        <h2 id="report-controls" className="text-[15px] font-semibold tracking-tight">Reporting period</h2>
-        <form method="get" className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
-          <input type="hidden" name="businessId" value={state.projection.businessId ?? ""} />
-          <input type="hidden" name="storeId" value={state.projection.storeId ?? ""} />
-          <label className={labelClass}>Start date<input className={`${inputClass} font-mono`} name="startDate" type="date" defaultValue={startDate} required /></label>
-          <label className={labelClass}>End date<input className={`${inputClass} font-mono`} name="endDate" type="date" defaultValue={endDate} required /></label>
-          <label className={labelClass}>Currency<input className={`${inputClass} font-mono uppercase`} name="currencyCode" defaultValue={currencyCode} maxLength={3} pattern="[A-Za-z]{3}" placeholder="USD" /></label>
-          <label className={labelClass}>Scope<select className={inputClass} name="scope" defaultValue={scope}><option value="business">All stores</option><option value="store">Selected store</option></select></label>
-          <div className="sm:col-span-2 xl:col-span-1"><button className={primaryButtonClass} type="submit">Run report</button></div>
-        </form>
-      </section>
-      {summary ? <section className="min-w-0 space-y-5" aria-labelledby="report-results">
-        <SectionTitle id="report-results" meta={`${startDate} – ${endDate}`}>Closed store days</SectionTitle>
-        {summary.dayCount === 0 ? <EmptyState title="No closed store days in this period" /> : null}
-        <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border/70 ring-1 ring-border/70 md:grid-cols-4">
-          {figures.map(([label, value]) => <div key={label} className="min-w-0 bg-background px-4 py-3.5"><dt className="truncate text-xs font-medium text-muted-foreground">{label}</dt><dd className="mt-1 font-mono text-xl font-medium tabular-nums tracking-tight [overflow-wrap:anywhere]">{value}</dd></div>)}
-        </dl>
-        {summary.stores.length ? <div className="min-w-0">
-          <SectionTitle meta={summary.stores.length}>By store</SectionTitle>
-          <ListBand>{summary.stores.map((store) => <article key={store.storeId} className="grid min-w-0 gap-x-6 gap-y-1 bg-background/60 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(96px,auto))] sm:items-baseline">
-            <div className="flex min-w-0 items-baseline gap-2"><Dot tone={Number(store.exceptionCount) > 0 ? "warn" : "ok"} /><p className="truncate text-sm font-medium">{store.storeName}</p><span className="font-mono text-xs tabular-nums text-muted-foreground">{store.dayCount} days</span></div>
-            <p className="font-mono text-sm tabular-nums sm:text-right">{money(store.netReceiptsCents, summary.currencyCode)}</p>
-            <p className="font-mono text-sm tabular-nums text-muted-foreground sm:text-right">{money(store.cashOverShortCents, summary.currencyCode)} var.</p>
-            <p className="font-mono text-sm tabular-nums text-muted-foreground sm:text-right">{store.exceptionCount} exc.</p>
-          </article>)}</ListBand>
+      <form method="get" aria-label="Reporting period" className="grid min-w-0 gap-3 border-b pb-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
+        <input type="hidden" name="businessId" value={state.projection.businessId ?? ""} />
+        <input type="hidden" name="storeId" value={state.projection.storeId ?? ""} />
+        <label className={labelClass}>Start date<input className={`${inputClass} font-mono`} name="startDate" type="date" defaultValue={startDate} required /></label>
+        <label className={labelClass}>End date<input className={`${inputClass} font-mono`} name="endDate" type="date" defaultValue={endDate} required /></label>
+        <label className={labelClass}>Currency<input className={`${inputClass} font-mono uppercase`} name="currencyCode" defaultValue={currencyCode} maxLength={3} pattern="[A-Za-z]{3}" placeholder="USD" /></label>
+        <label className={labelClass}>Scope<select className={inputClass} name="scope" defaultValue={scope}><option value="business">All stores</option><option value="store">Selected store</option></select></label>
+        <div className="sm:col-span-2 xl:col-span-1"><button className={primaryButtonClass} type="submit">Run report</button></div>
+      </form>
+      {summary ? <section className="min-w-0 space-y-6" aria-labelledby="report-results">
+        <div className="min-w-0">
+          <SectionTitle id="report-results" meta={`${startDate} – ${endDate} · ${summary.dayCount} ${summary.dayCount === 1 ? "day" : "days"}`}>Cash</SectionTitle>
+          {summary.dayCount === 0 ? <EmptyState title="No closed store days in this period" /> : (
+            <CountBoxes
+              items={[
+                { label: "Cash taken", value: m(summary.cashTenderCents) },
+                { label: "Deposited", value: m(summary.depositedCashCents) },
+                { label: "Over / short", value: `${overShort < 0 ? "−" : overShort > 0 ? "+" : ""}${m(String(Math.abs(overShort)))}`, variance: overShort, note: overShort < 0 ? "Short" : overShort > 0 ? "Over" : "Balanced" },
+                { label: "Exceptions", value: summary.exceptionCount, note: Number(summary.exceptionCount) > 0 ? "Open in store days" : "None" },
+              ]}
+            />
+          )}
+        </div>
+
+        {stores.length ? <div className="min-w-0">
+          <SectionTitle meta={flagged ? `${flagged} need a look` : stores.length}>By store</SectionTitle>
+          <DataTable aria-label="By store">
+            <thead><tr>
+              <Th>Store</Th>
+              <Th>Status</Th>
+              <Th align="right" priority={2}>Days</Th>
+              <Th align="right" priority={2}>Net receipts</Th>
+              <Th align="right">Over / short</Th>
+              <Th align="right" priority={3}>Exceptions</Th>
+            </tr></thead>
+            <tbody>
+              {stores.map((store) => {
+                const variance = Number(store.cashOverShortCents);
+                const exceptions = Number(store.exceptionCount);
+                const shown = variance < 0 ? { tone: "danger" as DotTone, label: "Short" } : exceptions > 0 ? { tone: "warn" as DotTone, label: "Exceptions" } : variance > 0 ? { tone: "warn" as DotTone, label: "Over" } : { tone: "ok" as DotTone, label: "Balanced" };
+                return <Tr key={store.storeId}>
+                  <Td className="font-medium">{store.storeName}</Td>
+                  <Td><span className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-xs font-medium text-muted-foreground"><Dot tone={shown.tone} />{shown.label}</span></Td>
+                  <Td align="right" priority={2}>{store.dayCount}</Td>
+                  <Td align="right" priority={2}>{m(store.netReceiptsCents)}</Td>
+                  <Td align="right" className={variance < 0 ? "text-[oklch(0.52_0.19_27)] dark:text-red-400" : ""}>{variance < 0 ? "−" : variance > 0 ? "+" : ""}{m(String(Math.abs(variance)))}</Td>
+                  <Td align="right" priority={3}>{store.exceptionCount}</Td>
+                </Tr>;
+              })}
+            </tbody>
+          </DataTable>
+        </div> : null}
+
+        {summary.dayCount > 0 ? <div className="grid min-w-0 items-start gap-6 lg:grid-cols-2">
+          <div className="min-w-0">
+            <SectionTitle>Sales to net receipts</SectionTitle>
+            <DataTable aria-label="Sales to net receipts">
+              <tbody>
+                {statement.map(([label, value, total]) => <Tr key={label} className={total ? "bg-muted/30 font-medium" : ""}>
+                  <Td>{label}</Td>
+                  <Td align="right">{value}</Td>
+                </Tr>)}
+              </tbody>
+            </DataTable>
+          </div>
+          <div className="min-w-0">
+            <SectionTitle>Other totals</SectionTitle>
+            <DataTable aria-label="Other totals">
+              <tbody>
+                {other.map(([label, value]) => <Tr key={label}>
+                  <Td>{label}</Td>
+                  <Td align="right">{value}</Td>
+                </Tr>)}
+              </tbody>
+            </DataTable>
+          </div>
         </div> : null}
       </section> : startDate && endDate ? null : <EmptyState title="Choose a period" />}
     </> : null}

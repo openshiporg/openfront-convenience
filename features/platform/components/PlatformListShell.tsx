@@ -32,7 +32,7 @@ export function StatusTrack({
     return text ? `${basePath}?${text}` : basePath;
   };
   return (
-    <nav aria-label="Status" className={`${trackClass} max-sm:flex-wrap max-sm:rounded-2xl`}>
+    <nav aria-label="Status" className={`${trackClass}`}>
       {[{ value: "all", label: "All" }, ...statuses].map((entry) => (
         <Link
           key={entry.value}
@@ -107,7 +107,7 @@ export function PlatformListShell({
             {result.list ? <PlatformFilterBar list={result.list} actions={actions} /> : null}
             {statuses?.length ? <StatusTrack basePath={basePath} search={search} statuses={statuses} result={result} /> : null}
             {result.error ? (
-              <p role="alert" className="flex items-baseline gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <p role="alert" className="flex items-baseline gap-2 rounded-[4px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 <Dot tone="danger" />
                 {result.error}
               </p>
@@ -128,7 +128,7 @@ export function PlatformListShell({
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed px-4 py-10 text-center">
+    <div className="rounded-md border border-dashed px-4 py-8 text-center">
       <p className="text-sm font-medium text-muted-foreground">{text}</p>
     </div>
   );

@@ -5,7 +5,7 @@ import { useActionState, useEffect } from "react";
 import type { PlatformOption } from "../lib/projection";
 import { downloadExportArtifactAction } from "./download-actions";
 import { initialExportDownloadState } from "./download-state";
-import { buttonClass, inputClass } from "../components/cv-ui";
+import { buttonClass, inputClass, labelClass } from "../components/cv-ui";
 
 export function ExportDownloadPanel({
   businessId,
@@ -38,11 +38,12 @@ export function ExportDownloadPanel({
       className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
     >
       <input type="hidden" name="businessId" value={businessId} />
-      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+      <label className={labelClass}>
         Checksum-verified batch
         <select
           name="batchId"
           required
+          defaultValue={batches.length === 1 ? batches[0].id : ""}
           className={inputClass}
         >
           <option value="">Choose a batch</option>
