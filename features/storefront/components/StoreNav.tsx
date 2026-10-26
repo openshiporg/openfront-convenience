@@ -12,17 +12,17 @@ const links = [
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-/** Desktop nav pills. */
+/** Desktop nav. */
 export function StoreNav() {
   const pathname = usePathname() ?? "/";
   return (
     <nav className="sf-nav" aria-label="Store">
-      <div className="sf-track sf-nav__links">
+      <div className="sf-nav__links">
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="sf-pill"
+            className="sf-navlink"
             aria-current={isActive(pathname, link.href) ? "page" : undefined}
           >
             {link.label === "Account" ? <UserRound aria-hidden="true" className="sf-icon" /> : null}

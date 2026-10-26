@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search as SearchIcon } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { Price } from "../components/Price";
-import { catalog, customer, history, money, rewards } from "../lib/data";
+import { AisleHead, AisleSigns, numberAisles } from "../components/AisleSigns";
+import { AskTag, ShelfTag, priceOf, variantSize } from "../components/ShelfTag";
+import { catalog, customer, history, money, rewards, type Catalog } from "../lib/data";
+import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { customerAuth, customerSignout } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
 
@@ -50,12 +53,17 @@ const quantityLabel = (value: string) => String(Number(value));
 export const receiptMetadata = () => storefrontTitle("Receipt");
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 
+type Product = Catalog["products"][number];
+
 export async function ShopPage({ searchParams }: { searchParams: Search }) {
   const search = await searchParams;
   const query = (search.q ?? "").slice(0, 100);
   const category = search.category ?? "";
   const page = Math.max(1, Number.parseInt(search.page ?? "1", 10) || 1);
-  const data = await catalog({ search: query || undefined, category: category || undefined, page });
+  const [data, projection] = await Promise.all([
+    catalog({ search: query || undefined, category: category || undefined, page }),
+    getPublicStorefrontProjection(),
+  ]);
   const products = data?.products ?? [];
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const href = (next: { category?: string; page?: number }) => {
@@ -68,34 +76,42 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
     return value ? `/shop?${value}` : "/shop";
   };
   const allHref = query ? `/shop?${new URLSearchParams({ q: query })}` : "/shop";
+  const aisles = numberAisles(data?.categories ?? []);
+  const aisleOf = (name: string) => aisles.find((aisle) => aisle.name === name) ?? null;
+  // This page of results, shelved by aisle in the store's aisle order.
+  const shelves = new Map<string, Product[]>();
+  for (const product of products) shelves.set(product.category, [...(shelves.get(product.category) ?? []), product]);
+  const ordered = [...shelves.entries()].sort(
+    ([a], [b]) => (aisleOf(a)?.number ?? Number.MAX_SAFE_INTEGER) - (aisleOf(b)?.number ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b),
+  );
+  const madeInStore = new Set(projection.categories.flatMap((entry) => entry.products.filter((product) => product.preparedFood).map((product) => product.id)));
+  const current = aisleOf(category);
   return (
     <ShopShell>
       <div className="sf-pagehead">
         <div className="sf-titleline">
-          <h1 className="sf-display sf-display--page">{category || "Shop"}</h1>
+          <h1 className="sf-title">
+            {current ? (
+              <span className="sf-title__no">
+                <span className="sf-sr">Aisle </span>
+                {current.number}
+              </span>
+            ) : null}
+            {category || "Shop"}
+          </h1>
           {data ? <span className="sf-count">{itemCount(data.total)}</span> : null}
         </div>
-        <form className="sf-search sf-search--page" method="get" role="search">
+        <form className="sf-searchline sf-searchline--page" method="get" role="search">
           <label htmlFor="sf-shop-search" className="sf-sr">
             Search products
           </label>
           {category ? <input type="hidden" name="category" value={category} /> : null}
+          <SearchIcon aria-hidden="true" className="sf-icon sf-searchline__icon" />
           <input id="sf-shop-search" type="search" name="q" defaultValue={query} maxLength={100} placeholder="Search products" />
-          <button className="sf-btn sf-btn--small">Search</button>
+          <button className="sf-btn">Search</button>
         </form>
       </div>
-      {data?.categories.length ? (
-        <nav className="sf-track sf-track--scroll" aria-label="Categories">
-          <Link href={allHref} className="sf-pill" aria-current={!category ? "page" : undefined}>
-            All
-          </Link>
-          {data.categories.map((name) => (
-            <Link key={name} href={href({ category: name, page: 1 })} className="sf-pill" aria-current={name === category ? "page" : undefined}>
-              {name}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      {aisles.length ? <AisleSigns aisles={aisles} current={category || null} allHref={allHref} hrefFor={(name) => href({ category: name, page: 1 })} /> : null}
       {query ? (
         <p className="sf-filterline">
           Results for <strong>{query}</strong>
@@ -104,131 +120,99 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
           </Link>
         </p>
       ) : null}
-      {products.length ? (
-        <ul className="sf-grid">
-          {products.map((product) => {
-            const prices = product.variants.map((variant) => variant.priceCents);
-            const from = Math.min(...prices);
-            const varies = prices.length > 1 && Math.max(...prices) !== from;
-            const unit = product.variants.length === 1 ? product.variants[0].unitOfMeasure : "";
-            return (
-              <li key={product.id}>
-                <Link href={`/shop/${product.id}`} className="sf-tag" data-photo={product.image ? "" : undefined}>
-                  {product.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
-                    <img className="sf-tag__photo" src={product.image.url} alt={product.image.alt || ""} loading="lazy" />
-                  ) : null}
-                  <span className="sf-tag__body">
-                    <span className="sf-tag__title">{product.title}</span>
-                    <span className="sf-tag__meta">
-                      <span className="sf-tag__category">{product.category}</span>
-                      {product.variants.length > 1 ? <span>{product.variants.length} options</span> : unit && unit !== "each" ? <span>{unit}</span> : null}
-                      {availabilityOf(product.variants).label === "Ask in store" ? <span className="sf-tag__ask">Ask in store</span> : null}
-                    </span>
-                  </span>
-                  <span className="sf-leader" aria-hidden="true" />
-                  <Price cents={from} currency={data!.currency} from={varies} />
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {ordered.length ? (
+        ordered.map(([name, items], index) => {
+          const id = `sf-aisle-${index}`;
+          return (
+            <section key={name} className="sf-shelf" aria-labelledby={id}>
+              <AisleHead aisle={aisleOf(name)} name={name} id={id}>
+                {!category && aisleOf(name) ? (
+                  <Link href={href({ category: name, page: 1 })} className="sf-more">
+                    View aisle
+                    <ArrowRight aria-hidden="true" className="sf-icon" />
+                  </Link>
+                ) : null}
+              </AisleHead>
+              <ul className="sf-tags">
+                {items.map((product) => (
+                  <li key={product.id}>
+                    <ShelfTag product={product} currency={data!.currency} madeInStore={madeInStore.has(product.id)} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })
       ) : (
         <p role="status" className="sf-empty">
           <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-          No products found
+          {data ? "No products found" : "Products could not be loaded"}
         </p>
       )}
       {pages > 1 ? (
         <nav className="sf-pager" aria-label="Pages">
-          <div className="sf-track">
-            {page > 1 ? (
-              <Link href={href({ page: page - 1 })} className="sf-pill" aria-label="Previous page">
-                <ArrowLeft aria-hidden="true" className="sf-icon" />
-              </Link>
-            ) : null}
-            <span className="sf-pill" aria-current="page">
-              <span className="sf-mono">
-                {page} / {pages}
-              </span>
-            </span>
-            {page < pages ? (
-              <Link href={href({ page: page + 1 })} className="sf-pill" aria-label="Next page">
-                <ArrowRight aria-hidden="true" className="sf-icon" />
-              </Link>
-            ) : null}
-          </div>
+          {page > 1 ? (
+            <Link href={href({ page: page - 1 })} className="sf-ctl" aria-label="Previous page">
+              <ArrowLeft aria-hidden="true" className="sf-icon" />
+            </Link>
+          ) : null}
+          <span className="sf-ctl sf-num" aria-current="page">
+            {page} / {pages}
+          </span>
+          {page < pages ? (
+            <Link href={href({ page: page + 1 })} className="sf-ctl" aria-label="Next page">
+              <ArrowRight aria-hidden="true" className="sf-icon" />
+            </Link>
+          ) : null}
         </nav>
       ) : null}
     </ShopShell>
   );
 }
 
-type Variant = { availability: "in_stock" | "ask" | "untracked" };
-
-/** "In stock" when a tracked size has stock, "Ask in store" when none does, plain "In store" when not tracked. */
-function availabilityOf(variants: Variant[]) {
-  if (variants.some((variant) => variant.availability === "in_stock")) return { tone: "ok", label: "In stock" };
-  if (variants.length && variants.every((variant) => variant.availability === "ask")) return { tone: "warn", label: "Ask in store" };
-  return { tone: "ok", label: "In store" };
-}
-
-function Availability({ variants }: { variants: Variant[] }) {
-  const state = availabilityOf(variants);
-  return (
-    <p className="sf-state sf-product__state">
-      <span className="sf-dot" data-tone={state.tone} aria-hidden="true" />
-      {state.label}
-    </p>
-  );
-}
+const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "muted", label: "Ask at counter" } } as const;
 
 export async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
   const data = await catalog({ productId });
   const product = data?.products[0];
   if (!product || !data) notFound();
-  const single = product.variants.length === 1 ? product.variants[0] : null;
-  const prices = product.variants.map((variant) => variant.priceCents);
-  const from = Math.min(...prices);
-  const varies = prices.length > 1 && Math.max(...prices) !== from;
+  const aisle = numberAisles(data.categories).find((entry) => entry.name === product.category) ?? null;
+  const single = product.variants.length === 1;
   return (
     <ShopShell>
       <Link href={`/shop?${new URLSearchParams({ category: product.category })}`} className="sf-back">
         <ArrowLeft aria-hidden="true" className="sf-icon" />
+        {aisle ? <span className="sf-back__no">{aisle.number}</span> : null}
         {product.category}
       </Link>
-      <section className="sf-product">
+      <section className="sf-product" data-photo={product.image ? "" : undefined}>
         {product.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
           <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
         ) : null}
-        <div className="sf-slip sf-product__receipt">
-          <h1 className="sf-display sf-display--product">{product.title}</h1>
-          <span className="sf-tag__category">{product.category}</span>
-          <p className="sf-product__size">
-            {single ? [single.title, single.unitOfMeasure !== "each" ? single.unitOfMeasure : null].filter(Boolean).join(" · ") : `${product.variants.length} sizes`}
-          </p>
+        <div className="sf-product__body">
+          <h1 className="sf-title sf-title--product">{product.title}</h1>
           {product.description ? <p className="sf-product__description">{product.description}</p> : null}
-          <Availability variants={product.variants} />
-          {single ? null : (
-            <ul className="sf-options sf-product__form" aria-label="Options">
-              {product.variants.map((variant) => (
-                <li key={variant.id} className="sf-row sf-option--static">
-                  <span className="sf-option__title">
-                    {variant.title}
-                    {variant.availability === "ask" ? <span className="sf-muted"> · ask in store</span> : null}
-                  </span>
-                  <span className="sf-leader" aria-hidden="true" />
-                  <span className="sf-option__price">{money(variant.priceCents, data.currency)}</span>
+          <ul className="sf-sizes" aria-label={single ? "Price" : "Sizes"} data-single={single || undefined}>
+            {product.variants.map((variant) => {
+              const price = priceOf([variant]);
+              const size = variantSize(variant, product.title) || (single ? "" : variant.title);
+              const stock = price && variant.availability !== "untracked" ? stockLabel[variant.availability] : null;
+              return (
+                <li key={variant.id} className="sf-tag sf-tag--size" data-variant={price ? undefined : "ask"}>
+                  {size ? <span className="sf-tag__name">{size}</span> : null}
+                  {price ? <Price cents={price.from} currency={data.currency} /> : <AskTag />}
+                  {stock ? (
+                    <span className="sf-tag__stock">
+                      <span className="sf-dot" data-tone={stock.tone} aria-hidden="true" />
+                      {stock.label}
+                    </span>
+                  ) : null}
                 </li>
-              ))}
-            </ul>
-          )}
-          <div className="sf-product__total">
-            <span>{varies ? "From" : "Price"}</span>
-            <Price cents={from} currency={data.currency} className="sf-price--hero" />
-          </div>
+              );
+            })}
+          </ul>
         </div>
       </section>
     </ShopShell>
@@ -245,133 +229,140 @@ export async function CheckoutPage() {
   redirect("/shop");
 }
 
+const shortDate = (value: string) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
 export async function AccountPage() {
   const user = await customer();
   const [orders, accounts] = user ? await Promise.all([history(), rewards()]) : [[], []];
   return (
     <ShopShell>
       <div className="sf-pagehead">
-        <h1 className="sf-display sf-display--page">Account</h1>
+        <h1 className="sf-title">Account</h1>
       </div>
-      {user ? (
-        <section className="sf-profile" aria-label="Profile">
-          <div>
-            <p className="sf-profile__name">{user.name}</p>
-            <p className="sf-muted">{user.email}</p>
-          </div>
-          <form action={customerSignout}>
-            <button className="sf-btn sf-btn--quiet">Sign out</button>
-          </form>
-        </section>
-      ) : (
-        <section className="sf-profile" aria-label="Sign in">
-          <p className="sf-empty">
-            <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-            Signed out
-          </p>
-          <div className="sf-actions">
-            <Link href="/account/signin" className="sf-btn">
-              Sign in
-            </Link>
-            <Link href="/account/signup" className="sf-btn sf-btn--quiet">
-              Create account
-            </Link>
-          </div>
-        </section>
-      )}
-      {user ? (
-        <section className="sf-section sf-section--tight" aria-labelledby="sf-rewards-title">
-          <div className="sf-section__head">
-            <h2 id="sf-rewards-title">Rewards</h2>
-          </div>
-          {accounts.length ? (
-            <ul className="sf-band">
-              {accounts.map((account) => (
-                <li className="sf-order" key={account.id}>
-                  <div className="sf-titleline">
-                    <h3>{account.program?.name ?? "Rewards"}</h3>
-                    <span className="sf-state">
-                      <span className="sf-dot" data-tone={account.status === "active" ? "ok" : "warn"} aria-hidden="true" />
-                      {account.status === "active" ? "Active" : "Paused"}
-                    </span>
-                    <span className="sf-muted sf-mono">{account.accountNumber}</span>
-                  </div>
-                  <p className="sf-rewards__balance">
-                    <span className="sf-mono">{account.pointsBalance ?? 0}</span> points
-                  </p>
-                  {account.program ? (
-                    <p className="sf-muted">
-                      {account.program.redemptionPoints} points = {money(account.program.redemptionValueCents, account.currencyCode)}
+      <div className="sf-account">
+        {user ? (
+          <section className="sf-panel sf-profile" aria-label="Profile">
+            <div>
+              <p className="sf-profile__name">{user.name}</p>
+              <p className="sf-panel__muted">{user.email}</p>
+            </div>
+            <form action={customerSignout}>
+              <button className="sf-btn sf-btn--quiet">Sign out</button>
+            </form>
+          </section>
+        ) : (
+          <section className="sf-panel sf-profile" aria-label="Sign in">
+            <p className="sf-state">
+              <span className="sf-dot" data-tone="muted" aria-hidden="true" />
+              Signed out
+            </p>
+            <div className="sf-actions">
+              <Link href="/account/signin" className="sf-btn">
+                Sign in
+              </Link>
+              <Link href="/account/signup" className="sf-btn sf-btn--quiet">
+                Create account
+              </Link>
+            </div>
+          </section>
+        )}
+        {user ? (
+          <section className="sf-section" aria-labelledby="sf-rewards-title">
+            <div className="sf-section__head">
+              <h2 id="sf-rewards-title" className="sf-plate">
+                <span className="sf-plate__name">Rewards</span>
+              </h2>
+            </div>
+            {accounts.length ? (
+              <ul className="sf-stack">
+                {accounts.map((account) => (
+                  <li className="sf-panel sf-reward" key={account.id}>
+                    <div className="sf-panel__head">
+                      <h3>{account.program?.name ?? "Rewards"}</h3>
+                      <span className="sf-state">
+                        <span className="sf-dot" data-tone={account.status === "active" ? "ok" : "warn"} aria-hidden="true" />
+                        {account.status === "active" ? "Active" : "Paused"}
+                      </span>
+                      <span className="sf-panel__muted sf-num">{account.accountNumber}</span>
+                    </div>
+                    <p className="sf-reward__balance">
+                      <span className="sf-figure">{account.pointsBalance ?? 0}</span> points
                     </p>
-                  ) : null}
-                  {account.entries.length ? (
-                    <ul className="sf-order__lines">
-                      {account.entries.map((entry, index) => (
-                        <li key={index}>
-                          <span>
-                            {statusLabel(entry.type)}
-                            {entry.occurredAt ? (
-                              <span className="sf-muted"> · {new Date(entry.occurredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                            ) : null}
-                          </span>
-                          <span className="sf-mono">
-                            {entry.pointsDelta > 0 ? "+" : ""}
-                            {entry.pointsDelta}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                    {account.program ? (
+                      <p className="sf-panel__muted">
+                        <span className="sf-num">{account.program.redemptionPoints}</span> points ={" "}
+                        <span className="sf-num">{money(account.program.redemptionValueCents, account.currencyCode)}</span>
+                      </p>
+                    ) : null}
+                    {account.entries.length ? (
+                      <ul className="sf-lines">
+                        {account.entries.map((entry, index) => (
+                          <li key={index}>
+                            <span>
+                              {statusLabel(entry.type)}
+                              {entry.occurredAt ? (
+                                <span className="sf-panel__muted"> · {new Date(entry.occurredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                              ) : null}
+                            </span>
+                            <span className="sf-num">
+                              {entry.pointsDelta > 0 ? "+" : ""}
+                              {entry.pointsDelta}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="sf-empty">
+                <span className="sf-dot" data-tone="muted" aria-hidden="true" />
+                No rewards account linked
+              </p>
+            )}
+          </section>
+        ) : null}
+        <section className="sf-section" aria-labelledby="sf-orders-title">
+          <div className="sf-section__head">
+            <h2 id="sf-orders-title" className="sf-plate">
+              <span className="sf-plate__name">Receipts</span>
+            </h2>
+            {orders.length ? <span className="sf-count">{orders.length}</span> : null}
+          </div>
+          {orders.length ? (
+            <ul className="sf-stack">
+              {orders.map((order) => (
+                <li key={order.id}>
+                  <Link className="sf-panel sf-order" href={`/account/receipts/${order.id}`}>
+                    <div className="sf-panel__head">
+                      <h3 className="sf-num">{order.receiptNumber}</h3>
+                      <span className="sf-state">
+                        <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
+                        {statusLabel(order.status)}
+                      </span>
+                      {order.completedAt ? (
+                        <time className="sf-panel__muted" dateTime={order.completedAt}>
+                          {shortDate(order.completedAt)}
+                        </time>
+                      ) : null}
+                    </div>
+                    <p className="sf-order__total">
+                      <span>{itemCount(order.lines.length)}</span>
+                      <span className="sf-figure">{money(order.totalCents, order.currencyCode)}</span>
+                    </p>
+                  </Link>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="sf-empty">
               <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-              No rewards account linked
+              {user ? "No receipts yet" : "Sign in to view your receipts"}
             </p>
           )}
         </section>
-      ) : null}
-      <section className="sf-section sf-section--tight" aria-labelledby="sf-orders-title">
-        <div className="sf-section__head">
-          <h2 id="sf-orders-title">Receipts</h2>
-          {orders.length ? <span className="sf-count">{orders.length}</span> : null}
-        </div>
-        {orders.length ? (
-          <ul className="sf-band">
-            {orders.map((order) => (
-              <li key={order.id}>
-                <Link className="sf-order sf-order--link" href={`/account/receipts/${order.id}`}>
-                  <div className="sf-titleline">
-                    <h3 className="sf-mono">{order.receiptNumber}</h3>
-                    <span className="sf-state">
-                      <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
-                      {statusLabel(order.status)}
-                    </span>
-                    {order.completedAt ? (
-                      <time className="sf-muted" dateTime={order.completedAt}>
-                        {new Date(order.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </time>
-                    ) : null}
-                  </div>
-                  <p className="sf-order__total">
-                    <span>
-                      {order.lines.length} {order.lines.length === 1 ? "item" : "items"}
-                    </span>
-                    <span className="sf-mono">{money(order.totalCents, order.currencyCode)}</span>
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="sf-empty">
-            <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-            {user ? "No receipts yet" : "Sign in to view your receipts"}
-          </p>
-        )}
-      </section>
+      </div>
     </ShopShell>
   );
 }
@@ -390,37 +381,35 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
       </Link>
       <div className="sf-pagehead">
         <div className="sf-titleline">
-          <h1 className="sf-display sf-display--page sf-mono">{order.receiptNumber}</h1>
+          <h1 className="sf-title sf-num">{order.receiptNumber}</h1>
           <span className="sf-state">
             <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
             {statusLabel(order.status)}
           </span>
         </div>
       </div>
-      <aside className="sf-tape sf-tape--receipt" aria-label="Receipt">
-        <ul className="sf-tape__lines">
+      <section className="sf-panel sf-receipt" aria-label="Receipt">
+        <ul className="sf-lines">
           {order.lines.map((line, index) => (
             <li key={index}>
               <span>
-                <span className="sf-mono sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
-                {line.variantTitleSnapshot ? <span className="sf-muted"> · {line.variantTitleSnapshot}</span> : null}
+                <span className="sf-num sf-panel__muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
+                {line.variantTitleSnapshot ? <span className="sf-panel__muted"> · {line.variantTitleSnapshot}</span> : null}
               </span>
-              <span className="sf-mono">{money(line.totalCents, order.currencyCode)}</span>
+              <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
             </li>
           ))}
         </ul>
-        <dl>
-          <div className="sf-tape__total">
-            <dt>Total</dt>
-            <dd>{money(order.totalCents, order.currencyCode)}</dd>
-          </div>
+        <dl className="sf-receipt__total">
+          <dt>Total</dt>
+          <dd className="sf-figure">{money(order.totalCents, order.currencyCode)}</dd>
         </dl>
         {order.completedAt ? (
-          <p className="sf-muted sf-tape__more">
+          <p className="sf-panel__muted sf-receipt__when">
             {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
           </p>
         ) : null}
-      </aside>
+      </section>
     </ShopShell>
   );
 }
@@ -433,15 +422,15 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
   return (
     <ShopShell>
       <section className="sf-auth">
-        <nav className="sf-track" aria-label="Account">
-          <Link href="/account/signin" className="sf-pill" aria-current={!signup ? "page" : undefined}>
+        <nav className="sf-switch" aria-label="Account">
+          <Link href="/account/signin" aria-current={!signup ? "page" : undefined}>
             Sign in
           </Link>
-          <Link href="/account/signup" className="sf-pill" aria-current={signup ? "page" : undefined}>
+          <Link href="/account/signup" aria-current={signup ? "page" : undefined}>
             Create account
           </Link>
         </nav>
-        <h1 className="sf-display sf-display--page">{signup ? "Create account" : "Sign in"}</h1>
+        <h1 className="sf-title">{signup ? "Create account" : "Sign in"}</h1>
         <Alert message={errorMessage(search.error)} />
         {signup && search.error === "signup" ? (
           <p className="sf-filterline">
@@ -451,7 +440,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
             </Link>
           </p>
         ) : null}
-        <form className="sf-form sf-card" action={customerAuth}>
+        <form className="sf-panel sf-form" action={customerAuth}>
           <input type="hidden" name="mode" value={mode} />
           {signup ? (
             <label className="sf-field">

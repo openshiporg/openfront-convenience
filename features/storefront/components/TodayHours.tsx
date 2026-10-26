@@ -21,26 +21,31 @@ function useMinute(): number | null {
 
 type Hours = Partial<Record<StorefrontDay, string>>;
 
-/** "Open now · until 11pm" (or today's hours as typed) with a dot, in the store's timezone. */
-export function TodayLine({ hours, timeZone }: { hours: Hours; timeZone?: string | null }) {
+/** "Open now · until 11pm" with a lamp, in the store's timezone; with today's hours as typed when asked. */
+export function TodayLine({ hours, timeZone, withHours = false }: { hours: Hours; timeZone?: string | null; withHours?: boolean }) {
   const minute = useMinute();
   if (minute === null) return <span className="sf-today">Hours</span>;
   const status = openStatus(hours, timeZone, new Date(minute * 60_000));
   if (status) {
+    const typed = hours[status.today] ?? "";
     return (
-      <span className="sf-today">
-        <span className="sf-dot" data-tone={status.open ? "ok" : "muted"} aria-hidden="true" />
-        <span className="sf-today__hours">{status.label}</span>
+      <span className="sf-today" data-open={status.open || undefined}>
+        <span className="sf-today__state">
+          <span className="sf-dot" data-tone={status.open ? "ok" : "muted"} aria-hidden="true" />
+          {status.label}
+        </span>
+        {withHours && typed ? <span className="sf-today__hours">Today {typed}</span> : null}
       </span>
     );
   }
   const today = STOREFRONT_DAYS[(new Date(minute * 60_000).getDay() + 6) % 7];
   const value = hours[today] ?? "";
   return (
-    <span className="sf-today">
-      <span className="sf-dot" data-tone={closed(value) ? "muted" : "ok"} aria-hidden="true" />
-      Today
-      <span className="sf-today__hours">{closed(value) ? "Closed" : value}</span>
+    <span className="sf-today" data-open={!closed(value) || undefined}>
+      <span className="sf-today__state">
+        <span className="sf-dot" data-tone={closed(value) ? "muted" : "ok"} aria-hidden="true" />
+        Today <span className="sf-today__hours">{closed(value) ? "Closed" : value}</span>
+      </span>
     </span>
   );
 }

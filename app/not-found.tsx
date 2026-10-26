@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { storefrontFonts } from "@/features/storefront/components/fonts";
 import "@/features/storefront/shop.css";
 
 export const metadata = { title: "Not found" };
@@ -9,7 +10,7 @@ export const metadata = { title: "Not found" };
 // app/(shop)/not-found.tsx.
 export default function NotFound() {
   return (
-    <main className="sf sf-soon">
+    <main className={`sf sf-soon ${storefrontFonts}`}>
       <div className="sf-emptycard">
         <p className="sf-empty">
           <span className="sf-dot" data-tone="muted" aria-hidden="true" />
