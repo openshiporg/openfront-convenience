@@ -5463,6 +5463,7 @@ type Sale {
   receiptNumber: String
   source: SaleSourceType
   status: SaleStatusType
+  pickupStatus: SalePickupStatusType
   currencyCode: String
   subtotalCents: Int
   discountCents: Int
@@ -5514,6 +5515,12 @@ enum SaleStatusType {
   voided
 }
 
+enum SalePickupStatusType {
+  none
+  ready_for_pickup
+  picked_up
+}
+
 input SaleWhereUniqueInput {
   id: ID
   receiptNumber: String
@@ -5530,6 +5537,7 @@ input SaleWhereInput {
   receiptNumber: StringFilter
   source: SaleSourceTypeNullableFilter
   status: SaleStatusTypeNullableFilter
+  pickupStatus: SalePickupStatusTypeNullableFilter
   currencyCode: StringFilter
   subtotalCents: IntFilter
   discountCents: IntFilter
@@ -5571,6 +5579,13 @@ input SaleStatusTypeNullableFilter {
   not: SaleStatusTypeNullableFilter
 }
 
+input SalePickupStatusTypeNullableFilter {
+  equals: SalePickupStatusType
+  in: [SalePickupStatusType!]
+  notIn: [SalePickupStatusType!]
+  not: SalePickupStatusTypeNullableFilter
+}
+
 input SaleLineManyRelationFilter {
   every: SaleLineWhereInput
   some: SaleLineWhereInput
@@ -5606,6 +5621,7 @@ input SaleOrderByInput {
   receiptNumber: OrderDirection
   source: OrderDirection
   status: OrderDirection
+  pickupStatus: OrderDirection
   currencyCode: OrderDirection
   subtotalCents: OrderDirection
   discountCents: OrderDirection
@@ -5753,6 +5769,7 @@ type PaymentProvider {
   refundPaymentFunction: String
   getPaymentStatusFunction: String
   handleWebhookFunction: String
+  generatePaymentLinkFunction: String
   credentialReference: String
   configuration: JSON
   tenders(where: TenderWhereInput! = {}, orderBy: [TenderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TenderWhereUniqueInput): [Tender!]
@@ -5790,6 +5807,7 @@ input PaymentProviderWhereInput {
   refundPaymentFunction: StringFilter
   getPaymentStatusFunction: StringFilter
   handleWebhookFunction: StringFilter
+  generatePaymentLinkFunction: StringFilter
   credentialReference: StringFilter
   tenders: TenderManyRelationFilter
   createdAt: DateTimeFilter
@@ -5815,6 +5833,7 @@ input PaymentProviderOrderByInput {
   refundPaymentFunction: OrderDirection
   getPaymentStatusFunction: OrderDirection
   handleWebhookFunction: OrderDirection
+  generatePaymentLinkFunction: OrderDirection
   credentialReference: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection

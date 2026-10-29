@@ -1907,6 +1907,7 @@ model Sale {
   receiptNumber                String                @unique @default("")
   source                       SaleSourceType
   status                       SaleStatusType        @default(open)
+  pickupStatus                 SalePickupStatusType  @default(none)
   currencyCode                 String                @default("USD")
   subtotalCents                Int
   discountCents                Int                   @default(0)
@@ -2018,6 +2019,7 @@ model PaymentProvider {
   refundPaymentFunction                      String                    @default("manual")
   getPaymentStatusFunction                   String                    @default("manual")
   handleWebhookFunction                      String                    @default("manual")
+  generatePaymentLinkFunction                String                    @default("")
   credentialReference                        String                    @default("")
   configuration                              Json?                     @default("{}")
   tenders                                    Tender[]                  @relation("Tender_paymentProvider")
@@ -3847,6 +3849,12 @@ enum SaleStatusType {
   partially_refunded
   refunded
   voided
+}
+
+enum SalePickupStatusType {
+  none
+  ready_for_pickup
+  picked_up
 }
 
 enum PaymentProviderStatusType {

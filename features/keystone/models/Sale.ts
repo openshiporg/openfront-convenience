@@ -40,6 +40,17 @@ export const Sale = list({
       defaultValue: "open",
       validation: { isRequired: true },
     }),
+    // Online pickup orders only; in-store sales stay "none".
+    pickupStatus: select({
+      type: "enum",
+      options: [
+        { label: "Not a pickup order", value: "none" },
+        { label: "Ready for pickup", value: "ready_for_pickup" },
+        { label: "Picked up", value: "picked_up" },
+      ],
+      defaultValue: "none",
+      validation: { isRequired: true },
+    }),
     currencyCode: currencyCodeField(),
     subtotalCents: centsField(),
     discountCents: centsField({ defaultValue: 0 }),

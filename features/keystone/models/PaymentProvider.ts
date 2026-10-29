@@ -54,6 +54,8 @@ export const PaymentProvider = list({
     refundPaymentFunction: text({ defaultValue: "manual", validation: { isRequired: true } }),
     getPaymentStatusFunction: text({ defaultValue: "manual", validation: { isRequired: true } }),
     handleWebhookFunction: text({ defaultValue: "manual", validation: { isRequired: true } }),
+    // Optional: shared-registry providers (stripe, paypal, manual, https URL) set this; terminal providers leave it empty.
+    generatePaymentLinkFunction: text({ defaultValue: "" }),
     credentialReference: text({
       access: { read: denyAll },
       ui: {
