@@ -4,11 +4,13 @@ import type { Context } from ".keystone/types";
 import type { Session } from "../access";
 import { calculateLineAmounts } from "../lib/money";
 import { findEffectivePriceEntry, findEffectiveTaxRate } from "../lib/retailPricing";
+import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
+import { releasePickupPaymentForEdit } from "./pickupOperations";
 import { plainDocumentText } from "./publicStorefrontProjection";
 
 // Adapted from canonical security/cart-access: raw Cart/CartLine stay locked.
 // Public reads are explicit DTOs; customer IDs and prices never come from input.
-async function publishedStore(db: Prisma.TransactionClient) {
+export async function publishedStore(db: Prisma.TransactionClient) {
   const businesses = await db.business.findMany({ where: { status: "active", storefrontStatus: "published" }, include: { storefrontStore: true }, take: 2 });
   const business = businesses.length === 1 ? businesses[0] : null;
   const store = business?.storefrontStore;
@@ -67,7 +69,8 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   ]);
   const now = new Date();
   const images = await mainImages(context, products.map((product) => product.id));
-  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
+  const onlinePickup = Boolean(await context.prisma.paymentProvider.findFirst({ where: { businessId: business.id, status: "active", createPaymentFunction: "stripe" }, select: { id: true } })) && isPaymentProviderConfigured("stripe");
+  return { currency: store.currencyCode, onlinePickup, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
     // Availability only, never quantities: "in_stock", "ask" (tracked, none on hand) or "untracked".
     const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
@@ -76,7 +79,7 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   })) }))) };
 }
 
-async function currentCustomerId(db: Prisma.TransactionClient, context: Context, lock = false) {
+export async function currentCustomerId(db: Prisma.TransactionClient, context: Context, lock = false) {
   const session: Session | undefined = context.session;
   if (!session?.itemId || session.apiKeyId) return undefined;
   // The cookie is checked at request start; fence revocation through draft COMMIT.
@@ -86,8 +89,8 @@ async function currentCustomerId(db: Prisma.TransactionClient, context: Context,
   return session.itemId;
 }
 
-const digest = (token: string) => createHash("sha256").update(token).digest("hex");
-function assertProof(cart: { source: string; customerId: string | null; guestTokenDigest: string; expiresAt: Date | null }, token: string, userId?: string) {
+export const digest = (token: string) => createHash("sha256").update(token).digest("hex");
+export function assertProof(cart: { source: string; customerId: string | null; guestTokenDigest: string; expiresAt: Date | null }, token: string, userId?: string) {
   if (cart.source !== "storefront" || !cart.expiresAt || cart.expiresAt <= new Date()) throw new Error("Basket unavailable");
   if (cart.customerId) { if (cart.customerId !== userId) throw new Error("Basket unavailable"); return; }
   const expected = Buffer.from(cart.guestTokenDigest, "hex");
@@ -111,6 +114,8 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
   const input = args.input;
   if (!/^[a-f0-9]{64}$/.test(input.token) || !/^[a-zA-Z0-9-]{10,64}$/.test(input.cartId)) throw new Error("Basket unavailable");
   if (!Number.isSafeInteger(input.quantity) || input.quantity < 0 || input.quantity > 99) throw new Error("Quantity must be between 0 and 99");
+  // A basket with an unpaid online payment attempt: cancel it first; a paid basket is frozen.
+  await releasePickupPaymentForEdit(context, input.cartId, input.token);
   return context.prisma.$transaction(async db => {
     const userId = await currentCustomerId(db, context, true);
     await db.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);

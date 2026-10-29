@@ -1,5 +1,6 @@
 import { hmacJsonV1PaymentAdapter } from "./hmac-json-v1";
 import { manualExternalPaymentAdapter } from "./manual-external";
+import { sharedRegistryPaymentAdapters } from "./shared-registry";
 import type { PaymentProviderAdapter } from "./types";
 
 // Shared six-function adapters (same registry as E-commerce and Restaurant). A
@@ -15,6 +16,7 @@ export const paymentProviderAdapters = {
 const adapters = new Map<string, PaymentProviderAdapter>([
   [manualExternalPaymentAdapter.key, manualExternalPaymentAdapter],
   [hmacJsonV1PaymentAdapter.key, hmacJsonV1PaymentAdapter],
+  ...sharedRegistryPaymentAdapters.map((adapter) => [adapter.key, adapter] as [string, PaymentProviderAdapter]),
 ]);
 
 export const paymentAdapterKeys = Array.from(adapters.keys()).sort();

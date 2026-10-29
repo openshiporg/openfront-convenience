@@ -5,6 +5,7 @@ import type { Context } from ".keystone/types";
 
 import { fingerprintInput } from "../lib/idempotency";
 import { getPaymentProviderAdapter } from "../utils/paymentProviderAdapter";
+import { postPickupSale } from "./pickupOperations";
 
 export type PaymentWebhookResult = {
   id: string;
@@ -108,6 +109,28 @@ export async function ingestPaymentWebhook(
       const tender = await transaction.tender.findUnique({
         where: { providerLookupKey: `${provider.id}:${event.providerPaymentId}` },
       });
+      if (!tender && event.eventType === "payment.captured") {
+        // An online pickup payment whose settle call never returned: the signed event posts the order.
+        const pickupCart = await transaction.cart.findFirst({
+          where: { businessId: providerBusinessId, status: "open", metadata: { path: ["pickupPayment", "paymentId"], equals: event.providerPaymentId } },
+          select: { id: true, storeId: true },
+        });
+        if (pickupCart) {
+          storeId = pickupCart.storeId;
+          resourceType = "Cart";
+          resourceId = pickupCart.id;
+          try {
+            if (event.amountCents == null || event.currencyCode == null) throw new Error("Signed provider event omitted amount/currency");
+            const posted = await postPickupSale(transaction, { cartId: pickupCart.id, providerId: provider.id, paymentId: event.providerPaymentId, amountCents: event.amountCents, currencyCode: event.currencyCode });
+            resourceType = "Sale";
+            resourceId = posted.sale.id;
+            status = "processed";
+          } catch (error) {
+            status = "failed";
+            lastError = error instanceof Error ? error.message.slice(0, 300) : "Pickup payment could not be posted";
+          }
+        }
+      }
       if (tender) {
         storeId = tender.storeId;
         resourceType = "Tender";

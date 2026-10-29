@@ -142,6 +142,7 @@ import {
   transitionInventoryTransfer,
 } from "./transferOperations";
 import redirectToInit from "./redirectToInit";
+import { startStorefrontPickupPayment, settleStorefrontPickup, storefrontPickupOrder } from "./pickupOperations";
 import { storefrontCatalog, storefrontBasket, updateStorefrontBasket, storefrontHistory, storefrontRewards } from "./storefrontOperations";
 
 const graphql = String.raw;
@@ -154,6 +155,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storefrontCatalog(search: String, category: String, page: Int, productId: ID): JSON!
         storefrontBasket(cartId: ID!, token: String!): JSON
         storefrontHistory(saleId: ID): JSON!
+        storefrontPickupOrder(cartId: ID!, token: String!): JSON
         storefrontRewards: JSON!
         redirectToInit: Boolean!
         assistantCapability: Boolean!
@@ -1609,6 +1611,10 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         idempotencyKey: String!
       }
 
+      input StorefrontPickupInput {
+        cartId: ID!
+        token: String!
+      }
       input StorefrontBasketInput {
         cartId: ID!
         token: String!
@@ -1619,6 +1625,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
       type Mutation {
         updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
+        startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
+        settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
         revokeCurrentUserSessions: Boolean!
         recordOperationalHeartbeat(
           input: RecordOperationalHeartbeatInput!
@@ -1840,6 +1848,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         storefrontCatalog,
         storefrontBasket,
         storefrontHistory,
+        storefrontPickupOrder,
         storefrontRewards,
         posSaleReceipt,
         posOperationOutcome,
@@ -1857,6 +1866,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordCashMovement,
         closeRegisterSession,
         updateStorefrontBasket,
+        startStorefrontPickupPayment,
+        settleStorefrontPickup,
         createPosCart,
         addPosCartLine,
         updatePosCartLine,
