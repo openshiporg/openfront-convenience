@@ -1,6 +1,10 @@
+<!-- logo -->
+
 # Openfront Convenience
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-convenience&env=DATABASE_URL%2CSESSION_SECRET)
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openfront-convenience)
 
 Openfront Convenience is a self-hostable convenience-store retail and operations application. Customers can browse a local catalog and prepare a basket, while staff manage POS, registers, cash, pricing, purchasing, inventory, prepared food, restricted sales, reconciliation, and reporting.
 
@@ -8,12 +12,10 @@ Openfront Convenience is a self-hostable convenience-store retail and operations
 
 ## Demo
 
-Explore the application locally using the setup instructions below.
-
 | | |
 |---|---|
-| **Public application** | `/` on your development URL |
-| **Dashboard** | `/dashboard` on your development URL |
+| **Storefront** | [convenience.openship.org](https://convenience.openship.org) |
+| **Dashboard** | [convenience.openship.org/dashboard](https://convenience.openship.org/dashboard) |
 
 [Learn more →](https://openship.org/products/openfront-convenience)
 
