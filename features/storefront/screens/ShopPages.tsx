@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleCheck, Clock, Info, ShoppingBag } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { Price } from "../components/Price";
 import { CategoryRail, CheckoutDock, SidePanel } from "../components/Aside";
-import { ProductPhoto, ProductRow, categoryHref, lineFor, priceOf, variantSize } from "../components/ProductRow";
+import { ProductPhoto, ProductRow, categoryHref, lineFor, priceOf, variantSize, type Product } from "../components/ProductRow";
 import { Stepper } from "../components/Stepper";
 import { ReorderBanner } from "../components/Reorder";
-import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, money } from "../lib/data";
+import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, money, pickupOrder, type Basket } from "../lib/data";
+import { PickupPayment } from "../components/PickupPayment";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
-import { customerAuth, customerSignout } from "../actions";
+import { customerAuth, customerSignout, removeBasketLine, startNewBasket } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
 
 export const shopMetadata = () => storefrontTitle("Shop");
@@ -53,6 +54,9 @@ const statusLabel = (status: string) => {
 };
 const quantityLabel = (value: string) => String(Number(value));
 export const receiptMetadata = () => storefrontTitle("Receipt");
+export const pickupMetadata = () => storefrontTitle("Order placed");
+export const basketMetadata = () => storefrontTitle("Cart");
+export const checkoutMetadata = () => storefrontTitle("Checkout");
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 
 /** How buying works here, said once where it matters. */
@@ -247,15 +251,193 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
   );
 }
 
-// The storefront is a catalog: orders are paid at the counter, and there is no
-// online payment provider, so the basket and checkout routes lead back to the shop,
-// which then says why.
-export async function BasketPage() {
-  redirect("/shop?from=basket");
+const pickupPlace = (location: { addressLine1?: string; name?: string } | null) => location?.addressLine1 || location?.name || "the store";
+
+/** One basket line: photo, name and size, the stepper, and the line total. */
+function BasketLine({ line, product, currency }: { line: Basket["lines"][number]; product: Product | undefined; currency: string }) {
+  return (
+    <li className="sf-bline">
+      {product ? <ProductPhoto product={product} className="sf-photo" /> : <span className="sf-photo sf-photo--none" aria-hidden="true" />}
+      <div className="sf-bline__body">
+        <p className="sf-bline__name">{product ? <Link href={`/shop/${product.id}`}>{line.titleSnapshot}</Link> : line.titleSnapshot}</p>
+        <p className="sf-bline__each sf-num">
+          {line.variantTitleSnapshot && line.variantTitleSnapshot !== line.titleSnapshot ? `${line.variantTitleSnapshot} · ` : ""}
+          {money(line.unitPriceCents, currency)} each
+        </p>
+      </div>
+      <Stepper variantId="" lineId={line.id} quantity={Number(line.quantity)} name={line.titleSnapshot} />
+      <span className="sf-bline__total sf-num">{money(line.totalCents, currency)}</span>
+      <form action={removeBasketLine} className="sf-bline__remove">
+        <input type="hidden" name="lineId" value={line.id} />
+        <input type="hidden" name="quantity" value="0" />
+        <button className="sf-link" aria-label={`Remove ${line.titleSnapshot}`}>
+          Remove
+        </button>
+      </form>
+    </li>
+  );
+}
+
+/** Subtotal, tax, total: the money block shared by basket and checkout. */
+function Totals({ basket: current, label = "Total" }: { basket: Basket; label?: string }) {
+  return (
+    <dl className="sf-totals">
+      <div>
+        <dt>Subtotal</dt>
+        <dd className="sf-num">{money(current.subtotalCents, current.currencyCode)}</dd>
+      </div>
+      <div>
+        <dt>Tax</dt>
+        <dd className="sf-num">{money(current.taxCents, current.currencyCode)}</dd>
+      </div>
+      <div className="sf-totals__grand">
+        <dt>{label}</dt>
+        <dd className="sf-num">{money(current.totalCents, current.currencyCode)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+export async function BasketPage({ searchParams }: { searchParams: Search }) {
+  const [search, data, current, projection] = await Promise.all([searchParams, firstPage(), basket(), getPublicStorefrontProjection()]);
+  if (!data?.onlinePickup) redirect("/shop?from=basket");
+  const lines = current?.lines ?? [];
+  const count = lines.reduce((sum, line) => sum + Number(line.quantity), 0);
+  const productFor = (title: string) => data.products.find((product) => product.title === title);
+  return (
+    <ShopShell showCategories={false}>
+      <div className="sf-page sf-page--wide">
+        <PageHead title="Your Cart">{lines.length ? <span className="sf-listhead__count sf-num">{itemCount(count)}</span> : null}</PageHead>
+        <Alert message={errorMessage(search.error)} />
+        {lines.length && current ? (
+          <div className="sf-checkout">
+            <section aria-label="Basket items">
+              <ul className="sf-blines">
+                {lines.map((line) => (
+                  <BasketLine key={line.id} line={line} product={productFor(line.titleSnapshot)} currency={current.currencyCode} />
+                ))}
+              </ul>
+              <Link href="/shop" className="sf-back">
+                <ArrowLeft aria-hidden="true" className="sf-icon" />
+                Keep shopping
+              </Link>
+            </section>
+            <aside className="sf-card sf-summary" aria-label="Order summary">
+              <p className="sf-panelr__label">Subtotal</p>
+              <p className="sf-panelr__sum sf-num">{money(current.subtotalCents, current.currencyCode)}</p>
+              <p className="sf-panelr__note">
+                <Clock aria-hidden="true" className="sf-icon" />
+                Pick up at {pickupPlace(projection.location)}
+              </p>
+              <Totals basket={current} />
+              <Link href="/checkout" className="sf-btn sf-btn--wide sf-btn--big">
+                Checkout
+              </Link>
+              <p className="sf-summary__fine">Pay by card now. Age-restricted items are sold in store only.</p>
+            </aside>
+          </div>
+        ) : (
+          <div className="sf-emptycard">
+            <ShoppingBag aria-hidden="true" className="sf-emptycard__icon" />
+            <p>Your basket is empty</p>
+            <Link href="/shop" className="sf-btn">
+              Start shopping
+            </Link>
+          </div>
+        )}
+      </div>
+    </ShopShell>
+  );
 }
 
 export async function CheckoutPage() {
-  redirect("/shop?from=checkout");
+  const [data, current, projection] = await Promise.all([firstPage(), basket(), getPublicStorefrontProjection()]);
+  if (!data?.onlinePickup) redirect("/shop?from=checkout");
+  if (!current || !current.lines.length) redirect("/basket");
+  const productFor = (title: string) => data.products.find((product) => product.title === title);
+  return (
+    <ShopShell showCategories={false}>
+      <div className="sf-page sf-page--wide">
+        <Link href="/basket" className="sf-back">
+          <ArrowLeft aria-hidden="true" className="sf-icon" />
+          Cart
+        </Link>
+        <PageHead title="Checkout" />
+        <div className="sf-checkout">
+          <section className="sf-card sf-pay" aria-labelledby="sf-pay-title">
+            <h2 id="sf-pay-title" className="sf-section__title">
+              Payment
+            </h2>
+            <p className="sf-panelr__note">
+              <Clock aria-hidden="true" className="sf-icon" />
+              Pickup at {pickupPlace(projection.location)}
+            </p>
+            <PickupPayment total={money(current.totalCents, current.currencyCode)} />
+          </section>
+          <aside className="sf-card sf-summary" aria-label="Order summary">
+            <h2 className="sf-section__title">Order</h2>
+            <ul className="sf-mini">
+              {current.lines.map((line) => {
+                const product = productFor(line.titleSnapshot);
+                return (
+                  <li key={line.id}>
+                    {product ? <ProductPhoto product={product} className="sf-photo" /> : <span className="sf-photo sf-photo--none" aria-hidden="true" />}
+                    <span className="sf-mini__name">
+                      {line.titleSnapshot}
+                      <span className="sf-muted sf-num"> × {quantityLabel(line.quantity)}</span>
+                    </span>
+                    <span className="sf-num">{money(line.totalCents, current.currencyCode)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <Totals basket={current} />
+          </aside>
+        </div>
+      </div>
+    </ShopShell>
+  );
+}
+
+export async function PickupCompletePage() {
+  const [order, projection] = await Promise.all([pickupOrder(), getPublicStorefrontProjection()]);
+  if (!order) redirect("/shop");
+  const pickedUp = order.pickupStatus === "picked_up";
+  return (
+    <ShopShell showCategories={false}>
+      <div className="sf-page">
+        <section className="sf-card sf-placed" aria-labelledby="sf-placed-title">
+          <CircleCheck aria-hidden="true" className="sf-placed__mark" />
+          <h1 id="sf-placed-title" className="sf-listhead__title">
+            Order placed
+          </h1>
+          <span className="sf-state">
+            <span className="sf-dot" data-tone={pickedUp ? "muted" : "ok"} aria-hidden="true" />
+            {pickedUp ? "Picked up" : "Ready for pickup"}
+          </span>
+          <p className="sf-placed__no sf-num">{order.receiptNumber}</p>
+          <p className="sf-muted">Show this order number at the counter at {pickupPlace(projection.location)}.</p>
+          <ul className="sf-lines sf-placed__lines">
+            {order.lines.map((line, index) => (
+              <li key={index}>
+                <span>
+                  <span className="sf-num sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
+                </span>
+                <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
+              </li>
+            ))}
+          </ul>
+          <dl className="sf-receipt__total">
+            <dt>Paid</dt>
+            <dd className="sf-figure sf-num">{money(order.totalCents, order.currencyCode)}</dd>
+          </dl>
+          <form action={startNewBasket}>
+            <button className="sf-btn sf-btn--wide sf-btn--big">Continue shopping</button>
+          </form>
+        </section>
+      </div>
+    </ShopShell>
+  );
 }
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

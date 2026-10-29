@@ -225,7 +225,7 @@ function ProviderForm({ projection }: { projection: PlatformProjection }) {
       <HiddenScope projection={projection} returnPath={path} />
       <TextField label="Provider name" name="name" required />
       <TextField label="Code" name="code" required />
-      <EnumField label="Adapter" name="adapterKey" values={[{ value: "manual_external", label: "Manual external terminal" }, { value: "hmac_json_v1", label: "Signed HMAC JSON v1" }]} />
+      <EnumField label="Adapter" name="adapterKey" values={[{ value: "manual_external", label: "Manual external terminal" }, { value: "hmac_json_v1", label: "Signed HMAC JSON v1" }, { value: "stripe", label: "Stripe (online pickup)" }, { value: "paypal", label: "PayPal" }, { value: "manual", label: "Manual (pay at pickup)" }]} />
       <TextField label="Credential reference" name="credentialReference" placeholder="env://PAYMENT_WEBHOOK_KEY" />
       <EnumField label="Initial state" name="activate" values={[{ value: "true", label: "Active" }, { value: "false", label: "Configured only" }]} />
     </FormGrid>

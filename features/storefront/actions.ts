@@ -99,3 +99,43 @@ export async function reorderLast() {
   }
   redirect("/basket");
 }
+
+type PickupPayment = { clientSecret: string; publishableKey: string; paymentId: string; amountCents: number; currencyCode: string };
+async function basketProof() {
+  const jar = await cookies();
+  const cartId = jar.get("convenience-basket")?.value; const token = jar.get("convenience-basket-proof")?.value;
+  return cartId && token ? { cartId, token } : null;
+}
+/** Starts the Stripe payment for the shopper's basket; the amount is computed on the server. */
+export async function startPickupPayment(): Promise<{ ok: true; payment: PickupPayment } | { ok: false; message: string }> {
+  const proof = await basketProof();
+  if (!proof) return { ok: false, message: "Your basket is empty" };
+  const result = await keystoneClient<{ startStorefrontPickupPayment: PickupPayment }>(`mutation Start($input: StorefrontPickupInput!) { startStorefrontPickupPayment(input: $input) }`, { input: proof });
+  if (!result.success) return { ok: false, message: result.error || "Payment could not be started" };
+  return { ok: true, payment: result.data.startStorefrontPickupPayment };
+}
+/** Confirms the payment with the provider and posts the order. Safe to call again. */
+export async function settlePickup(): Promise<{ state: "paid" | "processing" | "unpaid" | "error"; message?: string }> {
+  const proof = await basketProof();
+  if (!proof) return { state: "error", message: "Your basket is empty" };
+  const result = await keystoneClient<{ settleStorefrontPickup: { state: "paid" | "processing" | "unpaid" } }>(`mutation Settle($input: StorefrontPickupInput!) { settleStorefrontPickup(input: $input) }`, { input: proof });
+  if (!result.success) return { state: "error", message: result.error || "Payment could not be confirmed" };
+  if (result.data.settleStorefrontPickup.state === "paid") revalidatePath("/account");
+  return { state: result.data.settleStorefrontPickup.state };
+}
+export async function removeBasketLine(form: FormData) {
+  const lineId = value(form, "lineId");
+  const quantity = Number(value(form, "quantity") || "0");
+  const proof = await basketProof();
+  if (!proof || !lineId) redirect("/basket?error=basket");
+  const result = await keystoneClient(basketMutation, { input: { ...proof, lineId, quantity } });
+  revalidatePath("/basket");
+  redirect(result.success ? "/basket" : "/basket?error=basket");
+}
+/** A finished order starts a fresh basket next time. */
+export async function startNewBasket() {
+  const jar = await cookies();
+  jar.delete("convenience-basket");
+  jar.delete("convenience-basket-proof");
+  redirect("/shop");
+}

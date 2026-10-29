@@ -14,6 +14,9 @@ import {
   sourceSetDigest,
 } from "../lib/sourceSetDigest";
 import { getPaymentProviderAdapter } from "../utils/paymentProviderAdapter";
+import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
+
+const SHARED_PROVIDER_KEYS = ["stripe", "paypal", "manual"];
 import type { OperationResult } from "./cashOperations";
 import { runIdempotentOperation } from "./operationRunner";
 
@@ -53,6 +56,11 @@ export async function configurePaymentProvider(
   const adapter = getPaymentProviderAdapter(args.input.adapterKey);
   assertOpaqueSecretReference(args.input.credentialReference ?? null);
   assertNoInlineSecrets(args.input.configuration ?? {});
+  const shared = SHARED_PROVIDER_KEYS.includes(adapter.key);
+  // Fail closed: a Stripe/PayPal provider cannot be activated until its server env is present.
+  if (shared && args.input.activate && !isPaymentProviderConfigured(adapter.key)) {
+    throw new Error(`${adapter.key} credentials are not configured on the server; save the provider as configured only`);
+  }
 
   return runIdempotentOperation({
     context,
@@ -75,13 +83,18 @@ export async function configurePaymentProvider(
         status: args.input.activate
           ? ("active" as const)
           : ("configured" as const),
-        createPaymentFunction: "external_confirmation",
-        capturePaymentFunction: "external_confirmation",
-        refundPaymentFunction: "external_confirmation",
-        getPaymentStatusFunction: "external_confirmation",
-        handleWebhookFunction: adapter.supportsWebhooks
-          ? "signed_webhook"
-          : "manual",
+        // Shared providers dispatch every operation through the shared registry by key;
+        // terminal providers keep the domain external-confirmation selectors.
+        createPaymentFunction: shared ? adapter.key : "external_confirmation",
+        capturePaymentFunction: shared ? adapter.key : "external_confirmation",
+        refundPaymentFunction: shared ? adapter.key : "external_confirmation",
+        getPaymentStatusFunction: shared ? adapter.key : "external_confirmation",
+        generatePaymentLinkFunction: shared ? adapter.key : "",
+        handleWebhookFunction: shared
+          ? adapter.key
+          : adapter.supportsWebhooks
+            ? "signed_webhook"
+            : "manual",
         credentialReference: args.input.credentialReference?.trim() || "",
         configuration: (args.input.configuration ??
           {}) as Prisma.InputJsonValue,
