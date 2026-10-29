@@ -9489,6 +9489,8 @@ type Mutation {
   sendUserPasswordResetLink(email: String!): Boolean!
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
   updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
+  startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
+  settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
   revokeCurrentUserSessions: Boolean!
   recordOperationalHeartbeat(input: RecordOperationalHeartbeatInput!): OperationalHeartbeatResult!
   onboardConvenienceBusiness(input: OnboardConvenienceBusinessInput!): OnboardingResult!
@@ -9901,6 +9903,7 @@ type Query {
   storefrontCatalog(search: String, category: String, page: Int, productId: ID): JSON!
   storefrontBasket(cartId: ID!, token: String!): JSON
   storefrontHistory(saleId: ID): JSON!
+  storefrontPickupOrder(cartId: ID!, token: String!): JSON
   storefrontRewards: JSON!
   redirectToInit: Boolean!
   assistantCapability: Boolean!
@@ -11484,6 +11487,11 @@ input RevokeBusinessApiKeyInput {
   businessId: ID!
   apiKeyId: ID!
   idempotencyKey: String!
+}
+
+input StorefrontPickupInput {
+  cartId: ID!
+  token: String!
 }
 
 input StorefrontBasketInput {
