@@ -23,7 +23,7 @@ export async function productMetadata({ params }: { params: Promise<{ productId:
   return storefrontTitle(data?.products[0]?.title ?? "Product");
 }
 
-type Search = Promise<{ q?: string; category?: string; page?: string; error?: string }>;
+type Search = Promise<{ q?: string; category?: string; page?: string; error?: string; from?: string }>;
 // Error codes map to fixed text; the query string is never rendered.
 const errorMessages: Record<string, string> = {
   basket: "Basket could not be updated",
@@ -54,6 +54,25 @@ export const receiptMetadata = () => storefrontTitle("Receipt");
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 
 type Product = Catalog["products"][number];
+
+/**
+ * How buying works here: the storefront is the shelf, the counter takes the money.
+ * `arrived` is set when a basket or checkout link sent the shopper back to the shop.
+ */
+function CounterNote({ arrived = false }: { arrived?: boolean }) {
+  return (
+    <p role={arrived ? "status" : undefined} className="sf-counter" data-arrived={arrived || undefined}>
+      <span className="sf-counter__mark" aria-hidden="true" />
+      <span className="sf-counter__text">
+        {arrived ? <strong>No online basket or checkout. </strong> : null}
+        Prices here are the shelf prices. Pick items up in store and pay at the counter.
+      </span>
+      <Link href="/" className="sf-link sf-counter__link">
+        Hours and directions
+      </Link>
+    </p>
+  );
+}
 
 export async function ShopPage({ searchParams }: { searchParams: Search }) {
   const search = await searchParams;
@@ -86,6 +105,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   );
   const madeInStore = new Set(projection.categories.flatMap((entry) => entry.products.filter((product) => product.preparedFood).map((product) => product.id)));
   const current = aisleOf(category);
+  const arrived = search.from === "basket" || search.from === "checkout";
   return (
     <ShopShell>
       <div className="sf-pagehead">
@@ -111,6 +131,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
           <button className="sf-btn">Search</button>
         </form>
       </div>
+      <CounterNote arrived={arrived} />
       {aisles.length ? <AisleSigns aisles={aisles} current={category || null} allHref={allHref} hrefFor={(name) => href({ category: name, page: 1 })} /> : null}
       {query ? (
         <p className="sf-filterline">
@@ -170,7 +191,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   );
 }
 
-const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "muted", label: "Ask at counter" } } as const;
+const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "muted", label: "Ask in store for stock" } } as const;
 
 export async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -213,6 +234,7 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
               );
             })}
           </ul>
+          <CounterNote />
         </div>
       </section>
     </ShopShell>
@@ -220,13 +242,14 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
 }
 
 // The storefront is a catalog: orders are paid at the counter, and there is no
-// online payment provider, so the basket and checkout routes lead back to the shop.
+// online payment provider, so the basket and checkout routes lead back to the shop,
+// which then says why.
 export async function BasketPage() {
-  redirect("/shop");
+  redirect("/shop?from=basket");
 }
 
 export async function CheckoutPage() {
-  redirect("/shop");
+  redirect("/shop?from=checkout");
 }
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -358,7 +381,7 @@ export async function AccountPage() {
           ) : (
             <p className="sf-empty">
               <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-              {user ? "No receipts yet" : "Sign in to view your receipts"}
+              {user ? "No receipts yet" : "Sign in to view receipts from counter purchases"}
             </p>
           )}
         </section>

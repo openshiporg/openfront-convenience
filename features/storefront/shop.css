@@ -1072,6 +1072,45 @@
   color: var(--sf-ink);
   overflow-wrap: anywhere;
 }
+/* How buying works: shelf prices online, payment at the counter. */
+.sf-counter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 12px;
+  font-size: var(--sf-step-sm);
+  color: var(--sf-ink-2);
+}
+.sf-counter__mark {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: var(--sf-r-tag);
+  background: var(--sf-sign);
+}
+.sf-counter__text {
+  flex: 1 1 18rem;
+  max-width: 65ch;
+}
+.sf-counter__text strong {
+  color: var(--sf-ink);
+}
+.sf-counter__link {
+  color: var(--sf-ink);
+  font-weight: 600;
+}
+/* Sent back from a basket or checkout link: the note becomes a strip on the channel. */
+.sf-counter[data-arrived] {
+  padding: 6px 14px;
+  border-radius: var(--sf-r);
+  background: var(--sf-channel);
+  box-shadow: var(--sf-channel-edge);
+  font-size: 1rem;
+}
+.sf-product .sf-counter {
+  margin-top: 0;
+}
 .sf-empty {
   display: flex;
   align-items: center;
