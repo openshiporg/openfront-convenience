@@ -30,13 +30,13 @@ export function Stepper({ variantId, lineId, quantity, name }: { variantId: stri
 
   return (
     <div className="sf-step" data-busy={pending || undefined} data-empty={shown === 0 || undefined}>
-      <button type="button" className="sf-step__minus" onClick={() => change(shown - 1)} disabled={shown === 0} aria-label={`One fewer ${name}`}>
+      <button type="button" className="sf-step__minus" onClick={() => change(shown - 1)} disabled={shown === 0 || pending} aria-label={`One fewer ${name}`}>
         <Minus aria-hidden="true" className="sf-icon" />
       </button>
       <output className="sf-step__n sf-num" aria-live="polite" aria-label={`${shown} ${name} in basket`}>
         {shown}
       </output>
-      <button type="button" className="sf-step__plus" onClick={() => change(shown + 1)} disabled={shown >= 99} aria-label={`One more ${name}`}>
+      <button type="button" className="sf-step__plus" onClick={() => change(shown + 1)} disabled={shown >= 99 || pending} aria-label={`One more ${name}`}>
         <Plus aria-hidden="true" className="sf-icon" />
       </button>
       {failed ? (

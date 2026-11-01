@@ -129,6 +129,11 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
       cart = await db.cart.create({ data: { id: input.cartId, businessId: business.id, storeId: store.id, cartNumber: `WEB-${randomUUID()}`, source: "storefront", currencyCode: store.currencyCode, priceBookId: store.defaultPriceBookId, customerId: userId, guestTokenDigest: digest(input.token), expiresAt: new Date(Date.now() + 86400000) } });
     }
     if (input.claim && userId && !cart.customerId) await db.cart.update({ where: { id: cart.id }, data: { customerId: userId } });
+    // Setting a quantity by item finds that item's existing line, so two quick taps never make two lines.
+    if (!input.lineId && input.variantId) {
+      const same = await db.cartLine.findFirst({ where: { cartId: cart.id, variantId: input.variantId }, select: { id: true } });
+      if (same) input.lineId = same.id;
+    }
     if (input.lineId) {
       const line = await db.cartLine.findFirst({ where: { id: input.lineId, cartId: cart.id } });
       if (!line) throw new Error("Basket item unavailable");

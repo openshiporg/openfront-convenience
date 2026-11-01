@@ -327,7 +327,8 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
 
   const result = await context.prisma.$transaction(
     (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode }),
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 30_000 },
   );
   return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
 }

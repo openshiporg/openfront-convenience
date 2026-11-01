@@ -65,7 +65,8 @@ export async function ShopShell({
   const onlinePickup = Boolean(data?.onlinePickup);
   const points = accounts.filter((account) => account.status === "active").reduce((sum, account) => sum + (account.pointsBalance ?? 0), 0);
   const hasPoints = accounts.some((account) => account.status === "active");
-  const bagCount = current?.lines.reduce((sum, line) => sum + Number(line.quantity), 0) ?? 0;
+  // A paid basket stays readable for its order page but no longer counts as open.
+  const bagCount = current?.status !== "open" ? 0 : current.lines.reduce((sum, line) => sum + Number(line.quantity), 0) ?? 0;
   const location = projection.location;
   const address = location ? addressParts(location) : null;
   const street = location?.addressLine1 || address?.full || "";
