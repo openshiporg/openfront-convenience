@@ -1306,9 +1306,10 @@ a.sf-ctl:hover {
     position: static;
   }
   .sf-top__row {
+    flex-wrap: wrap;
     height: auto;
     padding: 20px 20px 16px;
-    gap: 12px;
+    gap: 10px 12px;
     border-bottom: 0;
   }
   .sf-top__home {
@@ -1320,8 +1321,8 @@ a.sf-ctl:hover {
   }
   .sf-logo__name {
     font-size: clamp(1.45rem, 6.6vw, 1.9rem);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.1;
   }
   .sf-cats,
   .sf-top__tools,
@@ -1333,6 +1334,8 @@ a.sf-ctl:hover {
   }
   .sf-top__phone {
     display: flex;
+    flex-wrap: wrap;
+    margin-left: auto;
     align-items: center;
     gap: 10px;
     flex: none;
@@ -1375,6 +1378,9 @@ a.sf-ctl:hover {
     background: var(--sf-accent);
     color: var(--sf-accent-ink);
     white-space: nowrap;
+  }
+  .sf-strip__text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }

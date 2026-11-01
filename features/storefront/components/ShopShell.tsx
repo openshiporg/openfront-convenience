@@ -147,8 +147,10 @@ export async function ShopShell({
         <div className="sf-strip">
           <span className="sf-strip__on">
             <MapPin aria-hidden="true" className="sf-icon" />
-            {onlinePickup ? "Pickup" : "In store"}
-            {street ? ` · ${street}` : ""}
+            <span className="sf-strip__text">
+              {onlinePickup ? "Pickup" : "In store"}
+              {street ? ` · ${street}` : ""}
+            </span>
           </span>
           {mapsQuery ? (
             <a className="sf-strip__off" href={mapsHref(mapsQuery)} target="_blank" rel="noreferrer">
