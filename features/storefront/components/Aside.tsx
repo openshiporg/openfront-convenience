@@ -114,10 +114,10 @@ export function SidePanel({ basket, onlinePickup, location }: { basket: Basket |
           </p>
         ) : null}
         {address.full ? (
-          <p className="sf-visit__line">
+          <div className="sf-visit__line">
             <MapPin aria-hidden="true" className="sf-icon" />
             <address>{address.full}</address>
-          </p>
+          </div>
         ) : null}
         {location.phone ? (
           <p className="sf-visit__line">
