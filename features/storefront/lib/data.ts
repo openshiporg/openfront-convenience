@@ -1,8 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
-export type Catalog = { currency: string; page: number; pageSize: number; total: number; categories: string[]; products: { id: string; title: string; image: { url: string; alt: string } | null; description: string; category: string; variants: { id: string; title: string; priceCents: number; unitOfMeasure: string; availability: "in_stock" | "ask" | "untracked" }[] }[] };
+export type Catalog = { currency: string; onlinePickup?: boolean; page: number; pageSize: number; total: number; categories: string[]; products: { id: string; title: string; image: { url: string; alt: string } | null; description: string; category: string; variants: { id: string; title: string; priceCents: number; unitOfMeasure: string; availability: "in_stock" | "ask" | "untracked" }[] }[] };
 export type Basket = { id: string; status: string; currencyCode: string; subtotalCents: number; taxCents: number; totalCents: number; lines: { id: string; titleSnapshot: string; variantTitleSnapshot: string; quantity: string; unitPriceCents: number; totalCents: number }[] };
 export type History = { id: string; receiptNumber: string; status: string; completedAt: string | null; currencyCode: string; totalCents: number; lines: { titleSnapshot: string; variantTitleSnapshot: string; quantity: string; unitPriceCents: number; totalCents: number }[] }[];
 export async function catalog(filters: { search?: string; category?: string; page?: number; productId?: string } = {}) {
@@ -29,3 +30,9 @@ export async function rewards() {
   return result.success ? result.data.storefrontRewards : [];
 }
 export const money = (cents: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+
+// Per-request memos: the shell and the page share these reads.
+export const firstPage = cache(() => catalog({ page: 1 }));
+export const currentCustomer = cache(() => customer());
+export const customerHistory = cache(async () => ((await currentCustomer()) ? history() : []));
+export const customerRewards = cache(async () => ((await currentCustomer()) ? rewards() : []));

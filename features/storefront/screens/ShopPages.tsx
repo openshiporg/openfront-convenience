@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, Search as SearchIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Info } from "lucide-react";
 
 import { ShopShell } from "../components/ShopShell";
 import { Price } from "../components/Price";
-import { AisleHead, AisleSigns, numberAisles } from "../components/AisleSigns";
-import { AskTag, ShelfTag, priceOf, variantSize } from "../components/ShelfTag";
-import { catalog, customer, history, money, rewards, type Catalog } from "../lib/data";
+import { CategoryRail, CheckoutDock, SidePanel } from "../components/Aside";
+import { ProductPhoto, ProductRow, categoryHref, lineFor, priceOf, variantSize } from "../components/ProductRow";
+import { Stepper } from "../components/Stepper";
+import { ReorderBanner } from "../components/Reorder";
+import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, money } from "../lib/data";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { customerAuth, customerSignout } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
@@ -53,23 +55,21 @@ const quantityLabel = (value: string) => String(Number(value));
 export const receiptMetadata = () => storefrontTitle("Receipt");
 const itemCount = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 
-type Product = Catalog["products"][number];
-
-/**
- * How buying works here: the storefront is the shelf, the counter takes the money.
- * `arrived` is set when a basket or checkout link sent the shopper back to the shop.
- */
-function CounterNote({ arrived = false }: { arrived?: boolean }) {
+/** How buying works here, said once where it matters. */
+function CounterNote({ arrived = false, onlinePickup = false }: { arrived?: boolean; onlinePickup?: boolean }) {
   return (
-    <p role={arrived ? "status" : undefined} className="sf-counter" data-arrived={arrived || undefined}>
-      <span className="sf-counter__mark" aria-hidden="true" />
-      <span className="sf-counter__text">
-        {arrived ? <strong>No online basket or checkout. </strong> : null}
-        Prices here are the shelf prices. Pick items up in store and pay at the counter.
+    <p role={arrived ? "status" : undefined} className="sf-note" data-arrived={arrived || undefined}>
+      <Info aria-hidden="true" className="sf-icon" />
+      <span>
+        {onlinePickup ? (
+          "Order online and pay by card, then pick up in store. Age-restricted items are sold in store only."
+        ) : (
+          <>
+            {arrived ? <strong>Online ordering is not open yet. </strong> : null}
+            Prices here are the shelf prices. Pick items up in store and pay at the counter.
+          </>
+        )}
       </span>
-      <Link href="/" className="sf-link sf-counter__link">
-        Hours and directions
-      </Link>
     </p>
   );
 }
@@ -79,114 +79,91 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   const query = (search.q ?? "").slice(0, 100);
   const category = search.category ?? "";
   const page = Math.max(1, Number.parseInt(search.page ?? "1", 10) || 1);
-  const [data, projection] = await Promise.all([
+  const [data, projection, current, orders] = await Promise.all([
     catalog({ search: query || undefined, category: category || undefined, page }),
     getPublicStorefrontProjection(),
+    basket(),
+    customerHistory(),
   ]);
   const products = data?.products ?? [];
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const href = (next: { category?: string; page?: number }) => {
+  const onlinePickup = Boolean(data?.onlinePickup);
+  const href = (next: { page?: number }) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
-    const nextCategory = next.category ?? category;
-    if (nextCategory) params.set("category", nextCategory);
+    if (category) params.set("category", category);
     if (next.page && next.page > 1) params.set("page", String(next.page));
     const value = params.toString();
     return value ? `/shop?${value}` : "/shop";
   };
-  const allHref = query ? `/shop?${new URLSearchParams({ q: query })}` : "/shop";
-  const aisles = numberAisles(data?.categories ?? []);
-  const aisleOf = (name: string) => aisles.find((aisle) => aisle.name === name) ?? null;
-  // This page of results, shelved by aisle in the store's aisle order.
-  const shelves = new Map<string, Product[]>();
-  for (const product of products) shelves.set(product.category, [...(shelves.get(product.category) ?? []), product]);
-  const ordered = [...shelves.entries()].sort(
-    ([a], [b]) => (aisleOf(a)?.number ?? Number.MAX_SAFE_INTEGER) - (aisleOf(b)?.number ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b),
-  );
   const madeInStore = new Set(projection.categories.flatMap((entry) => entry.products.filter((product) => product.preparedFood).map((product) => product.id)));
-  const current = aisleOf(category);
   const arrived = search.from === "basket" || search.from === "checkout";
+  const reorderData = orders.length ? await firstPage() : null;
   return (
-    <ShopShell>
-      <div className="sf-pagehead">
-        <div className="sf-titleline">
-          <h1 className="sf-title">
-            {current ? (
-              <span className="sf-title__no">
-                <span className="sf-sr">Aisle </span>
-                {current.number}
-              </span>
+    <ShopShell active={category} query={query}>
+      <div className="sf-layout sf-layout--panel">
+        <CategoryRail categories={data?.categories ?? []} active={category} title="Categories" />
+        <section className="sf-list" aria-labelledby="sf-list-title">
+          <div className="sf-listhead">
+            <h1 id="sf-list-title" className="sf-listhead__title">
+              {query ? (
+                <>
+                  Results for <q>{query}</q>
+                </>
+              ) : (
+                category || "All products"
+              )}
+            </h1>
+            {data ? <span className="sf-listhead__count sf-num">{itemCount(data.total)}</span> : null}
+            {query ? (
+              <Link href={category ? categoryHref(category) : "/shop"} className="sf-link">
+                Clear search
+              </Link>
             ) : null}
-            {category || "Shop"}
-          </h1>
-          {data ? <span className="sf-count">{itemCount(data.total)}</span> : null}
-        </div>
-        <form className="sf-searchline sf-searchline--page" method="get" role="search">
-          <label htmlFor="sf-shop-search" className="sf-sr">
-            Search products
-          </label>
-          {category ? <input type="hidden" name="category" value={category} /> : null}
-          <SearchIcon aria-hidden="true" className="sf-icon sf-searchline__icon" />
-          <input id="sf-shop-search" type="search" name="q" defaultValue={query} maxLength={100} placeholder="Search products" />
-          <button className="sf-btn">Search</button>
-        </form>
+          </div>
+          {arrived ? <CounterNote arrived onlinePickup={onlinePickup} /> : null}
+          {!query && page === 1 ? <ReorderBanner order={orders[0]} data={reorderData} /> : null}
+          {products.length && data ? (
+            <ul className="sf-rows sf-rows--compact">
+              {products.map((product, index) => (
+                <ProductRow
+                  key={product.id}
+                  product={product}
+                  currency={data.currency}
+                  lines={current?.lines ?? []}
+                  onlinePickup={onlinePickup}
+                  madeInStore={madeInStore.has(product.id)}
+                  eager={index < 4}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p role="status" className="sf-empty">
+              <span className="sf-dot" data-tone="muted" aria-hidden="true" />
+              {data ? "No products found" : "Products could not be loaded"}
+            </p>
+          )}
+          {pages > 1 ? (
+            <nav className="sf-pager" aria-label="Pages">
+              {page > 1 ? (
+                <Link href={href({ page: page - 1 })} className="sf-ctl" aria-label="Previous page">
+                  <ArrowLeft aria-hidden="true" className="sf-icon" />
+                </Link>
+              ) : null}
+              <span className="sf-ctl sf-num" aria-current="page">
+                {page} / {pages}
+              </span>
+              {page < pages ? (
+                <Link href={href({ page: page + 1 })} className="sf-ctl" aria-label="Next page">
+                  <ArrowRight aria-hidden="true" className="sf-icon" />
+                </Link>
+              ) : null}
+            </nav>
+          ) : null}
+        </section>
+        <SidePanel basket={current} onlinePickup={onlinePickup} location={projection.location} />
       </div>
-      <CounterNote arrived={arrived} />
-      {aisles.length ? <AisleSigns aisles={aisles} current={category || null} allHref={allHref} hrefFor={(name) => href({ category: name, page: 1 })} /> : null}
-      {query ? (
-        <p className="sf-filterline">
-          Results for <strong>{query}</strong>
-          <Link href={category ? `/shop?${new URLSearchParams({ category })}` : "/shop"} className="sf-link">
-            Clear
-          </Link>
-        </p>
-      ) : null}
-      {ordered.length ? (
-        ordered.map(([name, items], index) => {
-          const id = `sf-aisle-${index}`;
-          return (
-            <section key={name} className="sf-shelf" aria-labelledby={id}>
-              <AisleHead aisle={aisleOf(name)} name={name} id={id}>
-                {!category && aisleOf(name) ? (
-                  <Link href={href({ category: name, page: 1 })} className="sf-more">
-                    View aisle
-                    <ArrowRight aria-hidden="true" className="sf-icon" />
-                  </Link>
-                ) : null}
-              </AisleHead>
-              <ul className="sf-tags">
-                {items.map((product) => (
-                  <li key={product.id}>
-                    <ShelfTag product={product} currency={data!.currency} madeInStore={madeInStore.has(product.id)} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })
-      ) : (
-        <p role="status" className="sf-empty">
-          <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-          {data ? "No products found" : "Products could not be loaded"}
-        </p>
-      )}
-      {pages > 1 ? (
-        <nav className="sf-pager" aria-label="Pages">
-          {page > 1 ? (
-            <Link href={href({ page: page - 1 })} className="sf-ctl" aria-label="Previous page">
-              <ArrowLeft aria-hidden="true" className="sf-icon" />
-            </Link>
-          ) : null}
-          <span className="sf-ctl sf-num" aria-current="page">
-            {page} / {pages}
-          </span>
-          {page < pages ? (
-            <Link href={href({ page: page + 1 })} className="sf-ctl" aria-label="Next page">
-              <ArrowRight aria-hidden="true" className="sf-icon" />
-            </Link>
-          ) : null}
-        </nav>
-      ) : null}
+      {onlinePickup ? <CheckoutDock basket={current} /> : null}
     </ShopShell>
   );
 }
@@ -195,48 +172,77 @@ const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "
 
 export async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
-  const data = await catalog({ productId });
+  const [data, projection, current] = await Promise.all([catalog({ productId }), getPublicStorefrontProjection(), basket()]);
   const product = data?.products[0];
   if (!product || !data) notFound();
-  const aisle = numberAisles(data.categories).find((entry) => entry.name === product.category) ?? null;
+  const onlinePickup = Boolean(data.onlinePickup);
   const single = product.variants.length === 1;
+  const madeInStore = projection.categories.some((category) => category.products.some((entry) => entry.id === product.id && entry.preparedFood));
+  const related = await catalog({ category: product.category });
+  const others = (related?.products ?? []).filter((entry) => entry.id !== product.id).slice(0, 4);
   return (
-    <ShopShell>
-      <Link href={`/shop?${new URLSearchParams({ category: product.category })}`} className="sf-back">
-        <ArrowLeft aria-hidden="true" className="sf-icon" />
-        {aisle ? <span className="sf-back__no">{aisle.number}</span> : null}
-        {product.category}
-      </Link>
-      <section className="sf-product" data-photo={product.image ? "" : undefined}>
-        {product.image ? (
-          // eslint-disable-next-line @next/next/no-img-element -- signed bucket URL, shown as uploaded
-          <img className="sf-product__photo" src={product.image.url} alt={product.image.alt || product.title} />
-        ) : null}
-        <div className="sf-product__body">
-          <h1 className="sf-title sf-title--product">{product.title}</h1>
-          {product.description ? <p className="sf-product__description">{product.description}</p> : null}
-          <ul className="sf-sizes" aria-label={single ? "Price" : "Sizes"} data-single={single || undefined}>
-            {product.variants.map((variant) => {
-              const price = priceOf([variant]);
-              const size = variantSize(variant, product.title) || (single ? "" : variant.title);
-              const stock = price && variant.availability !== "untracked" ? stockLabel[variant.availability] : null;
-              return (
-                <li key={variant.id} className="sf-tag sf-tag--size" data-variant={price ? undefined : "ask"}>
-                  {size ? <span className="sf-tag__name">{size}</span> : null}
-                  {price ? <Price cents={price.from} currency={data.currency} /> : <AskTag />}
-                  {stock ? (
-                    <span className="sf-tag__stock">
-                      <span className="sf-dot" data-tone={stock.tone} aria-hidden="true" />
-                      {stock.label}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          <CounterNote />
-        </div>
-      </section>
+    <ShopShell active={product.category}>
+      <div className="sf-layout sf-layout--panel">
+        <CategoryRail categories={data.categories} active={product.category} title="Categories" />
+        <section className="sf-list" aria-labelledby="sf-product-title">
+          <Link href={categoryHref(product.category)} className="sf-back">
+            <ArrowLeft aria-hidden="true" className="sf-icon" />
+            {product.category}
+          </Link>
+          <article className="sf-product">
+            <ProductPhoto product={product} className="sf-product__photo" eager />
+            <div className="sf-product__body">
+              <h1 id="sf-product-title" className="sf-product__title">
+                {product.title}
+              </h1>
+              <p className="sf-row__cat">
+                {product.category}
+                {madeInStore ? <span className="sf-row__mark"> · Made in store</span> : null}
+              </p>
+              {product.description ? <p className="sf-product__description">{product.description}</p> : null}
+              <ul className="sf-sizes" aria-label={single ? "Price" : "Sizes"}>
+                {product.variants.map((variant) => {
+                  const price = priceOf([variant]);
+                  const size = variantSize(variant, product.title) || (single ? "" : variant.title);
+                  const stock = price && variant.availability !== "untracked" ? stockLabel[variant.availability] : null;
+                  const line = lineFor(current?.lines ?? [], product, variant);
+                  return (
+                    <li key={variant.id} className="sf-size">
+                      <span className="sf-size__name">
+                        {size || "Each"}
+                        {stock ? (
+                          <span className="sf-size__stock">
+                            <span className="sf-dot" data-tone={stock.tone} aria-hidden="true" />
+                            {stock.label}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="sf-size__price">{price ? <Price cents={price.from} currency={data.currency} /> : <span className="sf-row__ask">Price in store</span>}</span>
+                      {onlinePickup && price ? (
+                        <Stepper variantId={variant.id} lineId={line?.id ?? null} quantity={line ? Number(line.quantity) : 0} name={`${product.title}${size ? ` ${size}` : ""}`} />
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              <CounterNote onlinePickup={onlinePickup} />
+            </div>
+          </article>
+          {others.length && related ? (
+            <section className="sf-related" aria-labelledby="sf-related-title">
+              <h2 id="sf-related-title" className="sf-related__title">
+                More in {product.category}
+              </h2>
+              <ul className="sf-rows sf-rows--compact">
+                {others.map((entry) => (
+                  <ProductRow key={entry.id} product={entry} currency={related.currency} lines={current?.lines ?? []} onlinePickup={onlinePickup} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </section>
+        <SidePanel basket={current} onlinePickup={onlinePickup} location={projection.location} />
+      </div>
     </ShopShell>
   );
 }
@@ -254,31 +260,35 @@ export async function CheckoutPage() {
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-export async function AccountPage() {
-  const user = await customer();
-  const [orders, accounts] = user ? await Promise.all([history(), rewards()]) : [[], []];
+function PageHead({ title, children }: { title: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <ShopShell>
-      <div className="sf-pagehead">
-        <h1 className="sf-title">Account</h1>
-      </div>
-      <div className="sf-account">
+    <div className="sf-listhead">
+      <h1 className="sf-listhead__title">{title}</h1>
+      {children}
+    </div>
+  );
+}
+
+export async function AccountPage() {
+  const user = await currentCustomer();
+  const [orders, accounts] = await Promise.all([customerHistory(), customerRewards()]);
+  return (
+    <ShopShell showCategories={false}>
+      <div className="sf-page">
+        <PageHead title="Account" />
         {user ? (
-          <section className="sf-panel sf-profile" aria-label="Profile">
+          <section className="sf-card sf-profile" aria-label="Profile">
             <div>
               <p className="sf-profile__name">{user.name}</p>
-              <p className="sf-panel__muted">{user.email}</p>
+              <p className="sf-muted">{user.email}</p>
             </div>
             <form action={customerSignout}>
               <button className="sf-btn sf-btn--quiet">Sign out</button>
             </form>
           </section>
         ) : (
-          <section className="sf-panel sf-profile" aria-label="Sign in">
-            <p className="sf-state">
-              <span className="sf-dot" data-tone="muted" aria-hidden="true" />
-              Signed out
-            </p>
+          <section className="sf-card sf-profile" aria-label="Sign in">
+            <p className="sf-muted">Sign in to see your points and receipts.</p>
             <div className="sf-actions">
               <Link href="/account/signin" className="sf-btn">
                 Sign in
@@ -291,28 +301,26 @@ export async function AccountPage() {
         )}
         {user ? (
           <section className="sf-section" aria-labelledby="sf-rewards-title">
-            <div className="sf-section__head">
-              <h2 id="sf-rewards-title" className="sf-plate">
-                <span className="sf-plate__name">Rewards</span>
-              </h2>
-            </div>
+            <h2 id="sf-rewards-title" className="sf-section__title">
+              Rewards
+            </h2>
             {accounts.length ? (
               <ul className="sf-stack">
                 {accounts.map((account) => (
-                  <li className="sf-panel sf-reward" key={account.id}>
-                    <div className="sf-panel__head">
+                  <li className="sf-card sf-reward" key={account.id}>
+                    <div className="sf-card__head">
                       <h3>{account.program?.name ?? "Rewards"}</h3>
                       <span className="sf-state">
                         <span className="sf-dot" data-tone={account.status === "active" ? "ok" : "warn"} aria-hidden="true" />
                         {account.status === "active" ? "Active" : "Paused"}
                       </span>
-                      <span className="sf-panel__muted sf-num">{account.accountNumber}</span>
+                      <span className="sf-muted sf-num">{account.accountNumber}</span>
                     </div>
                     <p className="sf-reward__balance">
-                      <span className="sf-figure">{account.pointsBalance ?? 0}</span> points
+                      <span className="sf-figure sf-num">{account.pointsBalance ?? 0}</span> points
                     </p>
                     {account.program ? (
-                      <p className="sf-panel__muted">
+                      <p className="sf-muted">
                         <span className="sf-num">{account.program.redemptionPoints}</span> points ={" "}
                         <span className="sf-num">{money(account.program.redemptionValueCents, account.currencyCode)}</span>
                       </p>
@@ -324,7 +332,7 @@ export async function AccountPage() {
                             <span>
                               {statusLabel(entry.type)}
                               {entry.occurredAt ? (
-                                <span className="sf-panel__muted"> · {new Date(entry.occurredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                <span className="sf-muted"> · {new Date(entry.occurredAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                               ) : null}
                             </span>
                             <span className="sf-num">
@@ -346,34 +354,27 @@ export async function AccountPage() {
             )}
           </section>
         ) : null}
-        <section className="sf-section" aria-labelledby="sf-orders-title">
-          <div className="sf-section__head">
-            <h2 id="sf-orders-title" className="sf-plate">
-              <span className="sf-plate__name">Receipts</span>
-            </h2>
-            {orders.length ? <span className="sf-count">{orders.length}</span> : null}
-          </div>
+        <section className="sf-section" id="receipts" aria-labelledby="sf-orders-title">
+          <h2 id="sf-orders-title" className="sf-section__title">
+            Receipts {orders.length ? <span className="sf-listhead__count sf-num">{orders.length}</span> : null}
+          </h2>
           {orders.length ? (
-            <ul className="sf-stack">
+            <ul className="sf-orders">
               {orders.map((order) => (
                 <li key={order.id}>
-                  <Link className="sf-panel sf-order" href={`/account/receipts/${order.id}`}>
-                    <div className="sf-panel__head">
-                      <h3 className="sf-num">{order.receiptNumber}</h3>
-                      <span className="sf-state">
-                        <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
-                        {statusLabel(order.status)}
+                  <Link className="sf-order" href={`/account/receipts/${order.id}`}>
+                    <span className="sf-order__main">
+                      <span className="sf-order__no sf-num">{order.receiptNumber}</span>
+                      <span className="sf-muted">
+                        {itemCount(order.lines.length)}
+                        {order.completedAt ? ` · ${shortDate(order.completedAt)}` : ""}
                       </span>
-                      {order.completedAt ? (
-                        <time className="sf-panel__muted" dateTime={order.completedAt}>
-                          {shortDate(order.completedAt)}
-                        </time>
-                      ) : null}
-                    </div>
-                    <p className="sf-order__total">
-                      <span>{itemCount(order.lines.length)}</span>
-                      <span className="sf-figure">{money(order.totalCents, order.currencyCode)}</span>
-                    </p>
+                    </span>
+                    <span className="sf-state">
+                      <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
+                      {statusLabel(order.status)}
+                    </span>
+                    <span className="sf-order__total sf-num">{money(order.totalCents, order.currencyCode)}</span>
                   </Link>
                 </li>
               ))}
@@ -392,47 +393,46 @@ export async function AccountPage() {
 
 export async function ReceiptPage({ params }: { params: Promise<{ saleId: string }> }) {
   const { saleId } = await params;
-  const user = await customer();
+  const user = await currentCustomer();
   if (!user) redirect("/account/signin");
   const [order] = await history(saleId);
   if (!order) notFound();
   return (
-    <ShopShell>
-      <Link href="/account" className="sf-back">
-        <ArrowLeft aria-hidden="true" className="sf-icon" />
-        Account
-      </Link>
-      <div className="sf-pagehead">
-        <div className="sf-titleline">
-          <h1 className="sf-title sf-num">{order.receiptNumber}</h1>
+    <ShopShell showCategories={false}>
+      <div className="sf-page">
+        <Link href="/account" className="sf-back">
+          <ArrowLeft aria-hidden="true" className="sf-icon" />
+          Account
+        </Link>
+        <PageHead title={<span className="sf-num">{order.receiptNumber}</span>}>
           <span className="sf-state">
             <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
             {statusLabel(order.status)}
           </span>
-        </div>
+        </PageHead>
+        <section className="sf-card sf-receipt" aria-label="Receipt">
+          <ul className="sf-lines">
+            {order.lines.map((line, index) => (
+              <li key={index}>
+                <span>
+                  <span className="sf-num sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
+                  {line.variantTitleSnapshot ? <span className="sf-muted"> · {line.variantTitleSnapshot}</span> : null}
+                </span>
+                <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
+              </li>
+            ))}
+          </ul>
+          <dl className="sf-receipt__total">
+            <dt>Total</dt>
+            <dd className="sf-figure sf-num">{money(order.totalCents, order.currencyCode)}</dd>
+          </dl>
+          {order.completedAt ? (
+            <p className="sf-muted sf-receipt__when">
+              {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          ) : null}
+        </section>
       </div>
-      <section className="sf-panel sf-receipt" aria-label="Receipt">
-        <ul className="sf-lines">
-          {order.lines.map((line, index) => (
-            <li key={index}>
-              <span>
-                <span className="sf-num sf-panel__muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
-                {line.variantTitleSnapshot ? <span className="sf-panel__muted"> · {line.variantTitleSnapshot}</span> : null}
-              </span>
-              <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="sf-receipt__total">
-          <dt>Total</dt>
-          <dd className="sf-figure">{money(order.totalCents, order.currencyCode)}</dd>
-        </dl>
-        {order.completedAt ? (
-          <p className="sf-panel__muted sf-receipt__when">
-            {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
-          </p>
-        ) : null}
-      </section>
     </ShopShell>
   );
 }
@@ -440,10 +440,10 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
 export async function AccountAuthPage({ params, searchParams }: { params: Promise<{ mode: string }>; searchParams: Search }) {
   const [{ mode }, search] = await Promise.all([params, searchParams]);
   if (!["signin", "signup"].includes(mode)) notFound();
-  if (await customer()) redirect("/account");
+  if (await currentCustomer()) redirect("/account");
   const signup = mode === "signup";
   return (
-    <ShopShell>
+    <ShopShell showCategories={false}>
       <section className="sf-auth">
         <nav className="sf-switch" aria-label="Account">
           <Link href="/account/signin" aria-current={!signup ? "page" : undefined}>
@@ -453,17 +453,17 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
             Create account
           </Link>
         </nav>
-        <h1 className="sf-title">{signup ? "Create account" : "Sign in"}</h1>
+        <h1 className="sf-listhead__title">{signup ? "Create account" : "Sign in"}</h1>
         <Alert message={errorMessage(search.error)} />
         {signup && search.error === "signup" ? (
-          <p className="sf-filterline">
-            Already have an account?
+          <p className="sf-muted">
+            Already have an account?{" "}
             <Link href="/account/signin" className="sf-link">
               Sign in
             </Link>
           </p>
         ) : null}
-        <form className="sf-panel sf-form" action={customerAuth}>
+        <form className="sf-card sf-form" action={customerAuth}>
           <input type="hidden" name="mode" value={mode} />
           {signup ? (
             <label className="sf-field">
@@ -486,7 +486,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
               required
             />
           </label>
-          <button className="sf-btn sf-btn--wide">{signup ? "Create account" : "Sign in"}</button>
+          <button className="sf-btn sf-btn--wide sf-btn--big">{signup ? "Create account" : "Sign in"}</button>
         </form>
       </section>
     </ShopShell>

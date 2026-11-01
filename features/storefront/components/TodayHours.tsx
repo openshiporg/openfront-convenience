@@ -21,10 +21,10 @@ function useMinute(): number | null {
 
 type Hours = Partial<Record<StorefrontDay, string>>;
 
-/** "Open now · until 11pm" with a lamp, in the store's timezone; with today's hours as typed when asked. */
+/** "Open until 11pm" with a lamp, in the store's timezone; with today's hours as typed when asked. */
 export function TodayLine({ hours, timeZone, withHours = false }: { hours: Hours; timeZone?: string | null; withHours?: boolean }) {
   const minute = useMinute();
-  if (minute === null) return <span className="sf-today">Hours</span>;
+  if (minute === null) return <span className="sf-today">Today&apos;s hours</span>;
   const status = openStatus(hours, timeZone, new Date(minute * 60_000));
   if (status) {
     const typed = hours[status.today] ?? "";
@@ -32,7 +32,7 @@ export function TodayLine({ hours, timeZone, withHours = false }: { hours: Hours
       <span className="sf-today" data-open={status.open || undefined}>
         <span className="sf-today__state">
           <span className="sf-dot" data-tone={status.open ? "ok" : "muted"} aria-hidden="true" />
-          {status.label}
+          {status.label.replace("Open now · until", "Open until")}
         </span>
         {withHours && typed ? <span className="sf-today__hours">Today {typed}</span> : null}
       </span>
