@@ -72,6 +72,8 @@ export async function ShopShell({
   const street = location?.addressLine1 || address?.full || "";
   const mapsQuery = location ? [location.addressLine1, location.city, location.stateProvince, location.postalCode].filter(Boolean).join(", ") : "";
   const hasHours = location ? Object.values(location.hours).some(Boolean) : false;
+  // The second half of the Pickup switch names where the order is picked up.
+  const placeName = location?.name || street;
 
   const categoryLinks = (className: string) =>
     categories.map((name) => (
@@ -138,7 +140,17 @@ export async function ShopShell({
           )}
           <div className="sf-mode" role="group" aria-label="How to shop">
             <span className="sf-mode__on">{onlinePickup ? "Pickup" : "In store"}</span>
-            {location?.phone ? (
+            {placeName && mapsQuery ? (
+              <a className="sf-mode__off" href={mapsHref(mapsQuery)} target="_blank" rel="noreferrer" aria-label={`Directions to ${placeName}`}>
+                <MapPin aria-hidden="true" className="sf-icon" />
+                {placeName}
+              </a>
+            ) : placeName ? (
+              <span className="sf-mode__off">
+                <MapPin aria-hidden="true" className="sf-icon" />
+                {placeName}
+              </span>
+            ) : location?.phone ? (
               <a className="sf-mode__off" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>
                 Call
               </a>

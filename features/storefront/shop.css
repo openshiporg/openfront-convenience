@@ -352,7 +352,18 @@
   font-weight: 600;
 }
 .sf-mode__off {
+  gap: 6px;
+  max-width: 260px;
   color: var(--sf-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sf-mode__off .sf-icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--sf-ink-3);
 }
 .sf-mode__off:hover {
   color: var(--sf-ink);
