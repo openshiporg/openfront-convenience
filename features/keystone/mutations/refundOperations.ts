@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import type { Session } from "../access";
 import { retailPaymentContext } from "../../integrations/payment/authority";
 import { assertCashLedger, assertRetailRegister, retailRegisterInclude } from "../lib/retailCashBoundary";
-import { getPaymentProviderAdapter } from "../utils/paymentProviderAdapter";
+import { getPaymentProviderAdapter, refundPayment } from "../utils/paymentProviderAdapter";
 import { fingerprintInput } from "../lib/idempotency";
 import { planLotConsumption } from "../lib/inventoryLotPolicy";
 import {
@@ -446,7 +446,7 @@ export async function refundPosSale(
           ),
         );
       }
-      const plannedAllocations = allocationInputs.map((allocation) => {
+      const plannedAllocations = await Promise.all(allocationInputs.map(async (allocation) => {
         const tender = tenders.find(
           (candidate) => candidate.id === allocation.tenderId,
         )!;
@@ -474,6 +474,33 @@ export async function refundPosSale(
             allocation,
             refundedBeforeCents,
             providerLookupKey: null,
+            confirmationContext: null,
+          };
+        }
+        // Online pickup orders were paid through Stripe Checkout on the storefront;
+        // the refund goes back to that card through Stripe and Stripe's refund id
+        // is the provider reference. The idempotency key makes a retry reuse it.
+        if (
+          tender.paymentProvider &&
+          tender.paymentProvider.businessId === args.input.businessId &&
+          tender.paymentProvider.status === "active" &&
+          tender.paymentProvider.refundPaymentFunction === "stripe" &&
+          /^(pi|ch)_/.test(tender.providerPaymentId) &&
+          !allocation.providerAuthority
+        ) {
+          const result: any = await refundPayment({
+            provider: tender.paymentProvider, paymentId: tender.providerPaymentId,
+            amount: allocation.amountCents, currency: sale.currencyCode,
+            idempotencyKey: `convenience-refund:${args.input.businessId}:${args.input.idempotencyKey}:${tender.id}`,
+          });
+          if (!result?.refundId || !["succeeded", "pending"].includes(result.status) || result.amount !== allocation.amountCents) {
+            throw new Error("Stripe did not accept the card refund; nothing was recorded");
+          }
+          return {
+            tender,
+            allocation: { ...allocation, providerRefundId: String(result.refundId) },
+            refundedBeforeCents,
+            providerLookupKey: `${tender.paymentProvider.id}:${result.refundId}`,
             confirmationContext: null,
           };
         }
@@ -520,7 +547,7 @@ export async function refundPosSale(
           providerLookupKey: `${tender.paymentProvider.id}:${reference.providerPaymentId}`,
           confirmationContext,
         };
-      });
+      }));
       const refundReferences = new Set<string>();
       for (const planned of plannedAllocations) {
         if (!planned.providerLookupKey) continue;

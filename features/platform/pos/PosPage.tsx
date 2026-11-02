@@ -675,7 +675,8 @@ export async function PosPage({
                         ]}
                       />
                       <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
-                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund</summary>
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund (terminal payments)</summary>
+                        <p className="mt-2 text-xs text-muted-foreground">Online orders paid by card are refunded to the card automatically. Leave these blank for them.</p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           <TextField
                             label="Provider refund reference"
