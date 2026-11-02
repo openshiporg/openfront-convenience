@@ -330,6 +330,11 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
     // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 30_000 },
   );
+  // After the commit, never inside it. Lazy import keeps the mail path out of the keystone import graph.
+  if (result.created) {
+    const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
+    await sendConfirmationAfterCommit(context.prisma, result.sale.id);
+  }
   return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
 }
 

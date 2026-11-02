@@ -72,7 +72,8 @@ export async function ingestPaymentWebhook(
   const payloadDigest = digest(input.rawBody);
   const lookupKey = `${provider.id}:${event.externalEventId}`;
 
-  return context.prisma.$transaction(async (transaction) => {
+  let postedSaleId: string | null = null;
+  const outcome = await context.prisma.$transaction(async (transaction) => {
     await transaction.$queryRaw(
       Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`payment-webhook:${lookupKey}`}))::text AS "locked"`,
     );
@@ -124,6 +125,7 @@ export async function ingestPaymentWebhook(
             const posted = await postPickupSale(transaction, { cartId: pickupCart.id, providerId: provider.id, paymentId: event.providerPaymentId, amountCents: event.amountCents, currencyCode: event.currencyCode });
             resourceType = "Sale";
             resourceId = posted.sale.id;
+            if (posted.created) postedSaleId = posted.sale.id;
             status = "processed";
           } catch (error) {
             status = "failed";
@@ -258,4 +260,10 @@ export async function ingestPaymentWebhook(
     });
     return { id: webhook.id, status, replayed: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  // After the commit, never inside it. Lazy import keeps the mail path out of the keystone import graph.
+  if (postedSaleId) {
+    const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
+    await sendConfirmationAfterCommit(context.prisma, postedSaleId);
+  }
+  return outcome;
 }
