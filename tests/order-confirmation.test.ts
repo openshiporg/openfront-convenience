@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deliverOrderConfirmation } from "../features/keystone/lib/orderConfirmation.ts";
+import { deliverOrderConfirmation } from "../features/keystone/lib/orderConfirmation";
 
 const configure = (on: boolean) => { if (on) { process.env.SMTP_HOST = "x"; process.env.SMTP_STORE_LINK = "https://shop.test"; } else { delete process.env.SMTP_HOST; delete process.env.SMTP_STORE_LINK; } };
 function fake(customer: any = { email: "a@b.co", name: "Ann" }) {
