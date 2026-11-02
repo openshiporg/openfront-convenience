@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { Prisma } from "@prisma/client";
+import { GraphQLError } from "graphql";
 import type { Context } from ".keystone/types";
 
 import { calculateLineAmounts } from "../lib/money";
@@ -27,10 +28,12 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** The optional "Email for receipt": a plain address kept on the basket's metadata. It creates and links no account. */
 export function normalizeReceiptEmail(value: unknown): string | null {
   if (value == null) return null;
-  if (typeof value !== "string") throw new Error("Enter a valid email address");
+  // BAD_USER_INPUT so the shopper sees this message instead of a masked server error.
+  const invalid = () => new GraphQLError("Enter a valid email address", { extensions: { code: "BAD_USER_INPUT" } });
+  if (typeof value !== "string") throw invalid();
   const email = value.trim().toLowerCase();
   if (!email) return null;
-  if (email.length > 254 || !EMAIL.test(email)) throw new Error("Enter a valid email address");
+  if (email.length > 254 || !EMAIL.test(email)) throw invalid();
   return email;
 }
 const CART_ID = /^[a-zA-Z0-9-]{10,64}$/;
