@@ -48,7 +48,7 @@ function IncidentTable({ rows, timeZone, label }: { rows: Row[]; timeZone: strin
             <Tr key={row.id}>
               <Td className="font-mono tabular-nums">{row.title}</Td>
               <Td priority={2}>{statusLabel(row.metric)}</Td>
-              <Td priority={3} className="max-w-72 truncate">{row.detail || "—"}</Td>
+              <Td priority={3} className="max-w-72 break-words">{row.detail || "—"}</Td>
               <Td>
                 <ToneText tone={SEVERITY_TONE[severity] ?? "muted"}>{statusLabel(severity)}</ToneText>
               </Td>

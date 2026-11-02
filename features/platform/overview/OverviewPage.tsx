@@ -101,7 +101,7 @@ function QueueTable({ items }: { items: QueueItem[] }) {
               </Link>
             </Td>
             <Td priority={3} className="max-w-[28rem] text-muted-foreground">
-              <span className="line-clamp-2 [overflow-wrap:anywhere]">{item.detail || "—"}</span>
+              <span className="[overflow-wrap:anywhere]">{item.detail || "—"}</span>
             </Td>
             <Td align="right" className={`whitespace-nowrap ${item.figureTone === "short" ? SHORT_INK : ""}`}>
               {item.figure ?? <span className="text-muted-foreground">—</span>}

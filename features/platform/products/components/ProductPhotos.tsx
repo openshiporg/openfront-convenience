@@ -40,7 +40,7 @@ export async function ProductPhotos({
               <div className="grid aspect-square place-items-center bg-muted/40 text-xs text-muted-foreground">Unavailable</div>
             )}
             <figcaption className="flex items-center justify-between gap-2 px-2 py-1.5">
-              <span className="truncate text-xs text-muted-foreground">{photo.order === 0 ? "Main" : `#${photo.order}`}</span>
+              <span className="break-words text-xs text-muted-foreground">{photo.order === 0 ? "Main" : `#${photo.order}`}</span>
               <form action={removeProductImageAction}>
                 <HiddenScope projection={scope} returnPath={returnPath} />
                 <input type="hidden" name="imageId" value={photo.id} />

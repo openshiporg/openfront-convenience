@@ -92,7 +92,7 @@ export function FactList({ facts }: { facts: Array<[string, ReactNode]> }) {
     <dl className="grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-md bg-border ring-1 ring-border sm:grid-cols-3">
       {facts.map(([label, value]) => (
         <div key={label} className="min-w-0 bg-background px-4 py-3">
-          <dt className="truncate text-xs font-medium text-muted-foreground">{label}</dt>
+          <dt className="break-words text-xs font-medium text-muted-foreground">{label}</dt>
           <dd className="mt-0.5 text-sm text-foreground [overflow-wrap:anywhere]">{value}</dd>
         </div>
       ))}

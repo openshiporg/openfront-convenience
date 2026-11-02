@@ -161,7 +161,7 @@ export function StockQueueRows({
         entry.kind === "stock" ? (
           <Tr key={`s-${entry.row.id}`}>
             <Td className={monoCellClass}>{entry.row.variant?.sku ?? "—"}</Td>
-            <Td className="max-w-[24rem] truncate whitespace-nowrap">
+            <Td className="max-w-[24rem] break-words">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${entry.row.variant?.product?.id ?? ""}${q}`}>
                 {itemName(entry.row)}
               </Link>
@@ -182,7 +182,7 @@ export function StockQueueRows({
         ) : (
           <Tr key={`l-${entry.lot.id}`}>
             <Td className={monoCellClass}>{entry.lot.variant?.sku ?? "—"}</Td>
-            <Td className="max-w-[24rem] truncate whitespace-nowrap">
+            <Td className="max-w-[24rem] break-words">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${entry.lot.variant?.product?.id ?? ""}${q}`}>
                 {entry.lot.variant?.product?.title ?? "Item"}
               </Link>
@@ -240,7 +240,7 @@ export function StockPositionRow({
   return (
     <Tr>
       <Td className={monoCellClass}>{row.variant?.sku ?? "—"}</Td>
-      <Td className="max-w-[24rem] truncate whitespace-nowrap">
+      <Td className="max-w-[24rem] break-words">
         <Link className={cellLinkClass} href={`/dashboard/platform/products/${row.variant?.product?.id ?? ""}${scopeQuery(scope)}`}>
           {itemName(row)}
         </Link>

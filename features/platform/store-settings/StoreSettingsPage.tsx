@@ -135,8 +135,8 @@ export async function StoreSettingsPage({
                   dangerouslySetInnerHTML={{ __html: brand?.logoIcon || DEFAULT_STORE_LOGO_ICON }}
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-base font-semibold tracking-tight">{brand?.name || "Unnamed store"}</p>
-                  {brand?.tagline ? <p className="truncate text-xs text-muted-foreground">{brand.tagline}</p> : null}
+                  <p className="break-words text-base font-semibold tracking-tight">{brand?.name || "Unnamed store"}</p>
+                  {brand?.tagline ? <p className="break-words text-xs text-muted-foreground">{brand.tagline}</p> : null}
                 </div>
               </div>
               {store ? (

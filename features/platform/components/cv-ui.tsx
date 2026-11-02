@@ -238,7 +238,7 @@ export function CountBoxes({
           <div key={index} className="min-w-0 border-b border-r border-foreground/70 bg-[oklch(0.975_0.018_80)] px-3 pb-2 pt-1.5 dark:bg-muted/30">
             <dt className="border-b border-dashed border-foreground/25 pb-1 text-[12px] text-muted-foreground">{item.label}</dt>
             <dd className={cn("pt-1.5 font-mono text-xl font-medium tabular-nums tracking-tight", tone)}>{item.value}</dd>
-            {item.note ? <dd className="mt-0.5 truncate text-[12px] text-muted-foreground">{item.note}</dd> : null}
+            {item.note ? <dd className="mt-0.5 break-words text-[12px] text-muted-foreground">{item.note}</dd> : null}
           </div>
         );
       })}

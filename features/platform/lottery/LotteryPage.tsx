@@ -88,7 +88,7 @@ function PackTable({ packs, timeZone, label }: { packs: Pack[]; timeZone: string
         {packs.map((pack) => (
           <Tr key={pack.id}>
             <Td className="font-mono tabular-nums">{pack.packNumber}</Td>
-            <Td className="max-w-48 truncate">{pack.game}</Td>
+            <Td className="max-w-48 break-words">{pack.game}</Td>
             <Td align="right">{pack.sold === null ? "—" : `${pack.sold} / ${pack.received}`}</Td>
             <Td align="right" priority={2}>
               {pack.sold === null || pack.received === null ? "—" : pack.received - pack.sold}
@@ -383,7 +383,7 @@ export async function LotteryPage({
                   {queue.map((item) => (
                     <Tr key={`${item.rank}-${item.id}`}>
                       <Td className="font-mono tabular-nums">{item.ref}</Td>
-                      <Td className="max-w-56 truncate">{item.what}</Td>
+                      <Td className="max-w-56 break-words">{item.what}</Td>
                       <Td>
                         <ToneText tone={item.tone}>{item.state}</ToneText>
                       </Td>

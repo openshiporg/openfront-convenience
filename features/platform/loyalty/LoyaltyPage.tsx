@@ -173,7 +173,7 @@ export async function LoyaltyPage({ searchParams }: { searchParams: PlatformSear
                 {queue.map((item) => (
                   <Tr key={item.id}>
                     <Td className="font-mono tabular-nums">{item.ref}</Td>
-                    <Td priority={2} className="max-w-64 truncate">{item.what}</Td>
+                    <Td priority={2} className="max-w-64 break-words">{item.what}</Td>
                     <Td>
                       <ToneText tone={item.tone}>{item.state}</ToneText>
                     </Td>
@@ -214,7 +214,7 @@ export async function LoyaltyPage({ searchParams }: { searchParams: PlatformSear
                     {ledger.map((row) => (
                       <Tr key={row.id}>
                         <Td className="font-mono tabular-nums">{row.title}</Td>
-                        <Td priority={2} className="max-w-72 truncate">{row.detail || "—"}</Td>
+                        <Td priority={2} className="max-w-72 break-words">{row.detail || "—"}</Td>
                         <Td>
                           <StatusText status={row.status} />
                         </Td>

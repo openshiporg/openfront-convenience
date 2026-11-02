@@ -116,13 +116,13 @@ export async function ProductListPage({ searchParams }: { searchParams: Platform
             <Td priority={2} className={monoCellClass}>
               {product.variants[0]?.sku ?? "—"}
             </Td>
-            <Td className="max-w-[28rem] truncate whitespace-nowrap">
+            <Td className="max-w-[28rem] break-words">
               <Link className={cellLinkClass} href={`/dashboard/platform/products/${product.id}${q}`}>
                 {product.title}
               </Link>
               {tags.length ? <span className="ml-2 text-xs text-muted-foreground">{tags.join(" · ")}</span> : null}
             </Td>
-            <Td priority={3} className="max-w-[14rem] truncate whitespace-nowrap text-muted-foreground">
+            <Td priority={3} className="max-w-[14rem] break-words text-muted-foreground">
               {product.categories.map((category) => category.name).join(", ") || "—"}
             </Td>
             <Td align="right" priority={3} className="text-muted-foreground">
