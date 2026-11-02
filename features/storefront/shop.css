@@ -449,20 +449,21 @@
   grid-template-columns: 200px minmax(0, 1fr) 140px 180px;
   align-items: center;
   gap: 0 24px;
-  min-height: 120px;
-  padding: 8px 0;
+  /* Sirius packs a row every ~90px: photo, name, one-line description, category. */
+  min-height: 88px;
+  padding: 2px 0;
   border-bottom: 1px solid var(--sf-line);
 }
 .sf-row__photo {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 116px;
+  height: 88px;
 }
 .sf-photo {
   display: block;
-  width: 132px;
-  height: 116px;
+  width: 140px;
+  height: 88px;
   object-fit: contain;
   mix-blend-mode: multiply;
 }
@@ -500,7 +501,7 @@
   white-space: nowrap;
 }
 .sf-row__cat {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 0.85rem;
   color: var(--sf-ink-3);
 }
