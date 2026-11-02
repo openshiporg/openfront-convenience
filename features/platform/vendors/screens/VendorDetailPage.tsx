@@ -111,7 +111,7 @@ export async function VendorDetailPage({ params, searchParams }: { params: Promi
       <FactList
         facts={[
           ["Payment terms", vendor.paymentTerms.replaceAll("_", " ").toUpperCase()],
-          ["Lead time", `${vendor.leadTimeDays} days`],
+          ["Lead time", `${vendor.leadTimeDays} ${vendor.leadTimeDays === 1 ? "day" : "days"}`],
           ["Minimum order", money(vendor.minimumOrderCents)],
           ["Items", String(vendor.items.length)],
           ["Website", vendor.website || "—"],

@@ -186,7 +186,7 @@ export async function FuelPage({
               items={
                 unconfirmed.length
                   ? [
-                      { label: "Paid", value: money(paidCents, currency), note: `${unconfirmed.length} authorizations` },
+                      { label: "Paid", value: money(paidCents, currency), note: `${unconfirmed.length} ${unconfirmed.length === 1 ? "authorization" : "authorizations"}` },
                       { label: "Dispensed, confirmed", value: money(0, currency), note: "No controller record yet" },
                       { label: "Paid, not dispensed", value: money(-paidCents, currency), variance: -paidCents },
                     ]

@@ -273,8 +273,8 @@ export async function MoneyServicesPage({
           {rows.length || awaiting.length || exceptions ? (
             <CountBoxes
               items={[
-                { label: "Face today", value: money(counted(today), currency), note: `${today.length} transactions` },
-                { label: "Confirmed, awaiting settlement", value: money(awaitingCents, currency), note: `${awaiting.length} transactions` },
+                { label: "Face today", value: money(counted(today), currency), note: `${today.length} ${today.length === 1 ? "transaction" : "transactions"}` },
+                { label: "Confirmed, awaiting settlement", value: money(awaitingCents, currency), note: `${awaiting.length} ${awaiting.length === 1 ? "transaction" : "transactions"}` },
                 {
                   label: "Settlement exceptions",
                   value: exceptions,
