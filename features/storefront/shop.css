@@ -650,6 +650,10 @@
   white-space: nowrap;
 }
 
+.sf-bar {
+  display: none;
+}
+
 /* ---------- Checkout dock (home) ---------- */
 .sf-dock {
   position: fixed;
@@ -1641,6 +1645,28 @@ a.sf-ctl:hover {
   .sf-tabbar__link[aria-current="page"] .sf-tabbar__icon {
     color: var(--sf-accent);
     fill: var(--sf-accent);
+  }
+  .sf-bar {
+    display: flex;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(72px + max(0px, env(safe-area-inset-bottom)));
+    z-index: 29;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 52px;
+    padding: 0 20px;
+    border-radius: var(--sf-r-lg);
+    background: var(--sf-accent);
+    color: var(--sf-accent-ink);
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: var(--sf-shadow);
+  }
+  .sf-foot {
+    padding-bottom: 140px;
   }
 }
 

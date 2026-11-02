@@ -4,8 +4,10 @@ import { MapPin, Search, ShoppingBag, UserRound } from "lucide-react";
 
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { addressParts } from "../lib/address";
-import { basket, currentCustomer, customerHistory, customerRewards, firstPage } from "../lib/data";
+import { basket, currentCustomer, customerRewards, firstPage, lastWebOrder } from "../lib/data";
+import { reorderable } from "../lib/reorder";
 import { ReorderButton, ReorderCard } from "./Reorder";
+import { CheckoutBar } from "./CheckoutBar";
 import { StoreLogo } from "./StoreLogo";
 import { TodayLine } from "./TodayHours";
 import { TabBar } from "./TabBar";
@@ -58,9 +60,9 @@ export async function ShopShell({
       </main>
     );
   }
-  const [data, user, accounts, current, orders] = await Promise.all([firstPage(), currentCustomer(), customerRewards(), basket(), customerHistory()]);
-  const lastOrder = orders[0];
-  const lastThumb = lastOrder ? data?.products.find((product) => product.title === lastOrder.lines[0]?.titleSnapshot)?.image ?? null : null;
+  const [data, user, accounts, current, lastOrder] = await Promise.all([firstPage(), currentCustomer(), customerRewards(), basket(), lastWebOrder()]);
+  const reorderItems = lastOrder && data ? reorderable(lastOrder, data) : [];
+  const lastThumb = reorderItems.length ? data?.products.find((product) => product.title === reorderItems[0].title)?.image ?? null : null;
   const categories = data?.categories ?? [];
   const onlinePickup = Boolean(data?.onlinePickup);
   const points = accounts.filter((account) => account.status === "active").reduce((sum, account) => sum + (account.pointsBalance ?? 0), 0);
@@ -128,7 +130,7 @@ export async function ShopShell({
         </div>
         <div className="sf-sub">
           <div className="sf-sub__open">{hasHours && location ? <TodayLine hours={location.hours} timeZone={location.timezone} /> : null}</div>
-          {lastOrder ? (
+          {lastOrder && reorderItems.length ? (
             <ReorderButton order={lastOrder} data={data} />
           ) : street ? (
             <a className="sf-sub__visit" href={mapsQuery ? mapsHref(mapsQuery) : undefined} target="_blank" rel="noreferrer">
@@ -171,7 +173,7 @@ export async function ShopShell({
             </a>
           ) : null}
         </div>
-        {lastOrder ? (
+        {lastOrder && reorderItems.length ? (
           <div className="sf-lead">
             <ReorderCard order={lastOrder} data={data} thumb={lastThumb} />
           </div>
@@ -201,6 +203,7 @@ export async function ShopShell({
           </nav>
         </div>
       </footer>
+      {onlinePickup ? <CheckoutBar basket={current} /> : null}
       <TabBar />
     </div>
   );

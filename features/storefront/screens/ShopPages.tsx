@@ -8,7 +8,7 @@ import { CategoryRail, CheckoutDock, SidePanel } from "../components/Aside";
 import { ProductPhoto, ProductRow, categoryHref, lineFor, priceOf, variantSize, type Product } from "../components/ProductRow";
 import { Stepper } from "../components/Stepper";
 import { ReorderBanner } from "../components/Reorder";
-import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, money, pickupOrder, type Basket } from "../lib/data";
+import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, lastWebOrder, money, pickupOrder, type Basket } from "../lib/data";
 import { PickupPayment } from "../components/PickupPayment";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { customerAuth, customerSignout, removeBasketLine, startNewBasket } from "../actions";
@@ -83,11 +83,11 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   const query = (search.q ?? "").slice(0, 100);
   const category = search.category ?? "";
   const page = Math.max(1, Number.parseInt(search.page ?? "1", 10) || 1);
-  const [data, projection, current, orders] = await Promise.all([
+  const [data, projection, current, lastOrder] = await Promise.all([
     catalog({ search: query || undefined, category: category || undefined, page }),
     getPublicStorefrontProjection(),
     basket(),
-    customerHistory(),
+    lastWebOrder(),
   ]);
   const products = data?.products ?? [];
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
@@ -102,7 +102,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   };
   const madeInStore = new Set(projection.categories.flatMap((entry) => entry.products.filter((product) => product.preparedFood).map((product) => product.id)));
   const arrived = search.from === "basket" || search.from === "checkout";
-  const reorderData = orders.length ? await firstPage() : null;
+  const reorderData = lastOrder ? await firstPage() : null;
   return (
     <ShopShell active={category} query={query}>
       <div className="sf-layout sf-layout--panel">
@@ -126,7 +126,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
             ) : null}
           </div>
           {arrived ? <CounterNote arrived onlinePickup={onlinePickup} /> : null}
-          {!query && page === 1 ? <ReorderBanner order={orders[0]} data={reorderData} /> : null}
+          {!query && page === 1 ? <ReorderBanner order={lastOrder} data={reorderData} /> : null}
           {products.length && data ? (
             <ul className="sf-rows sf-rows--compact">
               {products.map((product, index) => (

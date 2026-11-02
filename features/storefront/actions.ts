@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { isCommonPassword } from "./lib/password-rules";
-import { basket, catalog, history } from "./lib/data";
+import { basket, catalog, lastWebOrder } from "./lib/data";
 import { reorderable } from "./lib/reorder";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -86,8 +86,7 @@ export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean }
 
 /** "Reorder last order": puts each item of the shopper's last receipt that the shop still sells online back in the basket. */
 export async function reorderLast() {
-  const [orders, data] = await Promise.all([history(), catalog({ page: 1 })]);
-  const last = orders[0];
+  const [last, data] = await Promise.all([lastWebOrder(), catalog({ page: 1 })]);
   if (!last || !data?.onlinePickup) redirect("/shop");
   for (const item of reorderable(last, data)) {
     const current = (await basket())?.lines.find((line) => line.titleSnapshot === item.title && line.variantTitleSnapshot === item.variantTitle);
