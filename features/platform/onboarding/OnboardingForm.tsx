@@ -10,10 +10,7 @@ import { SegmentedRadio, inputClass, primaryButtonClass } from "../components/cv
 import { useOnboardingApi } from "./hooks/useOnboardingApi";
 import seed from "./lib/seed.json";
 import { PlatformSelect } from "../components/PlatformSelect";
-
-// "Sample store" fills the form from lib/seed.json, like E-commerce's Complete template;
-// the owner reviews and submits it through the same checks as a blank form.
-const SAMPLE_VALUES: Record<string, string> = seed.sampleForm;
+import { CONVENIENCE_TEMPLATES, type ConvenienceTemplateId } from "./config/templates";
 
 interface OnboardingFormProps {
   onSuccess?: () => void;
@@ -43,14 +40,17 @@ function timezoneOptions(): string[] {
 
 export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
   const { state, action, pending, idempotencyKey } = useOnboardingApi(onSuccess);
-  const [template, setTemplate] = useState<"sample" | "blank">("blank");
-  const values = state.attempt > 0 ? state.values : template === "sample" ? SAMPLE_VALUES : {};
+  const [template, setTemplate] = useState<ConvenienceTemplateId>("blank");
+  // "Sample store" fills the form from lib/seed.json, like E-commerce's Complete template;
+  // the owner reviews and submits it through the same checks as a blank form.
+  const values = state.attempt > 0 ? state.values : CONVENIENCE_TEMPLATES[template].formValues;
   const value = (name: string, fallback = "") => values[name] ?? fallback;
 
   return (
     // Keyed by attempt so a failed submit re-renders with what was typed.
     <form key={`${state.attempt}-${template}`} action={action} className="space-y-6">
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      {state.attempt > 0 && <input type="hidden" name="template" value={template} />}
 
       {state.attempt === 0 && (
         <div
@@ -64,8 +64,8 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
             name="template"
             defaultValue={template}
             options={[
-              { value: "sample", label: "Sample store", tone: "ok" },
-              { value: "blank", label: "Blank", tone: "muted" },
+              { value: "sample", label: CONVENIENCE_TEMPLATES.sample.name, tone: "ok" },
+              { value: "blank", label: CONVENIENCE_TEMPLATES.blank.name, tone: "muted" },
             ]}
           />
           {template === "sample" && (

@@ -9,7 +9,8 @@ import {
   getStorefrontThemePreset,
 } from "../../storefront/lib/storefront-theme";
 import type { StorefrontMode } from "../../storefront/lib/storefront-settings";
-import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON } from "../../platform/store-settings/lib/store-logo";
+import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON, normalizeStoreLogoColor } from "../../platform/store-settings/lib/store-logo";
+import { sanitizeStoreLogoSvg } from "../../lib/sanitize-store-logo";
 import {
   canAccessBusiness,
   isHumanPlatformAdmin,
@@ -50,6 +51,8 @@ export type OnboardConvenienceBusinessArgs = {
     brandAccentColor?: string | null;
     storefrontMode?: StorefrontMode | null;
     storefrontStatus?: "draft" | "published" | null;
+    logoIcon?: string | null;
+    logoColor?: string | null;
     idempotencyKey: string;
   };
 };
@@ -161,6 +164,15 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   };
 }
 
+// The Store Settings logo the template picked, sanitized like configureBusinessBrand.
+// Kept out of validateInput so the onboarding request digest is unchanged.
+function resolveLogo(input: OnboardConvenienceBusinessArgs["input"]) {
+  const rawIcon = input.logoIcon?.trim();
+  const logoIcon = rawIcon ? sanitizeStoreLogoSvg(rawIcon) : DEFAULT_STORE_LOGO_ICON;
+  if (rawIcon && !logoIcon) throw new Error("Invalid SVG format");
+  return { logoIcon, logoColor: normalizeStoreLogoColor(input.logoColor ?? DEFAULT_STORE_LOGO_COLOR) };
+}
+
 function metadataObject(value: Prisma.JsonValue | null): Record<string, Prisma.JsonValue> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, Prisma.JsonValue>
@@ -175,6 +187,7 @@ export default async function onboardConvenienceBusiness(
   const session = requireSession(context) as Session;
   if (session.apiKeyId) throw new Error("Machine sessions cannot run onboarding");
   const input = validateInput(args.input);
+  const logo = resolveLogo(args.input);
   const normalizedKey = normalizeIdempotencyKey(args.input.idempotencyKey);
   const legacyRequestDigest = fingerprintInput({
     businessName: input.businessName,
@@ -281,9 +294,9 @@ export default async function onboardConvenienceBusiness(
         brandMark: input.brandMark,
         brandPrimaryColor: input.brandPrimaryColor,
         brandAccentColor: input.brandAccentColor,
-        // As E-commerce onboarding: a fresh store starts with the default logo and hue.
-        logoIcon: DEFAULT_STORE_LOGO_ICON,
-        logoColor: DEFAULT_STORE_LOGO_COLOR,
+        // As E-commerce onboarding: the template's logo, or the default logo and hue.
+        logoIcon: logo.logoIcon,
+        logoColor: logo.logoColor,
         storefrontMode: input.storefrontMode,
         storefrontStatus: input.storefrontStatus,
         status: "active",
@@ -711,7 +724,9 @@ export default async function onboardConvenienceBusiness(
       });
     }
     return { ...snapshot, replayed: Boolean(priorIdempotency) };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error) => {
+    // Onboarding seeds a whole store in one transaction; Prisma's 5s default expires
+    // mid-seed on a remote database and later queries fail with misleading errors.
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 60_000 }).catch((error) => {
     const code = (error as { code?: string } | null)?.code;
     if (
       input.storefrontStatus === "published" &&

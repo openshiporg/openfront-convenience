@@ -539,6 +539,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         brandAccentColor: String
         storefrontMode: BusinessStorefrontModeType
         storefrontStatus: BusinessStorefrontStatusType
+        logoIcon: String
+        logoColor: String
         idempotencyKey: String!
       }
 

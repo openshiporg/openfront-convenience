@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { percentToRate } from "../lib/form-values";
+import { CONVENIENCE_TEMPLATES } from "./config/templates";
 import type { OnboardingActionState } from "./state";
 
 const TEXT_FIELDS = [
@@ -52,6 +53,7 @@ export async function onboardConvenienceBusinessAction(
   values.storeCode = values.storeCode.toLowerCase();
   values.fuelEnabled = formData.get("fuelEnabled") === "on" ? "on" : "";
   values.includeDemoCatalog = formData.get("includeDemoCatalog") === "on" ? "on" : "";
+  const template = formData.get("template") === "sample" ? "sample" : "blank";
   const attempt = previousState.attempt + 1;
   const failure = (message: string): OnboardingActionState => ({ message, success: false, values, attempt });
 
@@ -74,6 +76,9 @@ export async function onboardConvenienceBusinessAction(
     stateProvince: values.stateProvince,
     postalCode: values.postalCode,
     phone: values.phone,
+    // Onboarding writes the Store Settings logo, as both references do.
+    logoIcon: CONVENIENCE_TEMPLATES[template].logo.icon,
+    logoColor: CONVENIENCE_TEMPLATES[template].logo.color,
     idempotencyKey: String(formData.get("idempotencyKey") ?? ""),
   };
 
