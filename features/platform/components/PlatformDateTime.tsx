@@ -60,7 +60,7 @@ export function PlatformDateInput({
             aria-invalid={aria["aria-invalid"] || undefined}
             aria-describedby={aria["aria-describedby"]}
             className={cn(
-              "flex h-10 w-full min-w-0 items-center gap-2 rounded-[6px] border border-input bg-background px-3 text-left text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive",
+              "flex h-10 w-full min-w-0 items-center gap-2 rounded-[6px] border border-input bg-background px-3 text-left text-sm text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive",
               className,
             )}
           >
