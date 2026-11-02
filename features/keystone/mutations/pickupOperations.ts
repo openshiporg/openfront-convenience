@@ -22,6 +22,17 @@ import { assertProof, currentCustomerId, publishedStore } from "./storefrontOper
 // reconciliation, tender totals and refund binding see it like any other sale.
 
 const PROOF = /^[a-f0-9]{64}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** The optional "Email for receipt": a plain address kept on the basket's metadata. It creates and links no account. */
+export function normalizeReceiptEmail(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value !== "string") throw new Error("Enter a valid email address");
+  const email = value.trim().toLowerCase();
+  if (!email) return null;
+  if (email.length > 254 || !EMAIL.test(email)) throw new Error("Enter a valid email address");
+  return email;
+}
 const CART_ID = /^[a-zA-Z0-9-]{10,64}$/;
 
 type PickupPayment = {
@@ -169,6 +180,21 @@ async function retirePickupPayment(context: Context, cartId: string, provider: a
   const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
   const { pickupPayment: _removed, ...rest } = (cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}) as Record<string, unknown>;
   await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: rest as Prisma.InputJsonValue } });
+}
+
+/** Saves (or clears) the optional receipt email on the guest's own open basket. */
+export async function setStorefrontReceiptEmail(_root: unknown, args: { input: { cartId: string; token: string; email?: string | null } }, context: Context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const email = normalizeReceiptEmail(args.input.email);
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  if (!cart || cart.status !== "open") throw new Error("Basket unavailable");
+  assertProof(cart, token, userId);
+  const meta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? { ...(cart.metadata as Record<string, unknown>) } : {};
+  if (email) meta.receiptEmail = email; else delete meta.receiptEmail;
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: meta as Prisma.InputJsonValue } });
+  return { ok: true };
 }
 
 /** Called before any basket edit: an unpaid payment attempt is cancelled, a paid basket is frozen. */
@@ -333,7 +359,7 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
   // After the commit, never inside it. Lazy import keeps the mail path out of the keystone import graph.
   if (result.created) {
     const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
-    await sendConfirmationAfterCommit(context.prisma, result.sale.id);
+    await sendConfirmationAfterCommit(context.prisma, result.sale.id, { cartId, token });
   }
   return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
 }

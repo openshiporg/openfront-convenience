@@ -114,6 +114,14 @@ export async function startPickupPayment(): Promise<{ ok: true; payment: PickupP
   if (!result.success) return { ok: false, message: result.error || "Payment could not be started" };
   return { ok: true, payment: result.data.startStorefrontPickupPayment };
 }
+/** Saves the optional "Email for receipt" on the shopper's basket. It creates and links no account. */
+export async function saveReceiptEmail(email: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const proof = await basketProof();
+  if (!proof) return { ok: false, message: "Your basket is empty" };
+  const result = await keystoneClient<{ setStorefrontReceiptEmail: { ok: boolean } }>(`mutation Receipt($input: StorefrontReceiptEmailInput!) { setStorefrontReceiptEmail(input: $input) }`, { input: { ...proof, email } });
+  if (!result.success) return { ok: false, message: result.error || "Enter a valid email address" };
+  return { ok: true };
+}
 /** Confirms the payment with the provider and posts the order. Safe to call again. */
 export async function settlePickup(): Promise<{ state: "paid" | "processing" | "unpaid" | "error"; message?: string }> {
   const proof = await basketProof();

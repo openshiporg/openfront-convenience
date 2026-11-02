@@ -142,7 +142,7 @@ import {
   transitionInventoryTransfer,
 } from "./transferOperations";
 import redirectToInit from "./redirectToInit";
-import { startStorefrontPickupPayment, settleStorefrontPickup, storefrontPickupOrder } from "./pickupOperations";
+import { startStorefrontPickupPayment, settleStorefrontPickup, setStorefrontReceiptEmail, storefrontPickupOrder } from "./pickupOperations";
 import { storefrontCatalog, storefrontBasket, updateStorefrontBasket, storefrontHistory, storefrontRewards } from "./storefrontOperations";
 
 const graphql = String.raw;
@@ -1617,6 +1617,11 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         cartId: ID!
         token: String!
       }
+      input StorefrontReceiptEmailInput {
+        cartId: ID!
+        token: String!
+        email: String
+      }
       input StorefrontBasketInput {
         cartId: ID!
         token: String!
@@ -1629,6 +1634,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
         startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
         settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
+        setStorefrontReceiptEmail(input: StorefrontReceiptEmailInput!): JSON!
         revokeCurrentUserSessions: Boolean!
         recordOperationalHeartbeat(
           input: RecordOperationalHeartbeatInput!
@@ -1870,6 +1876,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateStorefrontBasket,
         startStorefrontPickupPayment,
         settleStorefrontPickup,
+        setStorefrontReceiptEmail,
         createPosCart,
         addPosCartLine,
         updatePosCartLine,

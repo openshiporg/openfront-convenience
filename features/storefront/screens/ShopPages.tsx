@@ -399,8 +399,9 @@ export async function CheckoutPage() {
   );
 }
 
-export async function PickupCompletePage() {
-  const [order, projection] = await Promise.all([pickupOrder(), getPublicStorefrontProjection()]);
+export async function PickupCompletePage({ searchParams }: { searchParams?: Promise<{ cart?: string; token?: string }> } = {}) {
+  const link = searchParams ? await searchParams : undefined;
+  const [order, projection] = await Promise.all([pickupOrder(link), getPublicStorefrontProjection()]);
   if (!order) redirect("/shop");
   const pickedUp = order.pickupStatus === "picked_up";
   return (

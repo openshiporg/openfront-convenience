@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 
-import { settlePickup, startPickupPayment } from "../actions";
+import { saveReceiptEmail, settlePickup, startPickupPayment } from "../actions";
 
 type Started = { clientSecret: string; publishableKey: string; paymentId: string };
 
@@ -13,11 +13,19 @@ function PayForm({ total, onPaid }: { total: string; onPaid: () => void }) {
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
 
   async function confirmAndSettle() {
     if (!stripe || !elements) return;
     setBusy(true);
     setMessage("");
+    // Optional. Saved before the charge so a bad address stops here, never after payment.
+    const saved = await saveReceiptEmail(email);
+    if (!saved.ok) {
+      setMessage(saved.message);
+      setBusy(false);
+      return;
+    }
     const { error, paymentIntent } = await stripe.confirmPayment({ elements, redirect: "if_required", confirmParams: { return_url: `${window.location.origin}/checkout` } });
     if (error) {
       setMessage(error.message || "Payment failed");
@@ -38,6 +46,10 @@ function PayForm({ total, onPaid }: { total: string; onPaid: () => void }) {
 
   return (
     <form onSubmit={(event) => { event.preventDefault(); void confirmAndSettle(); }} className="sf-form">
+      <label className="sf-field">
+        <span>Email for receipt</span>
+        <input name="receiptEmail" type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} />
+      </label>
       <PaymentElement />
       {message ? <p role="alert" className="sf-alert"><span className="sf-dot" data-tone="danger" aria-hidden="true" />{message}</p> : null}
       <button className="sf-btn sf-btn--wide sf-btn--big" disabled={busy || !stripe}>{busy ? "Processing…" : `Pay ${total}`}</button>

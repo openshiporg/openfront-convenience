@@ -38,8 +38,10 @@ export const customerHistory = cache(async () => ((await currentCustomer()) ? hi
 export const customerRewards = cache(async () => ((await currentCustomer()) ? rewards() : []));
 
 export type PickupOrder = { id: string; receiptNumber: string; pickupStatus: "none" | "ready_for_pickup" | "picked_up"; currencyCode: string; totalCents: number; taxCents: number; completedAt: string | null; lines: { titleSnapshot: string; variantTitleSnapshot: string; quantity: string; totalCents: number }[] };
-export async function pickupOrder(): Promise<PickupOrder | null> {
-  const jar = await cookies(); const cartId = jar.get("convenience-basket")?.value; const token = jar.get("convenience-basket-proof")?.value;
+export async function pickupOrder(link?: { cart?: string; token?: string }): Promise<PickupOrder | null> {
+  const jar = await cookies();
+  // The emailed receipt link carries the guest's own basket proof; otherwise the browser's cookies hold it.
+  const cartId = link?.cart || jar.get("convenience-basket")?.value; const token = link?.token || jar.get("convenience-basket-proof")?.value;
   if (!cartId || !token) return null;
   const result = await keystoneClient<{ storefrontPickupOrder: PickupOrder | null }>("query Order($cartId: ID!, $token: String!) { storefrontPickupOrder(cartId: $cartId, token: $token) }", { cartId, token });
   return result.success ? result.data.storefrontPickupOrder : null;

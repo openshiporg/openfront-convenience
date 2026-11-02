@@ -1,8 +1,8 @@
 // One confirmation email per online pickup order, sent after the posting transaction has committed.
 // The AuditEvent row is the dedupe record: its eventNumber is deterministic and unique, so a replay,
 // the settle call and the signed webhook can never claim the same order twice. Status lives in metadata.
-// Guests carry no email in this checkout, so only a signed-in customer (Sale.customer) is mailed;
-// a guest order is recorded as skipped_no_recipient.
+// Recipient: the signed-in customer's email, else the guest's optional "Email for receipt" kept on
+// Cart.metadata.receiptEmail (no account, no link to one). With neither, skipped_no_recipient.
 
 type Send = (order: any) => Promise<{ sent: boolean; error?: string }>;
 
@@ -12,7 +12,7 @@ export function orderConfirmationConfigured() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_STORE_LINK);
 }
 
-export async function deliverOrderConfirmation(prisma: any, saleId: string, send?: Send) {
+export async function deliverOrderConfirmation(prisma: any, saleId: string, proof?: { cartId: string; token: string } | null, send?: Send) {
   try {
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -32,7 +32,9 @@ export async function deliverOrderConfirmation(prisma: any, saleId: string, send
     }
     const mark = (status: string, error?: string) => prisma.auditEvent.update({ where: { id: audit.id }, data: { metadata: { status, ...(error ? { error: error.slice(0, 200) } : {}) } } });
     try {
-      const email = sale.customer?.email;
+      const cart = await prisma.cart.findFirst({ where: { saleId: sale.id }, select: { id: true, metadata: true } });
+      const guestEmail = (cart?.metadata as { receiptEmail?: unknown } | null)?.receiptEmail;
+      const email = sale.customer?.email || (typeof guestEmail === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail) ? guestEmail : "");
       if (!email) { await mark("skipped_no_recipient"); return; }
       if (!orderConfirmationConfigured()) { await mark("skipped_not_configured"); return; }
       const money = (cents: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: sale.currencyCode || "USD" }).format((cents || 0) / 100);
@@ -42,7 +44,7 @@ export async function deliverOrderConfirmation(prisma: any, saleId: string, send
         to: email, storeName: sale.store?.name || "the store", orderNumber: sale.receiptNumber, name: sale.customer?.name || "there",
         lines: sale.lines.map((line: any) => ({ title: line.variantTitleSnapshot ? `${line.titleSnapshot} (${line.variantTitleSnapshot})` : line.titleSnapshot, quantity: String(line.quantity), total: money(line.totalCents) })),
         total: money(sale.totalCents),
-        link: `${String(process.env.SMTP_STORE_LINK).replace(/\/$/, "")}/account/receipts/${encodeURIComponent(sale.id)}`,
+        link: receiptLink(sale.id, Boolean(sale.customer?.email), proof, cart?.id),
       });
       await (result.sent ? mark("sent") : mark("failed", result.error || "send_failed"));
     } catch (error) {
@@ -53,7 +55,16 @@ export async function deliverOrderConfirmation(prisma: any, saleId: string, send
   }
 }
 
+/** A signed-in customer reads the order in their account. A guest reads it on the guest receipt page: with the
+ *  basket proof when this request holds it, else the page's own possession cookie in the same browser. */
+function receiptLink(saleId: string, signedIn: boolean, proof: { cartId: string; token: string } | null | undefined, cartId?: string) {
+  const base = String(process.env.SMTP_STORE_LINK).replace(/\/$/, "");
+  if (signedIn) return `${base}/account/receipts/${encodeURIComponent(saleId)}`;
+  if (proof && cartId && proof.cartId === cartId) return `${base}/checkout/complete?cart=${encodeURIComponent(proof.cartId)}&token=${encodeURIComponent(proof.token)}`;
+  return `${base}/checkout/complete`;
+}
+
 /** Never throws; loaded lazily from the commit paths. */
-export async function sendConfirmationAfterCommit(prisma: any, saleId: string) {
-  try { await deliverOrderConfirmation(prisma, saleId); } catch { /* never fail the order */ }
+export async function sendConfirmationAfterCommit(prisma: any, saleId: string, proof?: { cartId: string; token: string } | null) {
+  try { await deliverOrderConfirmation(prisma, saleId, proof); } catch { /* never fail the order */ }
 }
