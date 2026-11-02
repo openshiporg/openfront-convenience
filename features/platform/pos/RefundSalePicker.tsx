@@ -4,6 +4,9 @@ import { useState } from "react";
 
 import { inputClass, labelClass } from "../components/cv-ui";
 import type { PlatformOption } from "../lib/projection";
+import { PlatformSelect } from "../components/PlatformSelect";
+
+const fieldClass = "h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base";
 
 /**
  * Sale, line and original-tender selects for a refund. Lines and tenders are
@@ -35,30 +38,30 @@ export function RefundSalePicker({
   ) => (
     <label className={labelClass}>
       {label}
-      <select key={`${name}-${saleId}`} name={name} required={required} className={inputClass} defaultValue={required && options.length === 1 ? options[0].id : ""}>
-        <option value="">{saleId ? (options.length ? "Select" : empty) : "Choose the sale first"}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-            {option.detail ? ` · ${option.detail}` : ""}
-          </option>
-        ))}
-      </select>
+      <PlatformSelect
+        key={`${name}-${saleId}`}
+        name={name}
+        required={required}
+        defaultValue={required && options.length === 1 ? options[0].id : ""}
+        placeholder={saleId ? (options.length ? "Select" : empty) : "Choose the sale first"}
+        options={options.map((option) => ({ value: option.id, label: option.detail ? `${option.label} · ${option.detail}` : option.label }))}
+        className={fieldClass}
+      />
     </label>
   );
   return (
     <>
       <label className={labelClass}>
         Sale
-        <select name="saleId" required value={saleId} onChange={(event) => setSaleId(event.target.value)} className={inputClass}>
-          <option value="">{sales.length ? "Select" : "Find the receipt above"}</option>
-          {sales.map((sale) => (
-            <option key={sale.id} value={sale.id}>
-              {sale.label}
-              {sale.detail ? ` · ${sale.detail}` : ""}
-            </option>
-          ))}
-        </select>
+        <PlatformSelect
+          name="saleId"
+          required
+          value={saleId}
+          onValueChange={setSaleId}
+          placeholder={sales.length ? "Select" : "Find the receipt above"}
+          options={sales.map((sale) => ({ value: sale.id, label: sale.detail ? `${sale.label} · ${sale.detail}` : sale.label }))}
+          className={fieldClass}
+        />
       </label>
       {select("Sale line", "saleLineId", saleLines, true, "No refundable lines")}
       {select("Original tender", "originalTenderId", saleTenders, true, "No refundable tender")}

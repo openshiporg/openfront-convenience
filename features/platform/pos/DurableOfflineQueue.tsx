@@ -9,6 +9,7 @@ import {
 } from "./offline-actions";
 import { buttonClass, dangerButtonClass, inputClass, panelClass, primaryButtonClass } from "../components/cv-ui";
 import { centsFromInput } from "../lib/form-values";
+import { PlatformSelect } from "../components/PlatformSelect";
 
 // Typed in dollars; an unreadable amount becomes NaN so the operation is rejected, not mis-entered.
 const safeCents = (value: string) => {
@@ -388,59 +389,39 @@ export function DurableOfflineQueue({
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-medium">
           Terminal
-          <select
-            className={controlClass}
+          <PlatformSelect
             value={deviceId}
-            onChange={(event) => setDeviceId(event.target.value)}
-          >
-            {devices.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setDeviceId}
+            options={devices.map((option) => ({ value: option.id, label: option.label }))}
+            className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
         </label>
         <label className="text-xs font-medium">
           Basket
-          <select
-            className={controlClass}
+          <PlatformSelect
             value={cartId}
-            onChange={(event) => setCartId(event.target.value)}
-          >
-            {carts.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setCartId}
+            options={carts.map((option) => ({ value: option.id, label: option.label }))}
+            className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
         </label>
         <label className="text-xs font-medium">
           Existing line
-          <select
-            className={controlClass}
+          <PlatformSelect
             value={cartLineId}
-            onChange={(event) => setCartLineId(event.target.value)}
-          >
-            {cartLines.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setCartLineId}
+            options={cartLines.map((option) => ({ value: option.id, label: option.label }))}
+            className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
         </label>
         <label className="text-xs font-medium">
           Variant
-          <select
-            className={controlClass}
+          <PlatformSelect
             value={variantId}
-            onChange={(event) => setVariantId(event.target.value)}
-          >
-            {variants.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setVariantId}
+            options={variants.map((option) => ({ value: option.id, label: option.label }))}
+            className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
         </label>
         <label className="text-xs font-medium">
           Barcode / PLU
@@ -471,17 +452,12 @@ export function DurableOfflineQueue({
         </label>
         <label className="text-xs font-medium">
           Correction manager
-          <select
-            className={controlClass}
+          <PlatformSelect
             value={employeeId}
-            onChange={(event) => setEmployeeId(event.target.value)}
-          >
-            {employees.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setEmployeeId}
+            options={employees.map((option) => ({ value: option.id, label: option.label }))}
+            className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
         </label>
         <label className="text-xs font-medium">
           Correction reason

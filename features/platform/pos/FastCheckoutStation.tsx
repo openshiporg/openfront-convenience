@@ -24,6 +24,7 @@ import {
   type FastPosOperationScope,
   type FastPosResult,
 } from "./fast-pos-actions";
+import { PlatformSelect } from "../components/PlatformSelect";
 
 function operationKey(label: string): string {
   return `fast-pos-${label}-${crypto.randomUUID()}`;
@@ -521,18 +522,13 @@ export function FastCheckoutStation({
           {variants.length > 0 ? (
             <label className={field}>
               Item
-              <select
+              <PlatformSelect
                 value={selectedVariantId}
                 disabled={Boolean(pendingIntent)}
-                onChange={(event) => setVariantId(event.target.value)}
-                className={`${inputClass} h-12 max-sm:h-12`}
-              >
-                {variants.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setVariantId}
+                options={variants.map((option) => ({ value: option.id, label: option.label }))}
+                className="h-12 rounded-[4px] text-[13px] max-sm:text-base"
+              />
             </label>
           ) : null}
           <label className={field}>
@@ -592,56 +588,41 @@ export function FastCheckoutStation({
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
             <label className={field}>
               Basket
-              <select
+              <PlatformSelect
                 value={cartId}
                 disabled={Boolean(pendingIntent)}
-                onChange={(event) => {
-                  setCartId(event.target.value);
+                onValueChange={(next) => {
+                  setCartId(next);
                   setSummary(null);
                   setSaleId(null);
                   focusScanner();
                 }}
-                className={compact}
-              >
-                <option value="">Choose a basket</option>
-                {carts.map((cart) => (
-                  <option key={cart.id} value={cart.id}>
-                    {cart.label} {cart.detail ? `· ${cart.detail}` : ""}
-                  </option>
-                ))}
-              </select>
+                placeholder="Choose a basket"
+                options={carts.map((cart) => ({ value: cart.id, label: cart.detail ? `${cart.label} · ${cart.detail}` : cart.label }))}
+                className={"h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"}
+              />
             </label>
             <label className={field}>
               Till
-              <select
+              <PlatformSelect
                 value={registerSessionId}
                 disabled={Boolean(pendingIntent)}
-                onChange={(event) => setRegisterSessionId(event.target.value)}
-                className={compact}
-              >
-                {registerSessions.length ? null : <option value="">No open till</option>}
-                {registerSessions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setRegisterSessionId}
+                placeholder="No open till"
+                options={registerSessions.map((option) => ({ value: option.id, label: option.label }))}
+                className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+              />
             </label>
             <label className={field}>
               Cashier
-              <select
+              <PlatformSelect
                 value={cashierId}
                 disabled={Boolean(pendingIntent)}
-                onChange={(event) => setCashierId(event.target.value)}
-                className={compact}
-              >
-                {employees.length ? null : <option value="">No cashier</option>}
-                {employees.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setCashierId}
+                placeholder="No cashier"
+                options={employees.map((option) => ({ value: option.id, label: option.label }))}
+                className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+              />
             </label>
             <button
               type="button"
@@ -661,7 +642,7 @@ export function FastCheckoutStation({
       >
         <div className="min-w-0 px-4 pb-4 pt-3">
           <div className="flex items-baseline justify-between gap-3 border-b border-dashed pb-2 text-[12px] text-muted-foreground">
-            <span className="truncate font-mono">{shortRef(summary?.reference) || selectedCart?.label || "No basket"}</span>
+            <span className="break-all font-mono">{shortRef(summary?.reference) || selectedCart?.label || "No basket"}</span>
             <span className="tabular-nums">
               {lineCount} {lineCount === 1 ? "line" : "lines"}
             </span>
@@ -670,7 +651,7 @@ export function FastCheckoutStation({
             {summary?.lines.map((line) => (
               <div key={line.id} className="flex items-start justify-between gap-3 border-b border-dashed py-2 text-xs">
                 <div className="min-w-0 font-sans">
-                  <p className="truncate font-medium">{line.title}</p>
+                  <p className="break-words font-medium">{line.title}</p>
                   <p className="font-mono text-[12px] tabular-nums text-muted-foreground">
                     {quantityText(line.quantity)}{line.unitOfMeasure && line.unitOfMeasure !== "each" ? ` ${line.unitOfMeasure}` : ""} × {money(line.unitPriceCents)}
                     {line.discountCents ? ` · −${money(line.discountCents)}` : ""}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { buttonClass, inputClass, panelClass, primaryButtonClass } from "../components/cv-ui";
+import { PlatformSelect } from "../components/PlatformSelect";
 
 type Option = { id: string; label: string; detail?: string | null };
 
@@ -64,18 +65,13 @@ export function ReceiptLookup({
           <label className="sr-only" htmlFor="receipt-sale">
             Receipt result
           </label>
-          <select
+          <PlatformSelect
             id="receipt-sale"
-            className={`${inputClass} flex-1`}
             value={selectedSaleId}
-            onChange={(event) => setSaleId(event.target.value)}
-          >
-            {sales.map((sale) => (
-              <option key={sale.id} value={sale.id}>
-                {sale.label} · {sale.detail}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSaleId}
+            options={sales.map((sale) => ({ value: sale.id, label: `${sale.label} · ${sale.detail}` }))}
+            className="h-9 flex-1 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+          />
           <Link
             className={primaryButtonClass}
             href={`/dashboard/platform/pos/receipt/${encodeURIComponent(selectedSaleId)}?${query}`}

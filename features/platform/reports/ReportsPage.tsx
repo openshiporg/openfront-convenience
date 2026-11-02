@@ -1,7 +1,7 @@
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { CountBoxes, DataTable, Dot, SectionTitle, Td, Th, Tr, inputClass, labelClass, primaryButtonClass, type DotTone } from "../components/cv-ui";
-import { EmptyState, PlatformPage } from "../components/PlatformPage";
+import { EmptyState, EnumField, PlatformPage, TextField } from "../components/PlatformPage";
 import { zonedNowInput } from "../lib/form-values";
 import { getPlatformProjection, searchValue, type PlatformSearch } from "../lib/projection";
 
@@ -87,7 +87,7 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
       : overShort < 0
         ? { tone: "danger", label: `Short ${m(String(Math.abs(overShort)))}` }
         : Number(summary.exceptionCount) > 0
-          ? { tone: "warn", label: `${summary.exceptionCount} exceptions` }
+          ? { tone: "warn", label: `${summary.exceptionCount} ${Number(summary.exceptionCount) === 1 ? "exception" : "exceptions"}` }
           : { tone: "ok", label: "Balanced" }
     : null;
   return <PlatformPage title="Reports" {...state} showMetrics={false} state={pageState} error={state.error || reportError}>
@@ -95,10 +95,10 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
       <form method="get" aria-label="Reporting period" className="grid min-w-0 gap-3 border-b pb-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
         <input type="hidden" name="businessId" value={state.projection.businessId ?? ""} />
         <input type="hidden" name="storeId" value={state.projection.storeId ?? ""} />
-        <label className={labelClass}>Start date<input className={`${inputClass} font-mono`} name="startDate" type="date" defaultValue={startDate} required /></label>
-        <label className={labelClass}>End date<input className={`${inputClass} font-mono`} name="endDate" type="date" defaultValue={endDate} required /></label>
+        <TextField label="Start date" name="startDate" type="date" defaultValue={startDate} required />
+        <TextField label="End date" name="endDate" type="date" defaultValue={endDate} required />
         <label className={labelClass}>Currency<input className={`${inputClass} font-mono uppercase`} name="currencyCode" defaultValue={currencyCode} maxLength={3} pattern="[A-Za-z]{3}" placeholder="USD" /></label>
-        <label className={labelClass}>Scope<select className={inputClass} name="scope" defaultValue={scope}><option value="business">All stores</option><option value="store">Selected store</option></select></label>
+        <EnumField label="Scope" name="scope" defaultValue={scope} values={[{ value: "business", label: "All stores" }, { value: "store", label: "Selected store" }]} />
         <div className="sm:col-span-2 xl:col-span-1"><button className={primaryButtonClass} type="submit">Run report</button></div>
       </form>
       {summary ? <section className="min-w-0 space-y-6" aria-labelledby="report-results">

@@ -6,6 +6,7 @@ import type { PlatformOption } from "../lib/projection";
 import { downloadExportArtifactAction } from "./download-actions";
 import { initialExportDownloadState } from "./download-state";
 import { buttonClass, inputClass, labelClass } from "../components/cv-ui";
+import { PlatformSelect } from "../components/PlatformSelect";
 
 export function ExportDownloadPanel({
   businessId,
@@ -40,20 +41,14 @@ export function ExportDownloadPanel({
       <input type="hidden" name="businessId" value={businessId} />
       <label className={labelClass}>
         Checksum-verified batch
-        <select
+        <PlatformSelect
           name="batchId"
           required
           defaultValue={batches.length === 1 ? batches[0].id : ""}
-          className={inputClass}
-        >
-          <option value="">Choose a batch</option>
-          {batches.map((batch) => (
-            <option key={batch.id} value={batch.id}>
-              {batch.label}
-              {batch.detail ? ` · ${batch.detail}` : ""}
-            </option>
-          ))}
-        </select>
+          placeholder="Choose a batch"
+          options={batches.map((batch) => ({ value: batch.id, label: batch.detail ? `${batch.label} · ${batch.detail}` : batch.label }))}
+          className="h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"
+        />
       </label>
       <button
         type="submit"

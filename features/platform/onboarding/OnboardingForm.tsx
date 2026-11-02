@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { SegmentedRadio, inputClass, primaryButtonClass } from "../components/cv-ui";
 import { useOnboardingApi } from "./hooks/useOnboardingApi";
 import seed from "./lib/seed.json";
+import { PlatformSelect } from "../components/PlatformSelect";
 
 // "Sample store" fills the form from lib/seed.json, like E-commerce's Complete template;
 // the owner reviews and submits it through the same checks as a blank form.
@@ -69,7 +70,7 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
           />
           {template === "sample" && (
             <p className="mt-2 text-xs text-muted-foreground">
-              {seed.storefront.name}: sample business details and {seed.demoProducts.length} products. Review and change anything before you create the store.
+              {seed.storefront.name}: sample business details and {seed.demoProducts.length} {seed.demoProducts.length === 1 ? "product" : "products"}. Review and change anything before you create the store.
             </p>
           )}
         </div>
@@ -113,19 +114,14 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="timezone">Timezone</Label>
-            <select
+            <PlatformSelect
               id="timezone"
               name="timezone"
-              defaultValue={value("timezone", "America/New_York")}
-              className={inputClass}
               required
-            >
-              {timezoneOptions().map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
+              defaultValue={value("timezone", "America/New_York")}
+              options={timezoneOptions().map((zone) => ({ value: zone, label: zone.replaceAll("_", " ") }))}
+              className={"h-9 rounded-[4px] text-[13px] max-sm:h-11 max-sm:text-base"}
+            />
           </div>
         </div>
       </fieldset>

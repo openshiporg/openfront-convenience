@@ -21,6 +21,8 @@ import {
   CountBoxes,
 } from "./cv-ui";
 import { PendingSubmitButton } from "./PendingSubmitButton";
+import { PlatformDateInput, PlatformDateTimeField } from "./PlatformDateTime";
+import { PlatformSelect } from "./PlatformSelect";
 import {
   centsToInput,
   isDateTimeField,
@@ -123,7 +125,7 @@ export function MetricsBand({ metrics, columns }: { metrics: PlatformProjection[
           label: (
             <span className="flex items-baseline gap-1.5">
               {tone !== "muted" && metric.value !== "0" ? <Dot tone={tone} /> : null}
-              <span className="truncate">{metric.label}</span>
+              <span className="break-words">{metric.label}</span>
             </span>
           ),
           value: formatMeasure(metric.value),
@@ -179,18 +181,14 @@ function ScopeSelect({
       <label className="sr-only" htmlFor={`scope-${name}`}>
         {label}
       </label>
-      <select
+      <PlatformSelect
         id={`scope-${name}`}
         name={name}
         defaultValue={value ?? ""}
-        className="h-8 min-w-0 max-w-56 truncate rounded-[4px] border border-input bg-background px-3 text-[13px] font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring dark:bg-zinc-800 max-sm:h-10"
-      >
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        options={options.map((option) => ({ value: option.id, label: option.label }))}
+        aria-label={label}
+        className="h-8 w-auto max-w-56 rounded-[4px] text-[13px] font-medium max-sm:h-10"
+      />
       <button
         type="submit"
         className="inline-flex min-h-8 items-center rounded-[4px] px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
@@ -334,25 +332,30 @@ export function SelectField({
   name,
   options,
   placeholder = "Select",
-  ...props
+  defaultValue,
+  required = true,
+  disabled,
 }: {
   label: string;
   name: string;
   options: PlatformOption[];
   placeholder?: string;
-} & Omit<ComponentProps<"select">, "name" | "children">) {
+  defaultValue?: string | number | readonly string[];
+  required?: boolean;
+  disabled?: boolean;
+}) {
   return (
     <label className={labelClass}>
       {label}
-      <select name={name} required className={inputClass} {...props}>
-        <option value="">{options.length ? placeholder : "None available"}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-            {option.detail ? ` · ${option.detail}` : ""}
-          </option>
-        ))}
-      </select>
+      <PlatformSelect
+        name={name}
+        required={required}
+        disabled={disabled}
+        defaultValue={defaultValue == null ? "" : String(defaultValue)}
+        placeholder={options.length ? placeholder : "None available"}
+        options={options.map((option) => ({ value: option.id, label: option.detail ? `${option.label} · ${option.detail}` : option.label }))}
+        className={selectTriggerClass}
+      />
     </label>
   );
 }
@@ -371,16 +374,13 @@ export function EnumField({
   return (
     <label className={labelClass}>
       {label}
-      <select name={name} defaultValue={defaultValue} className={inputClass}>
-        {values.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <PlatformSelect name={name} defaultValue={defaultValue ?? values[0]?.value ?? ""} options={values} className={selectTriggerClass} />
     </label>
   );
 }
+
+/** Popover triggers keep the native field's height and type on every breakpoint. */
+const selectTriggerClass = "h-9 rounded-[4px] text-[13px] font-normal max-sm:h-11 max-sm:text-base";
 
 const UNIT_SUFFIX = /\s*\((?:signed\s+)?cents[^)]*\)|\s*\((?:exact\s+)?ISO[^)]*\)|\s*\(optional ISO\)/gi;
 
@@ -445,7 +445,29 @@ export function TextField({
     return (
       <label className={labelClass}>
         {plainLabel(label)}
-        <input name={name} type="datetime-local" className={`${inputClass} font-mono tabular-nums ${className ?? ""}`} {...rest} />
+        <PlatformDateTimeField
+          name={name}
+          defaultValue={rest.defaultValue == null ? "" : String(rest.defaultValue)}
+          required={Boolean(rest.required)}
+          disabled={Boolean(rest.disabled)}
+          aria-label={plainLabel(label)}
+        />
+      </label>
+    );
+  }
+  if (props.type === "date") {
+    return (
+      <label className={labelClass}>
+        {label}
+        <PlatformDateInput
+          name={name}
+          defaultValue={props.defaultValue == null ? "" : String(props.defaultValue)}
+          required={Boolean(props.required)}
+          disabled={Boolean(props.disabled)}
+          clearable={!props.required}
+          className={selectTriggerClass}
+          aria-label={label}
+        />
       </label>
     );
   }
