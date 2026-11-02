@@ -13,6 +13,7 @@ import {
 } from "../components/PlatformPage";
 import { getPlatformProjection, type PlatformSearch } from "../lib/projection";
 import { StoreLogoField } from "./components/StoreLogoField";
+import { StoreSettingsSaveBar } from "./components/StoreSettingsSaveBar";
 import { StoreResources } from "./StoreResources";
 import { DEFAULT_STORE_LOGO_ICON } from "./lib/store-logo";
 
@@ -29,7 +30,7 @@ export async function StoreSettingsPage({
 
   const published = brand?.storefrontStatus === "published";
   const section = "grid min-w-0 gap-3 border-t pt-5 sm:col-span-2 sm:grid-cols-2";
-  const heading = "text-[14px] font-semibold text-foreground sm:col-span-2";
+  const heading = "text-sm font-semibold text-foreground sm:col-span-2";
   // Blank fields the storefront needs, first in the page so they are filled before anything else.
   const missing: Array<{ id: string; label: string }> = brand
     ? [
@@ -58,7 +59,7 @@ export async function StoreSettingsPage({
               <li key={entry.id}>
                 <a
                   href={`#${entry.id}`}
-                  className="inline-flex min-h-9 items-baseline gap-1.5 rounded-[4px] border px-3 py-2 text-[13px] font-medium text-foreground hover:bg-muted max-sm:min-h-10"
+                  className="inline-flex min-h-9 items-baseline gap-1.5 rounded-[4px] border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted max-sm:min-h-10"
                 >
                   <Dot tone="warn" />
                   {entry.label}
@@ -70,9 +71,9 @@ export async function StoreSettingsPage({
         </section>
       ) : null}
       {state.projection ? (
-        <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-w-0 items-start gap-4 pb-24 md:pb-0 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <section className={panelClass} aria-label="Storefront settings">
-            <FormGrid action={configureBusinessBrandAction} submit="Save">
+            <FormGrid action={configureBusinessBrandAction} submit="Save" submitSlot={(button) => <div className="sm:col-span-2"><StoreSettingsSaveBar isSaving={false} button={button} /></div>}>
               <HiddenScope projection={state.projection} returnPath={path} />
               <input type="hidden" name="brandMark" value={brand?.mark ?? ""} />
               <input type="hidden" name="storefrontMode" value="live" />

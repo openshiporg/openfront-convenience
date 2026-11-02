@@ -296,16 +296,20 @@ export function FormGrid({
   children,
   action,
   submit = "Save",
+  submitSlot,
 }: {
   children: ReactNode;
   action: (formData: FormData) => void | Promise<void>;
   submit?: string;
+  /** Wraps the submit button (e.g. Store Settings pins it to the bottom on phones). */
+  submitSlot?: (button: ReactNode) => ReactNode;
 }) {
+  const button = <PendingSubmitButton label={submit} />;
   return (
     <form action={action} className="grid min-w-0 gap-3 sm:grid-cols-2">
       <input type="hidden" name="idempotencyKey" value={`platform-${randomUUID()}`} />
       {children}
-      <PendingSubmitButton label={submit} />
+      {submitSlot ? submitSlot(button) : button}
     </form>
   );
 }
