@@ -21,11 +21,11 @@ function transport() {
   });
 }
 
-export async function sendOrderConfirmationEmail(order: OrderConfirmationEmail): Promise<{ sent: boolean; error?: string }> {
+export async function sendOrderConfirmationEmail(order: OrderConfirmationEmail): Promise<{ sent: boolean; error?: string; messageId?: string }> {
   if (!order.to) return { sent: false, error: "no_recipient" };
   try {
     const rows = order.lines.map((line) => `<tr><td style="padding:4px 0">${escapeHtml(line.title)} × ${escapeHtml(line.quantity)}</td><td align="right" style="padding:4px 0">${escapeHtml(line.total)}</td></tr>`).join("");
-    await transport().sendMail({
+    const info = await transport().sendMail({
       to: order.to,
       from: process.env.SMTP_FROM,
       subject: `Your pickup order ${order.orderNumber} at ${order.storeName}`,
@@ -37,7 +37,7 @@ export async function sendOrderConfirmationEmail(order: OrderConfirmationEmail):
         <p><a href="${escapeHtml(order.link)}">View your receipt</a></p>
       </body>`,
     });
-    return { sent: true };
+    return { sent: true, messageId: typeof (info as any)?.messageId === "string" ? (info as any).messageId : undefined };
   } catch (error) {
     return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
   }

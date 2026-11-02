@@ -28,6 +28,13 @@ test("sends once on success and links the signed-in receipt", async () => {
   assert.equal(audits.get(KEY).metadata.status, "sent");
 });
 
+test("the provider message id is recorded with a sent status", async () => {
+  configure(true);
+  const { audits, prisma } = fake();
+  await deliverOrderConfirmation(prisma, "s1", null, async () => ({ sent: true, messageId: "<abc@resend>" }));
+  assert.equal(audits.get(KEY).metadata.messageId, "<abc@resend>");
+});
+
 test("a replay does not resend", async () => {
   configure(true);
   const { prisma } = fake();

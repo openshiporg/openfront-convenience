@@ -4,7 +4,7 @@
 // Recipient: the signed-in customer's email, else the guest's optional "Email for receipt" kept on
 // Cart.metadata.receiptEmail (no account, no link to one). With neither, skipped_no_recipient.
 
-type Send = (order: any) => Promise<{ sent: boolean; error?: string }>;
+type Send = (order: any) => Promise<{ sent: boolean; error?: string; messageId?: string }>;
 
 export const CONFIRMATION_ACTION = "pickup.order.confirmation_email";
 
@@ -30,7 +30,7 @@ export async function deliverOrderConfirmation(prisma: any, saleId: string, proo
       if ((error as { code?: string })?.code === "P2002") return; // already claimed
       throw error;
     }
-    const mark = (status: string, error?: string) => prisma.auditEvent.update({ where: { id: audit.id }, data: { metadata: { status, ...(error ? { error: error.slice(0, 200) } : {}) } } });
+    const mark = (status: string, error?: string, messageId?: string) => prisma.auditEvent.update({ where: { id: audit.id }, data: { metadata: { status, ...(messageId ? { messageId: messageId.slice(0, 200) } : {}), ...(error ? { error: error.slice(0, 200) } : {}) } } });
     try {
       const cart = await prisma.cart.findFirst({ where: { saleId: sale.id }, select: { id: true, metadata: true } });
       const guestEmail = (cart?.metadata as { receiptEmail?: unknown } | null)?.receiptEmail;
@@ -46,7 +46,7 @@ export async function deliverOrderConfirmation(prisma: any, saleId: string, proo
         total: money(sale.totalCents),
         link: receiptLink(sale.id, Boolean(sale.customer?.email), proof, cart?.id),
       });
-      await (result.sent ? mark("sent") : mark("failed", result.error || "send_failed"));
+      await (result.sent ? mark("sent", undefined, result.messageId) : mark("failed", result.error || "send_failed"));
     } catch (error) {
       try { await mark("failed", error instanceof Error ? error.message : "send_failed"); } catch { /* the order is committed; bookkeeping must never surface */ }
     }
