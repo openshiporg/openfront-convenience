@@ -3,6 +3,7 @@ import {
   assertBusinessPermission,
   assertStorePermission,
   isHumanPlatformAdmin,
+  scopesStillHeldByCreator,
   type PermissionKey,
   type EmployeeSessionData,
   type Session,
@@ -113,8 +114,16 @@ export async function currentRetailSession(
     // Keep the SQL expiry predicate and also inspect a returned stale port row.
     // This is boundary evidence, not a physical COMMIT-time expiry fence.
     if (!key || (key.expiresAt !== null && key.expiresAt !== undefined && key.expiresAt <= new Date())) throw new Error("Retail API key is no longer active");
-    fresh.apiKeyScopes = Array.isArray(key.scopes) ? key.scopes.filter((scope): scope is string => typeof scope === "string") : [];
-    fresh.apiKeyAllStores = key.allStores;
+    const keyScopes = Array.isArray(key.scopes) ? key.scopes.filter((scope): scope is string => typeof scope === "string") : [];
+    // The creator's current authority caps the key here too (fresh read in this transaction).
+    const creatorEmployees = await prisma.employee.findMany({
+      where: { userId: session.itemId, businessId, status: "active" },
+      select: { id: true, status: true, business: { select: { id: true, status: true } }, role: true, stores: { select: { id: true, businessId: true } } },
+    });
+    fresh.apiKeyScopes = scopesStillHeldByCreator(keyScopes, businessId, {
+      id: user.id, isPlatformAdmin: user.isPlatformAdmin, platformAdminApprovedAt: user.platformAdminApprovedAt, employees: creatorEmployees as unknown as EmployeeSessionData[],
+    });
+    fresh.apiKeyAllStores = key.allStores && Boolean(user.isPlatformAdmin && user.platformAdminApprovedAt);
     fresh.apiKeyStoreIds = key.stores.map((store: { id: string }) => store.id);
   } else {
     fresh.data.employees = await prisma.employee.findMany({

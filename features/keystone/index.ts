@@ -8,6 +8,7 @@ import {
   hasPermission,
   isHumanPlatformAdmin,
   permissionKeys,
+  scopesStillHeldByCreator,
   type Session,
 } from "./access";
 import { parseMachineApiToken } from "./lib/machineAuth";
@@ -169,14 +170,35 @@ const sessionStrategy = {
             typeof scope === "string" && validPermissions.has(scope),
         )
       : [];
+    // Re-check the creator's current authority on every use, not only at issue.
+    const creator = await args.context.prisma.user.findUnique({
+      where: { id: key.createdById },
+      select: {
+        id: true,
+        isPlatformAdmin: true,
+        platformAdminApprovedAt: true,
+        employees: {
+          where: { businessId: key.businessId, status: "active" },
+          select: {
+            id: true,
+            status: true,
+            business: { select: { id: true, status: true } },
+            stores: { select: { id: true, businessId: true } },
+            role: true,
+          },
+        },
+      },
+    });
+    const heldScopes = scopesStillHeldByCreator(scopes, key.businessId, creator as never);
     return {
       itemId: key.createdById,
       listKey: "User",
       apiKeyId: key.id,
       apiKeyBusinessId: key.businessId,
-      apiKeyScopes: scopes,
+      apiKeyScopes: heldScopes,
       apiKeyStoreIds: key.stores.map((store: { id: string }) => store.id),
-      apiKeyAllStores: key.allStores,
+      // An all-store key needs a still-approved platform-admin creator, as at issue.
+      apiKeyAllStores: key.allStores && Boolean(creator?.isPlatformAdmin && creator.platformAdminApprovedAt),
     };
   },
 };

@@ -657,3 +657,36 @@ export function assertStorePermission(
     throw new Error("Access denied for this store");
   }
 }
+
+/**
+ * API keys act for their creator, so on every use a key keeps only the scopes the
+ * creator still holds in the key's business (the same rule createBusinessApiKey
+ * applies at issue). A downgraded, removed or suspended creator narrows the key.
+ */
+export function scopesStillHeldByCreator(
+  scopes: readonly string[],
+  businessId: string,
+  creator: {
+    id: string;
+    isPlatformAdmin: boolean;
+    platformAdminApprovedAt: Date | string | null;
+    employees: EmployeeSessionData[];
+  } | null,
+): string[] {
+  if (!creator) return [];
+  const human: Session = {
+    itemId: creator.id,
+    listKey: "User",
+    data: {
+      name: "",
+      email: "",
+      isPlatformAdmin: creator.isPlatformAdmin,
+      platformAdminApprovedAt: creator.platformAdminApprovedAt,
+      employees: creator.employees,
+    },
+  };
+  return scopes.filter((scope) =>
+    (permissionKeys as readonly string[]).includes(scope) &&
+    canAccessBusiness(human, businessId, scope as PermissionKey),
+  );
+}
