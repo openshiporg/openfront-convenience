@@ -1,16 +1,21 @@
 import { getBaseUrl } from "@/features/dashboard/lib/getBaseUrl";
+import { clientSourceFromHeaders, internalIdentityHeaders, loopbackOrigin } from "./internal-origin";
 
 export async function assistantCapabilityPrincipal(
   cookieHeader: string | null,
   fetchImpl: typeof fetch = globalThis.fetch,
+  sourceHeaders?: { get(name: string): string | null } | null,
 ): Promise<string | null> {
   if (!cookieHeader) return null;
-  const origin = await getBaseUrl();
+  // Self-call to this process: loopback with the end user's signed identity when the port is known.
+  const loopback = loopbackOrigin();
+  const origin = loopback ?? await getBaseUrl();
   const response = await fetchImpl(`${origin}/api/graphql`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       cookie: cookieHeader,
+      ...(loopback ? internalIdentityHeaders(clientSourceFromHeaders(sourceHeaders)) : {}),
     },
     body: JSON.stringify({
       query: `
@@ -44,6 +49,7 @@ export async function assistantCapabilityPrincipal(
 export async function hasAssistantCapability(
   cookieHeader: string | null,
   fetchImpl: typeof fetch = globalThis.fetch,
+  sourceHeaders?: { get(name: string): string | null } | null,
 ): Promise<boolean> {
-  return Boolean(await assistantCapabilityPrincipal(cookieHeader, fetchImpl));
+  return Boolean(await assistantCapabilityPrincipal(cookieHeader, fetchImpl, sourceHeaders));
 }

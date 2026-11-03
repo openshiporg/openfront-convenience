@@ -9,6 +9,7 @@ import {
 } from "graphql";
 
 import { hasAssistantCapability } from "@/features/keystone/lib/assistant-capability";
+import { clientSourceFromHeaders, internalIdentityHeaders, loopbackOrigin } from "@/features/keystone/lib/internal-origin";
 import { keystoneContext } from "@/features/keystone/context";
 import {
   RequestBodyError,
@@ -103,10 +104,12 @@ async function executeGraphQL(
   cookie: string,
   query: string,
   variables?: Record<string, unknown>,
+  extra: Record<string, string> = {},
 ): Promise<unknown> {
   const graphqlResponse = await fetch(new URL("/api/graphql", origin), {
     method: "POST",
-    headers: { "content-type": "application/json", cookie },
+    redirect: "error",
+    headers: { "content-type": "application/json", cookie, ...extra },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",
   });
@@ -161,6 +164,7 @@ async function callTool(
   cookie: string,
   name: string,
   input: Record<string, unknown>,
+  extra: Record<string, string> = {},
 ) {
   const operations = collectionOperations(schema);
   if (name === "listModels") return toolResult(operations);
@@ -196,7 +200,7 @@ async function callTool(
     }
     const query = `query McpBoundedRead($take: Int!) { ${operation}(take: $take) { ${fields.join(" ")} } }`;
     try {
-      return toolResult(await executeGraphQL(origin, cookie, query, { take: limit }));
+      return toolResult(await executeGraphQL(origin, cookie, query, { take: limit }, extra));
     } catch {
       return toolResult({ error: "The authorized read was denied" }, true);
     }
@@ -221,7 +225,7 @@ export async function POST(
       return rpcError(id, -32600, "Invalid JSON-RPC request");
     }
     const cookie = request.headers.get("cookie") ?? "";
-    if (!await hasAssistantCapability(cookie)) return rpcError(id, -32001, "Forbidden", 403);
+    if (!await hasAssistantCapability(cookie, undefined, request.headers)) return rpcError(id, -32001, "Forbidden", 403);
 
     if (body.method === "initialize") {
       return response(id, {
@@ -241,11 +245,14 @@ export async function POST(
     const input = paramsValue.arguments && typeof paramsValue.arguments === "object" && !Array.isArray(paramsValue.arguments)
       ? paramsValue.arguments as Record<string, unknown>
       : {};
-    const origin = await getBaseUrl();
+    // Self-call to this process: loopback with the end user's signed identity when the port is known.
+    const loopback = loopbackOrigin();
+    const origin = loopback ?? await getBaseUrl();
+    const extra = loopback ? internalIdentityHeaders(clientSourceFromHeaders(request.headers)) : {};
     // Schema metadata is local and immutable for this build; data access still
     // executes through the authenticated GraphQL endpoint below.
     const schema = keystoneContext.graphql.schema;
-    return response(id, await callTool(schema, origin, cookie, name, input));
+    return response(id, await callTool(schema, origin, cookie, name, input, extra));
   } catch (error) {
     if (error instanceof RequestBodyError) return rpcError(id, -32700, error.message, error.status);
     console.error("MCP request failed", { kind: error instanceof Error ? error.name : "unknown" });
