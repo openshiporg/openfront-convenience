@@ -26,11 +26,13 @@ export async function productMetadata({ params }: { params: Promise<{ productId:
   return storefrontTitle(data?.products[0]?.title ?? "Product");
 }
 
-type Search = Promise<{ q?: string; category?: string; page?: string; error?: string; from?: string }>;
+type Search = Promise<{ q?: string; category?: string; page?: string; error?: string; from?: string; email?: string }>;
 // Error codes map to fixed text; the query string is never rendered.
 const errorMessages: Record<string, string> = {
   basket: "Basket could not be updated",
   signup: "Account could not be created",
+  exists: "An account with this email already exists.",
+  unavailable: "Sign in is unavailable right now. Try again in a moment.",
   signin: "Email or password incorrect",
   password: "Choose a less common password",
 };
@@ -638,7 +640,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
         </nav>
         <h1 className="sf-listhead__title">{signup ? "Create account" : "Sign in"}</h1>
         <Alert message={errorMessage(search.error)} />
-        {signup && search.error === "signup" ? (
+        {signup && search.error === "exists" ? (
           <p className="sf-muted">
             Already have an account?{" "}
             <Link href="/account/signin" className="sf-link">
@@ -656,7 +658,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
           ) : null}
           <label className="sf-field">
             <span>Email</span>
-            <input name="email" type="email" autoComplete="email" required />
+            <input name="email" type="email" autoComplete="email" defaultValue={signup && search.error === "exists" ? search.email?.slice(0, 254) : undefined} required />
           </label>
           <label className="sf-field">
             <span>Password</span>
@@ -664,7 +666,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
               name="password"
               type="password"
               autoComplete={signup ? "new-password" : "current-password"}
-              minLength={10}
+              minLength={signup ? 10 : undefined}
               maxLength={1000}
               required
             />

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { isCommonPassword } from "./lib/password-rules";
 import { basket, catalog, lastWebOrder } from "./lib/data";
+import { isDuplicateEmail } from "./lib/auth-errors";
 import { reorderable } from "./lib/reorder";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -38,10 +39,16 @@ export async function customerAuth(form: FormData) {
   if (mode === "signup") {
     if (isCommonPassword(password, email)) redirect("/account/signup?error=password");
     const result = await keystoneClient(`mutation Signup($data: UserCreateInput!) { createUser(data: $data) { id } }`, { data: { name: value(form, "name"), email, password } });
-    if (!result.success) redirect("/account/signup?error=signup");
+    if (!result.success) {
+      // The unique-constraint failure on User.email is the only detail shown; everything else stays generic.
+      if (isDuplicateEmail(result.error)) redirect(`/account/signup?error=exists&email=${encodeURIComponent(email)}`);
+      redirect("/account/signup?error=signup");
+    }
   }
   const result = await keystoneClient<{ authenticateUserWithPassword: { sessionToken?: string } }>(`mutation Login($email: String!, $password: String!) { authenticateUserWithPassword(email: $email, password: $password) { ... on UserAuthenticationWithPasswordSuccess { sessionToken } } }`, { email, password });
-  const token = result.success ? result.data.authenticateUserWithPassword.sessionToken : null;
+  // A transport or server failure is not a wrong password: say so instead of blaming the credentials.
+  if (!result.success) redirect("/account/signin?error=unavailable");
+  const token = result.data.authenticateUserWithPassword?.sessionToken;
   if (!token) redirect("/account/signin?error=signin");
   (await cookies()).set("keystonejs-session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
   redirect("/account");
