@@ -240,7 +240,9 @@ const boundedModels = Object.fromEntries(
           ...model.graphql,
           omit: {
             ...existingOmit,
-            delete: true,
+            // Role managers may retire unassigned roles (E-commerce parity);
+            // Role access + validateDelete gate it. Every other list stays delete-free.
+            delete: key !== "Role",
             ...(workflowOnly ? { create: true, update: true } : {}),
           },
         },

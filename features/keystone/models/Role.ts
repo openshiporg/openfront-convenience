@@ -16,7 +16,9 @@ import { requiredRelationshipHooks } from "./validation";
 const roleRelationshipHooks = requiredRelationshipHooks("business");
 
 export const Role = list({
-  access: tenantAccess("canManageRoles", "canManageRoles", { delete: false }),
+  // Delete is tenant-scoped to role managers (E-commerce parity) and refused
+  // while any employee still holds the role (validateDelete below).
+  access: tenantAccess("canManageRoles", "canManageRoles", { delete: true }),
   hooks: {
     ...roleRelationshipHooks,
     async validateInput(args) {
@@ -38,10 +40,21 @@ export const Role = list({
         }
       }
     },
+    async validateDelete({ item, context, addValidationError }) {
+      const session = context.session as Session | undefined;
+      if (session?.apiKeyId) {
+        addValidationError("Machine sessions cannot mutate human authorization roles");
+        return;
+      }
+      const assigned = await context.prisma.employee.count({ where: { roleId: String(item.id) } });
+      if (assigned > 0) {
+        addValidationError("Reassign this role's employees before deleting it");
+      }
+    },
   },
   ui: {
     hideCreate: (args) => !permissions.canManageRoles(args),
-    hideDelete: true,
+    hideDelete: (args) => !permissions.canManageRoles(args),
     labelField: "name",
     listView: { initialColumns: ["name", "business", "employees"] },
   },
