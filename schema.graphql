@@ -9493,6 +9493,7 @@ type Mutation {
   updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
   startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
   settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
+  markSalePickedUp(saleId: ID!): JSON!
   revokeCurrentUserSessions: Boolean!
   recordOperationalHeartbeat(input: RecordOperationalHeartbeatInput!): OperationalHeartbeatResult!
   onboardConvenienceBusiness(input: OnboardConvenienceBusinessInput!): OnboardingResult!

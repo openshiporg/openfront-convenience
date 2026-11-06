@@ -22,11 +22,13 @@ import { quantityText, shortRef } from "../../lib/labels";
 import { employeeName, type EmployeeRef } from "../../lib/people";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
 import { formatMoney, formatWhen, getPlatformScope, scopeQuery } from "../../lib/scope";
+import { markPickedUpAction } from "../actions";
 
 type Sale = {
   id: string;
   receiptNumber: string;
   status: string;
+  pickupStatus: string;
   source: string;
   currencyCode: string;
   subtotalCents: number;
@@ -55,7 +57,7 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
   const response = await keystoneClient<{ sale: Sale | null }>(
     `query PlatformSale($id: ID!) {
       sale(where: { id: $id }) {
-        id receiptNumber status source currencyCode subtotalCents discountCents taxCents totalCents refundedCents startedAt completedAt voidedAt
+        id receiptNumber status pickupStatus source currencyCode subtotalCents discountCents taxCents totalCents refundedCents startedAt completedAt voidedAt
         cashier { employeeNumber user { name } }
         customer { name email }
         loyaltyAccount { id accountNumber }
@@ -127,6 +129,17 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
               </div>
             ) : null}
           </dl>
+          {sale.pickupStatus === "ready_for_pickup" && sale.status === "completed" ? (
+            <form action={markPickedUpAction} className="flex flex-col gap-2 border-t px-4 py-3">
+              <p className="text-[13px] text-muted-foreground">Paid online · waiting for pickup</p>
+              <input type="hidden" name="saleId" value={sale.id} />
+              {scope.businessId ? <input type="hidden" name="businessId" value={scope.businessId} /> : null}
+              {scope.storeId ? <input type="hidden" name="storeId" value={scope.storeId} /> : null}
+              <button type="submit" className={primaryButtonClass}>Mark picked up</button>
+            </form>
+          ) : sale.pickupStatus === "picked_up" ? (
+            <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">Picked up</p>
+          ) : null}
           <div className="flex flex-wrap gap-2 border-t px-4 py-3">
             {refundable ? (
               <>

@@ -142,7 +142,7 @@ import {
   transitionInventoryTransfer,
 } from "./transferOperations";
 import redirectToInit from "./redirectToInit";
-import { startStorefrontPickupPayment, settleStorefrontPickup, setStorefrontReceiptEmail, storefrontPickupOrder } from "./pickupOperations";
+import { markSalePickedUp, startStorefrontPickupPayment, settleStorefrontPickup, setStorefrontReceiptEmail, storefrontPickupOrder } from "./pickupOperations";
 import { storefrontCatalog, storefrontBasket, updateStorefrontBasket, storefrontHistory, storefrontRewards } from "./storefrontOperations";
 
 const graphql = String.raw;
@@ -1635,6 +1635,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
         settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
         setStorefrontReceiptEmail(input: StorefrontReceiptEmailInput!): JSON!
+        markSalePickedUp(saleId: ID!): JSON!
         revokeCurrentUserSessions: Boolean!
         recordOperationalHeartbeat(
           input: RecordOperationalHeartbeatInput!
@@ -1877,6 +1878,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         startStorefrontPickupPayment,
         settleStorefrontPickup,
         setStorefrontReceiptEmail,
+        markSalePickedUp,
         createPosCart,
         addPosCartLine,
         updatePosCartLine,

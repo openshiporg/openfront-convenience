@@ -17,6 +17,8 @@ import {
 import { getPublicPaymentProviderConfig, isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { consumeInventoryLots } from "./inventoryPosting";
 import { assertProof, currentCustomerId, publishedStore } from "./storefrontOperations";
+import { assertStorePermission, type Session } from "../access";
+import { requireSession } from "./operationRunner";
 
 // Online pickup orders. A storefront Cart is the order; settling it posts an
 // ordinary Sale + Tender (providerPaymentId = the Stripe pi_…), so store-day
@@ -390,4 +392,17 @@ export async function storefrontPickupOrder(_root: unknown, args: { cartId: stri
   });
   if (!sale) return null;
   return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
+}
+
+/** Staff hand an online pickup order over at the counter. Only a paid, ready order moves; repeating is a no-op. */
+export async function markSalePickedUp(_root: unknown, args: { saleId: string }, context: Context) {
+  const session = requireSession(context) as Session;
+  const sale = await context.prisma.sale.findUnique({ where: { id: args.saleId }, select: { id: true, businessId: true, storeId: true, pickupStatus: true, status: true } });
+  if (!sale?.businessId || !sale.storeId) throw new GraphQLError("Sale not found");
+  assertStorePermission(session, sale.businessId, sale.storeId, "canManageSales");
+  if (sale.pickupStatus === "picked_up") return { saleId: sale.id, pickupStatus: "picked_up" };
+  if (sale.pickupStatus !== "ready_for_pickup" || sale.status !== "completed") throw new GraphQLError("Only a paid order waiting for pickup can be handed over");
+  const updated = await context.prisma.sale.updateMany({ where: { id: sale.id, pickupStatus: "ready_for_pickup", status: "completed" }, data: { pickupStatus: "picked_up" } });
+  if (!updated.count) throw new GraphQLError("This order changed; refresh and try again");
+  return { saleId: sale.id, pickupStatus: "picked_up" };
 }
