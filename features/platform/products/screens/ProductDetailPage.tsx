@@ -255,8 +255,8 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
           <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <TableSection
               title={`Stock · ${selectedVariant.title}`}
-              count={selectedVariant.stockLevels.length}
-              empty={selectedVariant.trackInventory ? "No stock recorded" : "Not stock-tracked"}
+              count={selectedVariant.trackInventory ? selectedVariant.stockLevels.length : 0}
+              empty={selectedVariant.trackInventory ? "No stock recorded" : "Not stock-tracked: made to order"}
               head={
                 <>
                   <Th>Location</Th>
@@ -271,7 +271,8 @@ export async function ProductDetailPage({ params, searchParams }: { params: Prom
                 </>
               }
             >
-              {selectedVariant.stockLevels.map((level) => {
+              {/* Untracked (made-to-order) items keep old counter rows, but they are not stock. */}
+              {(selectedVariant.trackInventory ? selectedVariant.stockLevels : []).map((level) => {
                 const condition = stockCondition(level);
                 return (
                   <Tr key={level.id}>
