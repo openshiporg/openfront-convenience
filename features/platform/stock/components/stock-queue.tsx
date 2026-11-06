@@ -89,7 +89,8 @@ export async function loadStockQueue(storeId: string | null) {
     loadPlatformList<StockRow>({
       path: "stock-levels",
       search: { pageSize: "100" },
-      scopeWhere: { store: { id: { equals: storeId ?? "" } } },
+      // Only counted stock queues: made-to-order items are untracked, so their rows never alert.
+      scopeWhere: { AND: [{ store: { id: { equals: storeId ?? "" } } }, { variant: { trackInventory: { equals: true } } }] },
       pageSize: 100,
       selection: STOCK_SELECTION,
     }),

@@ -40,7 +40,7 @@ async function loadCounts(businessId: string | null) {
     }`,
     {
       active: { AND: [base, { status: { equals: "active" } }] },
-      negative: { AND: [base, { variants: { some: { stockLevels: { some: { onHandQuantity: { lt: "0" } } } } } }] },
+      negative: { AND: [base, { variants: { some: { trackInventory: { equals: true }, stockLevels: { some: { onHandQuantity: { lt: "0" } } } } } }] },
       noPrice: { AND: [base, { status: { equals: "active" } }, { variants: { some: { defaultPriceCents: { lte: 0 } } } }] },
     },
   );
