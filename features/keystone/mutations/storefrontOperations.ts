@@ -1,3 +1,4 @@
+import { GraphQLError } from "graphql";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { Context } from ".keystone/types";
@@ -150,7 +151,7 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
         const stock = store.primaryInventoryLocationId ? await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` }, select: { onHandQuantity: true } }) : null;
         const onHand = Math.floor(Number(stock?.onHandQuantity ?? 0));
         const current = input.lineId ? Number((await db.cartLine.findUnique({ where: { id: input.lineId }, select: { quantity: true } }))?.quantity ?? 0) : 0;
-        if (input.quantity > current && input.quantity > onHand) throw new Error(onHand > 0 ? "No more in stock" : "Sold out");
+        if (input.quantity > current && input.quantity > onHand) throw new GraphQLError(onHand > 0 ? "No more in stock" : "Sold out", { extensions: { code: "KS_USER_INPUT_ERROR" } });
       }
       const quantity = `${input.quantity}.0000`;
       const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: business.id, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at: new Date() }) : null;
