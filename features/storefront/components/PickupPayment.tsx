@@ -8,12 +8,12 @@ import { saveReceiptEmail, settlePickup, startPickupPayment } from "../actions";
 
 type Started = { clientSecret: string; publishableKey: string; paymentId: string };
 
-function PayForm({ total, onPaid }: { total: string; onPaid: () => void }) {
+function PayForm({ total, defaultEmail, onPaid }: { total: string; defaultEmail: string; onPaid: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(defaultEmail);
 
   async function confirmAndSettle() {
     if (!stripe || !elements) return;
@@ -57,7 +57,7 @@ function PayForm({ total, onPaid }: { total: string; onPaid: () => void }) {
   );
 }
 
-export function PickupPayment({ total }: { total: string }) {
+export function PickupPayment({ total, defaultEmail = "" }: { total: string; defaultEmail?: string }) {
   const [started, setStarted] = useState<Started | null>(null);
   const [error, setError] = useState("");
   const stripePromise = useRef<Promise<Stripe | null> | null>(null);
@@ -86,7 +86,7 @@ export function PickupPayment({ total }: { total: string }) {
   if (!started || !stripePromise.current) return <p role="status" className="sf-empty"><span className="sf-dot" data-tone="muted" aria-hidden="true" />Preparing secure payment…</p>;
   return (
     <Elements stripe={stripePromise.current} options={{ clientSecret: started.clientSecret }}>
-      <PayForm total={total} onPaid={() => window.location.assign("/checkout/complete")} />
+      <PayForm total={total} defaultEmail={defaultEmail} onPaid={() => window.location.assign("/checkout/complete")} />
     </Elements>
   );
 }

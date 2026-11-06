@@ -268,7 +268,8 @@ function BasketLine({ line, product, currency }: { line: Basket["lines"][number]
         </p>
       </div>
       <Stepper variantId="" lineId={line.id} quantity={Number(line.quantity)} name={line.titleSnapshot} />
-      <span className="sf-bline__total sf-num">{money(line.totalCents, currency)}</span>
+      {/* Before tax, so the lines add up to the Subtotal below */}
+      <span className="sf-bline__total sf-num">{money(line.subtotalCents ?? line.totalCents, currency)}</span>
       <form action={removeBasketLine} className="sf-bline__remove">
         <input type="hidden" name="lineId" value={line.id} />
         <input type="hidden" name="quantity" value="0" />
@@ -353,7 +354,7 @@ export async function BasketPage({ searchParams }: { searchParams: Search }) {
 }
 
 export async function CheckoutPage() {
-  const [data, current, projection] = await Promise.all([firstPage(), basket(), getPublicStorefrontProjection()]);
+  const [data, current, projection, user] = await Promise.all([firstPage(), basket(), getPublicStorefrontProjection(), currentCustomer()]);
   if (!data?.onlinePickup) redirect("/shop?from=checkout");
   if (!current || !current.lines.length) redirect("/basket");
   const productFor = (title: string) => data.products.find((product) => product.title === title);
@@ -374,7 +375,7 @@ export async function CheckoutPage() {
               <Clock aria-hidden="true" className="sf-icon" />
               Pickup at {pickupPlace(projection.location)}
             </p>
-            <PickupPayment total={money(current.totalCents, current.currencyCode)} />
+            <PickupPayment total={money(current.totalCents, current.currencyCode)} defaultEmail={user?.email ?? ""} />
           </section>
           <aside className="sf-card sf-summary" aria-label="Order summary">
             <h2 className="sf-section__title">Order</h2>
@@ -388,7 +389,7 @@ export async function CheckoutPage() {
                       {line.titleSnapshot}
                       <span className="sf-muted sf-num"> × {quantityLabel(line.quantity)}</span>
                     </span>
-                    <span className="sf-num">{money(line.totalCents, current.currencyCode)}</span>
+                    <span className="sf-num">{money(line.subtotalCents ?? line.totalCents, current.currencyCode)}</span>
                   </li>
                 );
               })}

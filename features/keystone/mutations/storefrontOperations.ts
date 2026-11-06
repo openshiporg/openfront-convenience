@@ -97,7 +97,7 @@ export function assertProof(cart: { source: string; customerId: string | null; g
   const actual = Buffer.from(digest(token), "hex");
   if (!/^[a-f0-9]{64}$/.test(token) || expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new Error("Basket unavailable");
 }
-const basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, orderBy: { createdAt: "asc" as const }, take: 50 } };
+const basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, orderBy: { createdAt: "asc" as const }, take: 50 } };
 function basketDto(cart: NonNullable<Awaited<ReturnType<typeof readBasket>>>) { return { ...cart, lines: cart.lines.map(line => ({ ...line, quantity: line.quantity.toString() })) }; }
 async function readBasket(db: Prisma.TransactionClient, id: string) { return db.cart.findUnique({ where: { id }, select: basketSelection }); }
 
