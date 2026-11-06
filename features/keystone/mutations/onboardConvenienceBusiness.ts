@@ -496,9 +496,10 @@ export default async function onboardConvenienceBusiness(
             title: productSeed.variantTitle,
             status: "active",
             defaultPriceCents: productSeed.defaultPriceCents,
-            // Demo items track stock but may go negative until real stock is received.
-            trackInventory: true,
-            allowNegativeInventory: true,
+            // Shelf goods are counted and stop selling online at zero; made-to-order coffee and
+            // food are not shelf stock, so they are untracked (as Square/Toast treat prepared items).
+            trackInventory: !productSeed.preparedFood,
+            allowNegativeInventory: false,
             metadata: { demo: true },
           },
           create: {
@@ -511,8 +512,8 @@ export default async function onboardConvenienceBusiness(
             sellBy: "unit",
             unitOfMeasure: "each",
             defaultPriceCents: productSeed.defaultPriceCents,
-            trackInventory: true,
-            allowNegativeInventory: true,
+            trackInventory: !productSeed.preparedFood,
+            allowNegativeInventory: false,
             metadata: { demo: true },
           },
         });

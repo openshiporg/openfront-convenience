@@ -58,7 +58,7 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   const [products, total, categories] = await Promise.all([
     context.prisma.product.findMany({
       where,
-      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
+      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, allowNegativeInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
       take: CATALOG_PAGE_SIZE, skip: (page - 1) * CATALOG_PAGE_SIZE, orderBy: { title: "asc" },
     }),
     context.prisma.product.count({ where }),
@@ -72,9 +72,10 @@ export async function storefrontCatalog(_root: unknown, args: { search?: string 
   const onlinePickup = Boolean(await context.prisma.paymentProvider.findFirst({ where: { businessId: business.id, status: "active", createPaymentFunction: "stripe" }, select: { id: true } })) && isPaymentProviderConfigured("stripe");
   return { currency: store.currencyCode, onlinePickup, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map(entry => entry.name), products: await Promise.all(products.map(async product => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2000), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async variant => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
-    // Availability only, never quantities: "in_stock", "ask" (tracked, none on hand) or "untracked".
+    // Availability only, never quantities: "in_stock", "sold_out" (tracked, none on hand, cannot be
+    // ordered), "ask" (none on hand but the store allows selling past zero) or "untracked".
     const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
-    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : "ask";
+    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : variant.allowNegativeInventory ? "ask" : "sold_out";
     return { id: variant.id, title: variant.title, unitOfMeasure: variant.unitOfMeasure, priceCents: price?.amountCents ?? variant.defaultPriceCents, availability };
   })) }))) };
 }
@@ -144,6 +145,13 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
       const variant = await db.productVariant.findFirst({ where: { id: input.variantId, businessId: business.id, status: "active", sellBy: "unit", product: { status: "active", regulatedSaleType: "none", businessId: business.id } }, include: { product: true } });
       if (!variant?.product) throw new Error("Item unavailable");
       if (await db.cartLine.count({ where: { cartId: cart.id } }) >= 50 && !input.lineId) throw new Error("Basket limit reached");
+      // Online orders sell only what is on the shelf; the counter can still sell past zero.
+      if (variant.trackInventory && !variant.allowNegativeInventory) {
+        const stock = store.primaryInventoryLocationId ? await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` }, select: { onHandQuantity: true } }) : null;
+        const onHand = Math.floor(Number(stock?.onHandQuantity ?? 0));
+        const current = input.lineId ? Number((await db.cartLine.findUnique({ where: { id: input.lineId }, select: { quantity: true } }))?.quantity ?? 0) : 0;
+        if (input.quantity > current && input.quantity > onHand) throw new Error(onHand > 0 ? "No more in stock" : "Sold out");
+      }
       const quantity = `${input.quantity}.0000`;
       const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: business.id, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at: new Date() }) : null;
       const tax = await findEffectiveTaxRate(db, { businessId: business.id, storeId: store.id, taxCategoryId: variant.product.taxCategoryId, at: new Date() });

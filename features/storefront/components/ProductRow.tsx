@@ -91,7 +91,7 @@ export function ProductRow({
   const priced = product.variants.filter((variant) => variant.priceCents > 0);
   const single = priced.length === 1 ? priced[0] : null;
   const line = single ? lineFor(lines, product, single) : null;
-  const stock = product.variants.every((variant) => variant.availability === "ask") ? "Ask in store" : null;
+  const stock = product.variants.every((variant) => variant.availability === "sold_out") ? "Sold out" : product.variants.every((variant) => variant.availability === "ask" || variant.availability === "sold_out") ? "Ask in store" : null;
   return (
     <li className="sf-row">
       <Link href={href} className="sf-row__photo" tabIndex={-1} aria-hidden="true">
@@ -115,7 +115,7 @@ export function ProductRow({
         {price ? <Price cents={price.from} currency={currency} from={price.varies} /> : <span className="sf-row__ask">Price in store</span>}
       </p>
       <div className="sf-row__act">
-        {onlinePickup && single ? (
+        {onlinePickup && single && (single.availability !== "sold_out" || line) ? (
           <Stepper variantId={single.id} lineId={line?.id ?? null} quantity={line ? Number(line.quantity) : 0} name={product.title} />
         ) : onlinePickup && priced.length > 1 ? (
           <Link href={href} className="sf-choose">

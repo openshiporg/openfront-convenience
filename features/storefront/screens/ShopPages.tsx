@@ -10,6 +10,7 @@ import { Stepper } from "../components/Stepper";
 import { ReorderBanner } from "../components/Reorder";
 import { basket, catalog, currentCustomer, customerHistory, customerRewards, firstPage, history, lastWebOrder, money, pickupOrder, type Basket } from "../lib/data";
 import { PickupPayment } from "../components/PickupPayment";
+import { PickupState, PickupWhen } from "../components/PickupTiming";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { customerAuth, customerSignout, removeBasketLine, startNewBasket } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
@@ -174,7 +175,7 @@ export async function ShopPage({ searchParams }: { searchParams: Search }) {
   );
 }
 
-const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "muted", label: "Ask in store for stock" } } as const;
+const stockLabel = { in_stock: { tone: "ok", label: "In stock" }, ask: { tone: "muted", label: "Ask in store for stock" }, sold_out: { tone: "muted", label: "Sold out" } } as const;
 
 export async function ProductPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -224,7 +225,7 @@ export async function ProductPage({ params }: { params: Promise<{ productId: str
                         ) : null}
                       </span>
                       <span className="sf-size__price">{price ? <Price cents={price.from} currency={data.currency} /> : <span className="sf-row__ask">Price in store</span>}</span>
-                      {onlinePickup && price ? (
+                      {onlinePickup && price && (variant.availability !== "sold_out" || line) ? (
                         <Stepper variantId={variant.id} lineId={line?.id ?? null} quantity={line ? Number(line.quantity) : 0} name={`${product.title}${size ? ` ${size}` : ""}`} />
                       ) : null}
                     </li>
@@ -330,7 +331,7 @@ export async function BasketPage({ searchParams }: { searchParams: Search }) {
               <p className="sf-panelr__sum sf-num">{money(current.subtotalCents, current.currencyCode)}</p>
               <p className="sf-panelr__note">
                 <Clock aria-hidden="true" className="sf-icon" />
-                Pick up at {pickupPlace(projection.location)}
+                <PickupWhen place={pickupPlace(projection.location)} hours={projection.location?.hours} timeZone={projection.location?.timezone} />
               </p>
               <Totals basket={current} />
               <Link href="/checkout" className="sf-btn sf-btn--wide sf-btn--big">
@@ -373,7 +374,7 @@ export async function CheckoutPage() {
             </h2>
             <p className="sf-panelr__note">
               <Clock aria-hidden="true" className="sf-icon" />
-              Pickup at {pickupPlace(projection.location)}
+              <PickupWhen prefix="Pickup at" place={pickupPlace(projection.location)} hours={projection.location?.hours} timeZone={projection.location?.timezone} />
             </p>
             <PickupPayment total={money(current.totalCents, current.currencyCode)} defaultEmail={user?.email ?? ""} />
           </section>
@@ -415,10 +416,7 @@ export async function PickupCompletePage({ searchParams }: { searchParams?: Prom
           <h1 id="sf-placed-title" className="sf-listhead__title">
             Order placed
           </h1>
-          <span className="sf-state">
-            <span className="sf-dot" data-tone={pickedUp ? "muted" : "ok"} aria-hidden="true" />
-            {pickedUp ? "Picked up" : "Ready for pickup"}
-          </span>
+          <PickupState pickedUp={pickedUp} hours={projection.location?.hours} timeZone={projection.location?.timezone} />
           <p className="sf-placed__no sf-num">{order.receiptNumber}</p>
           <p className="sf-muted">Show this order number at the counter at {pickupPlace(projection.location)}.</p>
           <ul className="sf-lines sf-placed__lines">

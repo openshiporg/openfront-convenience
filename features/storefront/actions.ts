@@ -66,7 +66,7 @@ export async function customerSignout() {
 }
 
 /** The list's quantity stepper: sets one item's quantity and stays on the page. */
-export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean }> {
+export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean; message?: string }> {
   const jar = await cookies();
   const variantId = value(form, "variantId") || undefined;
   const lineId = value(form, "lineId") || undefined;
@@ -77,13 +77,17 @@ export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean }
   let cartId = existing ?? randomUUID();
   let token = proof ?? randomBytes(32).toString("hex");
   let result = await keystoneClient<{ updateStorefrontBasket: { id: string } | null }>(basketMutation, { input: { cartId, token, variantId: lineId ? undefined : variantId, lineId, quantity, claim: true } });
-  if ((!result.success || !result.data.updateStorefrontBasket?.id) && existing && variantId && quantity > 0) {
+  const stockError = (r: typeof result) => !r.success && /Sold out|No more in stock/.test(String(r.error || ""));
+  if ((!result.success || !result.data.updateStorefrontBasket?.id) && !stockError(result) && existing && variantId && quantity > 0) {
     // The stored basket expired or belongs to another session: start a fresh one.
     cartId = randomUUID();
     token = randomBytes(32).toString("hex");
     result = await keystoneClient<{ updateStorefrontBasket: { id: string } | null }>(basketMutation, { input: { cartId, token, variantId, quantity, claim: true } });
   }
-  if (!result.success || !result.data.updateStorefrontBasket?.id) return { ok: false };
+  if (!result.success || !result.data.updateStorefrontBasket?.id) {
+    const error = !result.success ? String(result.error || "") : "";
+    return { ok: false, message: stockError(result) ? (error.includes("Sold out") ? "Sold out" : "No more in stock") : undefined };
+  }
   const options = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 86400 };
   jar.set("convenience-basket", cartId, options);
   jar.set("convenience-basket-proof", token, options);

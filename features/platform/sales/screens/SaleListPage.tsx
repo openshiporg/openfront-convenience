@@ -23,6 +23,7 @@ type SaleRow = {
   id: string;
   receiptNumber: string;
   status: string;
+  pickupStatus: string;
   source: string;
   totalCents: number;
   refundedCents: number;
@@ -64,18 +65,32 @@ async function loadToday(storeId: string | null, timeZone: string | null) {
   return { net: gross - refunded, refunded, voids: response.data.voids };
 }
 
+/** Paid online orders not yet handed over: the counter's pickup queue. */
+const WAITING_PICKUP = { status: { equals: "completed" }, pickupStatus: { equals: "ready_for_pickup" } };
+
+async function loadWaitingCount(storeId: string | null) {
+  if (!storeId) return 0;
+  const response = await keystoneClient<{ count: number }>(
+    `query SalesWaitingPickup($where: SaleWhereInput!) { count: salesCount(where: $where) }`,
+    { where: { AND: [{ store: { id: { equals: storeId } } }, WAITING_PICKUP] } },
+  );
+  return response.success ? response.data.count : 0;
+}
+
 export async function SaleListPage({ searchParams }: { searchParams: PlatformSearch }) {
   const search = await searchParams;
   const scope = await getPlatformScope(search);
-  const [result, today] = await Promise.all([loadPlatformList<SaleRow>({
+  const waitingOnly = search.pickup === "waiting";
+  const storeWhere = { store: { id: { equals: scope.storeId ?? "" } } };
+  const [result, today, waitingCount] = await Promise.all([loadPlatformList<SaleRow>({
     path: "sales",
     search,
-    scopeWhere: { store: { id: { equals: scope.storeId ?? "" } } },
+    scopeWhere: waitingOnly ? { AND: [storeWhere, WAITING_PICKUP] } : storeWhere,
     statuses: STATUSES,
-    selection: `id receiptNumber status source totalCents refundedCents currencyCode completedAt startedAt linesCount
+    selection: `id receiptNumber status pickupStatus source totalCents refundedCents currencyCode completedAt startedAt linesCount
       cashier { employeeNumber user { name } }
       tenders { method }`,
-  }), loadToday(scope.storeId, scope.timezone)]);
+  }), loadToday(scope.storeId, scope.timezone), loadWaitingCount(scope.storeId)]);
   const q = scopeQuery(scope);
   const openCount = result.statusCounts.open ?? 0;
   const money = (cents: number) => formatMoney(cents, scope.currencyCode);
@@ -90,12 +105,25 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
           ]}
         />
       ) : null}
-      {openCount ? (
+      {openCount || waitingCount || waitingOnly ? (
         <section aria-labelledby="sales-queue" className="min-w-0">
-          <SectionTitle id="sales-queue" meta={openCount}>
+          <SectionTitle id="sales-queue" meta={openCount + waitingCount}>
             Needs you
           </SectionTitle>
-          <Link
+          {waitingCount || waitingOnly ? (
+            <Link
+              href={`/dashboard/platform/sales${waitingOnly ? q : scopeQuery(scope, { pickup: "waiting" })}`}
+              aria-current={waitingOnly ? "true" : undefined}
+              className="flex min-h-10 min-w-0 items-baseline justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <span className="inline-flex items-baseline gap-2 font-medium text-foreground">
+                <Dot tone="warn" />
+                {waitingCount} online {waitingCount === 1 ? "order" : "orders"} paid, waiting for pickup
+              </span>
+              <span className="text-[12px] text-muted-foreground">{waitingOnly ? "Show all sales" : "Show pickup queue"}</span>
+            </Link>
+          ) : null}
+          {openCount ? <Link
             href={`/dashboard/platform/sales${scopeQuery(scope, { status: "open" })}`}
             className="flex min-h-10 min-w-0 items-baseline justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
           >
@@ -104,7 +132,7 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
               {openCount} {openCount === 1 ? "sale" : "sales"} started but not completed
             </span>
             <span className="text-[12px] text-muted-foreground">Show open</span>
-          </Link>
+          </Link> : null}
         </section>
       ) : null}
     </>
@@ -169,7 +197,14 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
                 {sale.refundedCents ? `−${formatMoney(sale.refundedCents, sale.currencyCode)}` : <span className="text-muted-foreground">—</span>}
               </Td>
               <Td>
-                <StatusText status={sale.status} />
+                {sale.status === "completed" && sale.pickupStatus === "ready_for_pickup" ? (
+                  <span className="inline-flex items-baseline gap-2 whitespace-nowrap text-[13px]">
+                    <Dot tone="warn" />
+                    Waiting for pickup
+                  </span>
+                ) : (
+                  <StatusText status={sale.status} />
+                )}
               </Td>
             </Tr>
           ))}
