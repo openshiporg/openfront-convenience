@@ -171,12 +171,12 @@ export function CatalogItemFields({
         ]}
       />
       <EnumField
-        label="Prepared food"
+        label="Made to order"
         name="preparedFood"
         defaultValue={yesNo(defaults.preparedFood, false)}
         values={[
-          { value: "false", label: "No" },
-          { value: "true", label: "Yes" },
+          { value: "false", label: "No: shelf stock" },
+          { value: "true", label: "Yes: made in store, stock not tracked" },
         ]}
       />
       <EnumField

@@ -288,8 +288,10 @@ export async function configureCatalogItem(
         unitOfMeasure: args.input.unitOfMeasure,
         defaultPriceCents: args.input.defaultPriceCents,
         costCents: args.input.costCents ?? null,
-        trackInventory: args.input.trackInventory ?? true,
-        allowNegativeInventory: args.input.allowNegativeInventory ?? false,
+        // Made-to-order items are not shelf stock (Square/Toast): never tracked, so
+        // they never go negative and never sell out online.
+        trackInventory: args.input.preparedFood ? false : (args.input.trackInventory ?? true),
+        allowNegativeInventory: args.input.preparedFood ? false : (args.input.allowNegativeInventory ?? false),
       };
       const variant = existingVariant
         ? await transaction.productVariant.update({
