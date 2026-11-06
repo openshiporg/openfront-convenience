@@ -942,7 +942,12 @@ export async function refundPosSale(
           : "partially_refunded";
       await transaction.sale.update({
         where: { id: sale.id },
-        data: { refundedCents: saleRefundedCents, status: saleStatus },
+        // A fully refunded online order is no longer collectable, so it leaves the pickup queue.
+        data: {
+          refundedCents: saleRefundedCents,
+          status: saleStatus,
+          ...(saleStatus === "refunded" && sale.pickupStatus === "ready_for_pickup" ? { pickupStatus: "none" as const } : {}),
+        },
       });
 
       if (loyaltyAccount && sale.totalCents > 0) {
