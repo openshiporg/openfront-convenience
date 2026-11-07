@@ -14,7 +14,7 @@ export async function markPickedUpAction(form: FormData) {
   for (const key of ["businessId", "storeId"]) if (value(form, key)) query.set(key, value(form, key));
   const path = `/dashboard/platform/sales/${encodeURIComponent(saleId)}`;
   const result = await keystoneClient(`mutation MarkPickedUp($saleId: ID!) { markSalePickedUp(saleId: $saleId) }`, { saleId });
-  query.set(result.success ? "notice" : "error", result.success ? "Marked picked up" : result.error || "Could not mark this order picked up");
+  query.set(result.success ? "notice" : "error", result.success ? "Marked collected" : result.error || "Could not mark this order collected");
   revalidatePath(path);
   redirect(`${path}?${query.toString()}`);
 }

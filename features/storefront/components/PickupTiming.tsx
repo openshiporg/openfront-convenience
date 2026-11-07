@@ -40,7 +40,7 @@ export function PickupWhen({ place, hours, timeZone, prefix = "Pick up at" }: { 
 /** The order state on the confirmation page: "Ready for pickup", or "Ready when the store opens 6am". */
 export function PickupState({ pickedUp, hours, timeZone }: { pickedUp: boolean; hours?: Hours; timeZone?: string | null }) {
   const opens = useOpensAt(hours, timeZone);
-  const label = pickedUp ? "Picked up" : opens ? `Ready when the store ${opens}` : "Ready for pickup";
+  const label = pickedUp ? "Collected" : opens ? `Ready when the store ${opens}` : "Ready for pickup";
   return (
     <span className="sf-state">
       <span className="sf-dot" data-tone={pickedUp ? "muted" : opens ? "warn" : "ok"} aria-hidden="true" />

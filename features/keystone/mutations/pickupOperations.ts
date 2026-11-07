@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { Prisma } from "@prisma/client";
 import { GraphQLError } from "graphql";
+import { CART_TRANSITIONS, moveStatus } from "../lib/transitionPolicy";
 import type { Context } from ".keystone/types";
 
 import { calculateLineAmounts } from "../lib/money";
@@ -318,7 +319,7 @@ export async function postPickupSale(db: Prisma.TransactionClient, input: PostIn
       processedAt: postingAt, metadata: { onlinePickup: true, cartId: cart.id },
     },
   });
-  await db.cart.update({ where: { id: cart.id }, data: { status: "converted", saleId: sale.id } });
+  await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
   await db.auditEvent.create({
     data: {
       businessId: cart.businessId, storeId: cart.storeId, eventNumber: randomUUID(), action: "pickup.order.paid", resourceType: "Sale", resourceId: sale.id,

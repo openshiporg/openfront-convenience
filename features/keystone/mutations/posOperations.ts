@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { Prisma } from "@prisma/client";
+import { CART_TRANSITIONS, evaluateTransition, moveStatus } from "../lib/transitionPolicy";
 import type { Context } from ".keystone/types";
 
 import type { Session } from "../access";
@@ -658,22 +659,12 @@ export async function transitionPosCart(
       if (cart.status === args.input.nextStatus) {
         return { id: cart.id, status: cart.status, reference: cart.cartNumber };
       }
-      const allowed: Record<string, string[]> = {
-        open: ["held", "voided", "abandoned"],
-        held: ["open", "voided", "abandoned"],
-        converted: [],
-        voided: [],
-        abandoned: [],
-      };
-      if (!allowed[cart.status]?.includes(args.input.nextStatus)) {
-        throw new Error(
-          `Cannot transition cart from ${cart.status} to ${args.input.nextStatus}`,
-        );
-      }
+      // "converted" is reached only by completing the sale, never by a manual transition.
+      if ((args.input.nextStatus as string) === "converted") throw new Error("A cart converts only by completing its sale");
+      await moveStatus(transaction.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, args.input.nextStatus, {}, "Cart");
       const updated = await transaction.cart.update({
         where: { id: cart.id },
         data: {
-          status: args.input.nextStatus,
           metadata: {
             ...(cart.metadata &&
             typeof cart.metadata === "object" &&
@@ -1752,10 +1743,10 @@ export async function completePosSale(
         }
       }
 
+      await moveStatus(transaction.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", {}, "Cart");
       await transaction.cart.update({
         where: { id: cart.id },
         data: {
-          status: "converted",
           subtotalCents,
           discountCents,
           taxCents,

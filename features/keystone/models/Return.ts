@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { combineValidateInput, transitionGuard, RETURN_TRANSITIONS } from "../lib/transitionPolicy";
 
 import { immutableTenantAccess } from "../access";
 import { businessField, metadataField, storeField } from "./modelFields";
@@ -8,7 +9,7 @@ import { requiredRelationshipHooks } from "./validation";
 
 export const Return = list({
   access: immutableTenantAccess("canReadSales"),
-  hooks: requiredRelationshipHooks("business", "store", "sale"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "sale"), transitionGuard(RETURN_TRANSITIONS, "Return")),
   ui: {
     labelField: "returnNumber",
     listView: { initialColumns: ["returnNumber", "sale", "status", "reason", "requestedAt"] },

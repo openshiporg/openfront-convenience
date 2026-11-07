@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { SALE_TRANSITIONS, TENDER_TRANSITIONS, evaluateTransition } from "../lib/transitionPolicy";
 import type { Context } from ".keystone/types";
 import { Prisma } from "@prisma/client";
 
@@ -940,6 +941,23 @@ export async function refundPosSale(
         saleRefundedCents >= sale.totalCents
           ? "refunded"
           : "partially_refunded";
+      evaluateTransition(SALE_TRANSITIONS, sale.status, saleStatus);
+      for (const planned of plannedAllocations) {
+        const tender = planned.tender;
+        const already = refundedByTender.get(tender.id) ?? 0;
+        const after = already + planned.allocation.amountCents;
+        const tenderNext = after >= tender.amountCents ? "refunded" : "partially_refunded";
+        if (tender.status !== tenderNext) evaluateTransition(TENDER_TRANSITIONS, tender.status, tenderNext);
+        const moved = await transaction.tender.updateMany({
+          where: { id: tender.id, status: tender.status },
+          data: { status: tenderNext, refundedCents: after },
+        });
+        if (moved.count !== 1) throw new Error("Tender changed during the refund; refresh and retry");
+        refundedByTender.set(tender.id, after);
+        tender.status = tenderNext;
+      }
+      const saleMoved = await transaction.sale.updateMany({ where: { id: sale.id, status: sale.status }, data: { refundedCents: saleRefundedCents } });
+      if (saleMoved.count !== 1) throw new Error("Sale changed during the refund; refresh and retry");
       await transaction.sale.update({
         where: { id: sale.id },
         // A fully refunded online order is no longer collectable, so it leaves the pickup queue.

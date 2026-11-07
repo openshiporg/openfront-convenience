@@ -1,3 +1,4 @@
+import { SALE_TRANSITIONS, TENDER_TRANSITIONS, evaluateTransition, moveStatus } from "../lib/transitionPolicy";
 import type { Context } from ".keystone/types";
 import { Prisma } from "@prisma/client";
 
@@ -445,10 +446,12 @@ export async function voidCompletedPosSale(
         where: { id: sale.registerSessionId! },
         data: { expectedCashCents: { decrement: cashTotalCents } },
       });
-      await transaction.tender.updateMany({
-        where: { saleId: sale.id },
-        data: { status: "cancelled" },
-      });
+      for (const tender of sale.tenders) {
+        await moveStatus(transaction.tender, TENDER_TRANSITIONS, { id: tender.id }, tender.status, "cancelled", {}, "Tender");
+      }
+      evaluateTransition(SALE_TRANSITIONS, sale.status, "voided");
+      const saleVoided = await transaction.sale.updateMany({ where: { id: sale.id, status: "completed" }, data: { voidedAt: now } });
+      if (saleVoided.count !== 1) throw new Error("Sale changed during the void; refresh and retry");
       const updated = await transaction.sale.update({
         where: { id: sale.id },
         data: {

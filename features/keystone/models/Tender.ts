@@ -6,11 +6,13 @@ import { assertNoInlineSecrets } from "../lib/secretPolicy";
 import { businessField, centsField, currencyCodeField, metadataField, storeField } from "./modelFields";
 import { trackingFields } from "./trackingFields";
 import { requiredRelationshipHooks } from "./validation";
+import { transitionGuard, TENDER_TRANSITIONS } from "../lib/transitionPolicy";
 
 export const Tender = list({
   access: immutableTenantAccess("canReadPayments"),
   hooks: {
     validateInput(args) {
+      transitionGuard(TENDER_TRANSITIONS, "Tender").validateInput(args);
       requiredRelationshipHooks("business", "store", "sale").validateInput(args);
       if (args.resolvedData?.providerData !== undefined) {
         try {

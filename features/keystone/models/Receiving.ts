@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { combineValidateInput, transitionGuard, RECEIVING_TRANSITIONS } from "../lib/transitionPolicy";
 
 import { tenantAccess } from "../access";
 import { businessField, metadataField, storeField } from "./modelFields";
@@ -8,7 +9,7 @@ import { requiredRelationshipHooks } from "./validation";
 
 export const Receiving = list({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
-  hooks: requiredRelationshipHooks("business", "store", "purchaseOrder", "vendor"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "purchaseOrder", "vendor"), transitionGuard(RECEIVING_TRANSITIONS, "Receiving")),
   ui: {
     labelField: "receivingNumber",
     listView: { initialColumns: ["receivingNumber", "purchaseOrder", "vendor", "store", "status", "receivedAt"] },

@@ -18,16 +18,13 @@ import {
 } from "./modelFields";
 import { trackingFields } from "./trackingFields";
 import { requiredRelationshipHooks } from "./validation";
+import { combineValidateInput, transitionGuard, FUEL_TRANSACTION_TRANSITIONS } from "../lib/transitionPolicy";
 
 export const FuelTransaction = list({
   access: immutableTenantAccess("canReadFuel"),
-  hooks: requiredRelationshipHooks(
-    "business",
-    "store",
-    "site",
-    "pump",
-    "nozzle",
-    "grade",
+  hooks: combineValidateInput(
+    requiredRelationshipHooks("business", "store", "site", "pump", "nozzle", "grade"),
+    transitionGuard(FUEL_TRANSACTION_TRANSITIONS, "Fuel transaction"),
   ),
   ui: {
     labelField: "transactionNumber",

@@ -135,10 +135,10 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
               <input type="hidden" name="saleId" value={sale.id} />
               {scope.businessId ? <input type="hidden" name="businessId" value={scope.businessId} /> : null}
               {scope.storeId ? <input type="hidden" name="storeId" value={scope.storeId} /> : null}
-              <button type="submit" className={primaryButtonClass}>Mark picked up</button>
+              <button type="submit" className={primaryButtonClass}>Mark collected</button>
             </form>
           ) : sale.pickupStatus === "picked_up" ? (
-            <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">Picked up</p>
+            <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">Collected</p>
           ) : null}
           <div className="flex flex-wrap gap-2 border-t px-4 py-3">
             {refundable ? (

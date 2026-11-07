@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import { integer, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { combineValidateInput, transitionGuard, CART_TRANSITIONS } from "../lib/transitionPolicy";
 
 import { tenantAccess } from "../access";
 import { businessField, centsField, currencyCodeField, metadataField, storeField } from "./modelFields";
@@ -12,7 +13,7 @@ export const Cart = list({
     update: false,
     delete: false,
   }),
-  hooks: requiredRelationshipHooks("business", "store"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store"), transitionGuard(CART_TRANSITIONS, "Cart")),
   ui: {
     labelField: "cartNumber",
     listView: { initialColumns: ["cartNumber", "store", "source", "status", "totalCents", "updatedAt"] },

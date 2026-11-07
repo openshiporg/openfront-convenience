@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import { relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { combineValidateInput, transitionGuard, REFUND_TRANSITIONS } from "../lib/transitionPolicy";
 
 import { immutableTenantAccess } from "../access";
 import { businessField, centsField, currencyCodeField, metadataField, storeField } from "./modelFields";
@@ -8,7 +9,7 @@ import { requiredRelationshipHooks } from "./validation";
 
 export const Refund = list({
   access: immutableTenantAccess("canReadPayments"),
-  hooks: requiredRelationshipHooks("business", "store", "sale", "originalTender"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "sale", "originalTender"), transitionGuard(REFUND_TRANSITIONS, "Refund")),
   ui: {
     labelField: "refundNumber",
     listView: { initialColumns: ["refundNumber", "sale", "status", "amountCents", "processedAt"] },

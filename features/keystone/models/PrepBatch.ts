@@ -1,5 +1,6 @@
 import { list } from "@keystone-6/core";
 import { decimal, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { combineValidateInput, transitionGuard, PREP_BATCH_TRANSITIONS } from "../lib/transitionPolicy";
 
 import { tenantAccess } from "../access";
 import { businessField, centsField, metadataField, quantityField, storeField } from "./modelFields";
@@ -8,7 +9,7 @@ import { requiredRelationshipHooks } from "./validation";
 
 export const PrepBatch = list({
   access: tenantAccess("canReadPreparedFood", "canManagePreparedFood", { create: false, update: false, delete: false }),
-  hooks: requiredRelationshipHooks("business", "store", "recipe"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "recipe"), transitionGuard(PREP_BATCH_TRANSITIONS, "Prep batch")),
   ui: {
     labelField: "batchNumber",
     listView: { initialColumns: ["batchNumber", "recipe", "store", "status", "quantityMade", "expiresAt"] },

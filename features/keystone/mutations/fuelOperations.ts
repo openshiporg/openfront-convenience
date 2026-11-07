@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { SALE_TRANSITIONS, TENDER_TRANSITIONS, evaluateTransition } from "../lib/transitionPolicy";
 
 import type { Context } from ".keystone/types";
 import { Prisma } from "@prisma/client";
@@ -629,14 +630,17 @@ export async function cancelFuelPaymentAuthorization(
           },
         });
       }
-      await transaction.tender.update({
-        where: { id: tender.id },
+      evaluateTransition(TENDER_TRANSITIONS, tender.status, "refunded");
+      evaluateTransition(SALE_TRANSITIONS, sale.status, "refunded");
+      const tenderMoved = await transaction.tender.updateMany({
+        where: { id: tender.id, status: tender.status },
         data: { status: "refunded", refundedCents: tender.amountCents },
       });
-      await transaction.sale.update({
-        where: { id: sale.id },
+      const saleMoved = await transaction.sale.updateMany({
+        where: { id: sale.id, status: sale.status },
         data: { status: "refunded", refundedCents: sale.totalCents },
       });
+      if (tenderMoved.count !== 1 || saleMoved.count !== 1) throw new Error("Fuel payment changed during cancellation; refresh and retry");
       return {
         id: refund.id,
         status: refund.status,
@@ -1020,20 +1024,23 @@ export async function completeFuelTransaction(
             },
           });
         }
-        await transaction.tender.update({
-          where: { id: tender.id },
+        evaluateTransition(TENDER_TRANSITIONS, tender.status, "partially_refunded");
+        evaluateTransition(SALE_TRANSITIONS, sale.status, "partially_refunded");
+        const tenderMoved = await transaction.tender.updateMany({
+          where: { id: tender.id, status: tender.status },
           data: {
             status: "partially_refunded",
             refundedCents: unusedAuthorizationCents,
           },
         });
-        await transaction.sale.update({
-          where: { id: sale.id },
+        const saleMoved = await transaction.sale.updateMany({
+          where: { id: sale.id, status: sale.status },
           data: {
             status: "partially_refunded",
             refundedCents: unusedAuthorizationCents,
           },
         });
+        if (tenderMoved.count !== 1 || saleMoved.count !== 1) throw new Error("Fuel payment changed during the dispense; refresh and retry");
       }
       await transaction.fuelTank.update({
         where: { id: nozzle.tank.id },

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PREP_BATCH_TRANSITIONS, moveStatus } from "../lib/transitionPolicy";
 
 import { Prisma } from "@prisma/client";
 import type { Context } from ".keystone/types";
@@ -577,10 +578,10 @@ export async function completePrepBatch(
         },
       });
 
+      await moveStatus(transaction.prepBatch, PREP_BATCH_TRANSITIONS, { id: batch.id }, batch.status, "completed", {}, "Prep batch");
       const updated = await transaction.prepBatch.update({
         where: { id: batch.id },
         data: {
-          status: "completed",
           quantityMade,
           actualCostCents,
           outputLotId: lot.id,
