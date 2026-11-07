@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { GraphQLError } from "graphql";
 
 import { Prisma } from "@prisma/client";
 import { CART_TRANSITIONS, evaluateTransition, moveStatus } from "../lib/transitionPolicy";
@@ -660,7 +661,7 @@ export async function transitionPosCart(
         return { id: cart.id, status: cart.status, reference: cart.cartNumber };
       }
       // "converted" is reached only by completing the sale, never by a manual transition.
-      if ((args.input.nextStatus as string) === "converted") throw new Error("A cart converts only by completing its sale");
+      if ((args.input.nextStatus as string) === "converted") throw new GraphQLError("A cart converts only by completing its sale", { extensions: { code: "TRANSITION_REFUSED" } });
       await moveStatus(transaction.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, args.input.nextStatus, {}, "Cart");
       const updated = await transaction.cart.update({
         where: { id: cart.id },

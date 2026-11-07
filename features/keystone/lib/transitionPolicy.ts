@@ -1,3 +1,5 @@
+import { GraphQLError } from "graphql";
+
 export type TransitionMap = Readonly<Record<string, readonly string[]>>;
 
 export const REGISTER_SESSION_TRANSITIONS = {
@@ -127,7 +129,7 @@ export function evaluateTransition(
 
   const allowed = transitions[currentStatus];
   if (!allowed?.includes(nextStatus)) {
-    throw new Error(`Cannot transition from ${currentStatus} to ${nextStatus}`);
+    throw new GraphQLError(`Cannot transition from ${currentStatus} to ${nextStatus}`, { extensions: { code: "TRANSITION_REFUSED" } });
   }
 
   return { replay: false };
@@ -168,6 +170,6 @@ export async function moveStatus(
 ) {
   if (evaluateTransition(transitions, from, to).replay) return false;
   const moved = await delegate.updateMany({ where: { ...where, status: from }, data: { ...data, status: to } });
-  if (moved.count !== 1) throw new Error(`${label} changed while moving from ${from} to ${to}; refresh and retry`);
+  if (moved.count !== 1) throw new GraphQLError(`${label} changed while moving from ${from} to ${to}; refresh and retry`, { extensions: { code: "STATE_CHANGED" } });
   return true;
 }
