@@ -1,4 +1,5 @@
 import { createTransport } from "nodemailer";
+import { emailButton, emailItems, emailLayout, emailMuted, emailPanel, emailParagraph, emailTotals, escapeHtml } from "./email-layout";
 
 export type OrderConfirmationEmail = {
   to: string;
@@ -10,7 +11,6 @@ export type OrderConfirmationEmail = {
   link: string;
 };
 
-const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] as string);
 
 function transport() {
   const port = Number(process.env.SMTP_PORT ?? 587);
@@ -29,13 +29,15 @@ export async function sendOrderConfirmationEmail(order: OrderConfirmationEmail):
       to: order.to,
       from: process.env.SMTP_FROM,
       subject: `Your pickup order ${order.orderNumber} at ${order.storeName}`,
-      html: `<body style="font-family:Helvetica,Arial,sans-serif;color:#222;max-width:560px;margin:auto">
-        <h2>Thanks ${escapeHtml(order.name)}, your order is placed</h2>
-        <p>Order <strong>${escapeHtml(order.orderNumber)}</strong> at ${escapeHtml(order.storeName)}. Show this number at the counter when you pick it up.</p>
-        <table width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #ddd;border-bottom:1px solid #ddd">${rows}
-          <tr><td style="padding:8px 0"><strong>Paid</strong></td><td align="right"><strong>${escapeHtml(order.total)}</strong></td></tr></table>
-        <p><a href="${escapeHtml(order.link)}">View your receipt</a></p>
-      </body>`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.orderNumber}`,
+        title: "Your order is placed",
+        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(order.orderNumber)}</strong> at ${escapeHtml(order.storeName)}. Show this number at the counter when you pick it up.`)}
+${emailItems(order.lines.map((line) => ({ title: line.title, quantity: line.quantity as unknown as number, amount: line.total })))}
+${emailTotals([{ label: "Paid", value: order.total }])}
+${emailButton("View your receipt", order.link)}`,
+      }),
     });
     return { sent: true, messageId: typeof (info as any)?.messageId === "string" ? (info as any).messageId : undefined, response: typeof (info as any)?.response === "string" ? (info as any).response : undefined };
   } catch (error) {
