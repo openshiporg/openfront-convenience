@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { GraphQLError } from "graphql";
 import { SALE_TRANSITIONS, TENDER_TRANSITIONS, evaluateTransition } from "../lib/transitionPolicy";
 import type { Context } from ".keystone/types";
 import { Prisma } from "@prisma/client";
@@ -230,7 +231,21 @@ export async function refundPosSale(
           loyaltyEntries: { where: { type: "earned" } },
         },
       });
-      if (!sale || !sale.store) throw new Error("Refundable sale not found");
+      if (!sale || !sale.store) {
+        const existing = await transaction.sale.findFirst({
+          where: { id: args.input.saleId, businessId: args.input.businessId, storeId: args.input.storeId },
+          select: { status: true },
+        });
+        if (existing) {
+          throw new GraphQLError(
+            existing.status === "refunded"
+              ? "This sale has already been fully refunded"
+              : `A sale that is ${existing.status.replace(/_/g, " ")} cannot be refunded`,
+            { extensions: { code: "TRANSITION_REFUSED" } },
+          );
+        }
+        throw new GraphQLError("Refundable sale not found", { extensions: { code: "NOT_FOUND" } });
+      }
       const ownershipScope = {
         businessId: args.input.businessId,
         storeId: args.input.storeId,
@@ -394,7 +409,7 @@ export async function refundPosSale(
         0,
       );
       if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > sale.totalCents - sale.refundedCents)
-        throw new Error("Calculated refund must be positive and within the remaining sale total");
+        throw new GraphQLError("Calculated refund must be positive and within the remaining sale total", { extensions: { code: "REFUND_EXCEEDS_SALE" } });
       const allocationInputs = requestedAllocations.length
         ? requestedAllocations
         : [
