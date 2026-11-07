@@ -16,6 +16,7 @@ import { sendPasswordResetEmail } from "./lib/mail";
 import { models } from "./models";
 import { extendGraphqlSchema } from "./mutations";
 import { s3ForcePathStyle } from "./lib/s3-storage";
+import { pooledDatabaseUrl } from './database-url';
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -317,7 +318,7 @@ export default withAuth(
   config({
     db: {
       provider: "postgresql",
-      url: databaseURL,
+      url: pooledDatabaseUrl(databaseURL),
       extendPrismaSchema: addConvenienceDatabaseConstraints,
     },
     lists: boundedModels,
