@@ -1,5 +1,22 @@
 import { keystoneContext } from '../../features/keystone/context'
-import { createYoga } from "graphql-yoga";
+import { createYoga, maskError } from "graphql-yoga";
+import { GraphQLError } from "graphql";
+
+// Production masks unexpected errors as "Unexpected error.". A refusal from our own lifecycle and permission code
+// is a plain `Error` ("Refund quantity exceeds remaining quantity for line 1"), so it passes through and the cashier
+// sees why. Library errors (Prisma, TypeError, network) are subclasses or carry driver text, so they stay masked.
+const DRIVER_TEXT = /prisma|invocation|postgres|ECONN|ETIMEDOUT|socket|undefined|null\b.*\bread|stack|SELECT |INSERT |UPDATE /i;
+function isGuardMessage(error: Error) {
+  return error.constructor === Error && error.message.length > 0 && error.message.length <= 300 && !DRIVER_TEXT.test(error.message);
+}
+
+function maskConvenienceError(error: unknown, message: string, isDev?: boolean) {
+  const original = error instanceof GraphQLError ? error.originalError : error;
+  if (error instanceof GraphQLError && original instanceof Error && isGuardMessage(original)) {
+    return new GraphQLError(original.message, { nodes: error.nodes, source: error.source, positions: error.positions, path: error.path });
+  }
+  return maskError(error, message, isDev);
+}
 import processRequest from "graphql-upload/processRequest.js";
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
@@ -45,5 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return keystoneContext.withRequest(req, res);
     },
     multipart: false,
+    maskedErrors: { maskError: maskConvenienceError },
   })(req, res);
 }
