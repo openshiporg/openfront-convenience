@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { Context } from ".keystone/types";
 
+import { constraintRefusal } from "../lib/constraintRefusal";
 import {
   assertBusinessPermission,
   assertStorePermission,
@@ -499,7 +500,7 @@ export async function runIdempotentOperation<T extends OperationSnapshot>({
         startedAt: record.startedAt,
       },
     });
-    throw error;
+    throw constraintRefusal(error) ?? error;
   } finally {
     releaseLocalLock();
   }

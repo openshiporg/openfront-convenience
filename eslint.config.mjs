@@ -6,6 +6,9 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    // Same file set as the Next plugins: without it, .cjs tests get these rules but not
+    // the jsx-a11y/react plugins and eslint stops with "plugin is not defined".
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     // NKS carries inherited dynamic dashboard/storefront surfaces and predates
     // the React Compiler lint rules bundled with Next 16. Keep lint executable
     // and visible without treating that inherited debt as a release blocker.
@@ -31,6 +34,14 @@ export default defineConfig([
       "react-hooks/static-components": "warn",
       "react/no-children-prop": "warn",
       "react/no-unescaped-entities": "warn",
+    },
+  },
+  {
+    // Node's test runner loads these as CommonJS: require() and a local `module` object are the point.
+    files: ["tests/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@next/next/no-assign-module-variable": "off",
     },
   },
   globalIgnores([

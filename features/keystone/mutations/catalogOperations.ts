@@ -543,8 +543,12 @@ export async function configurePromotion(
   if (!name) throw new Error("Promotion name is required");
   if (code && !/^[A-Z0-9][A-Z0-9_-]{1,31}$/.test(code))
     throw new Error("Promotion code must be 2-32 safe characters");
-  if (args.input.valueBasisPoints != null)
+  if (args.input.valueBasisPoints != null) {
     assertBasisPoints(args.input.valueBasisPoints, "Promotion percentage");
+    // The discount engine clamps to the subtotal, so more than 100% off just gives goods away.
+    if (args.input.valueBasisPoints > 10_000)
+      throw new Error("A percentage promotion can take at most 100% off");
+  }
   if (args.input.valueCents != null)
     assertCents(args.input.valueCents, "Promotion amount");
   if (

@@ -73,7 +73,7 @@ function middlewareRun({ pathname, user = null, env = {} }) {
     'next/server': {
       NextResponse: { redirect: url => ({ redirect: new URL(url).pathname }), next: () => ({ next: true }) },
     },
-    '@/features/dashboard/lib/getBaseUrl': { getGraphQLEndpoint: async () => 'https://test.invalid/api/graphql' },
+    '@/features/dashboard/lib/getBaseUrl': { getGraphQLEndpoint: async () => 'https://test.invalid/api/graphql', getServerGraphQLTarget: async () => ({ endpoint: 'https://test.invalid/api/graphql' }) },
     'graphql-request': { GraphQLClient: class {} },
   } }).load('features/dashboard/middleware.ts');
   const url = `https://shop.invalid${pathname}`;
@@ -100,7 +100,9 @@ test('form errors show Keystone validation text, never Prisma, stack or GraphQL 
   const of = (...errors) => publicGraphQLErrorMessage({ response: { errors } });
   assert.equal(of({ message: 'You provided invalid data for this operation.\n  - User.password: Password must be at least 10 characters long',
     extensions: { code: 'KS_VALIDATION_FAILURE' } }),
-  'You provided invalid data for this operation.\nPassword must be at least 10 characters long');
+  'Password must be at least 10 characters long');
+  assert.equal(of({ message: 'You provided invalid data for this operation.\n  - Shift: The end must be after the start.',
+    extensions: { code: 'KS_VALIDATION_FAILURE' } }), 'The end must be after the start.');
   assert.equal(of({ message: 'Prisma error: Unique constraint failed on the fields: (`email`)', extensions: { code: 'KS_PRISMA_ERROR' } }),
     'A record with this email already exists.');
   for (const leak of [
