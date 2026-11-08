@@ -55,8 +55,8 @@ function putBack(form: HTMLFormElement, kept: Kept) {
 
 function OutcomeWatcher({ onChange }: { onChange: (outcome: { error: string | null; notice: string | null }) => void }) {
   const searchParams = useSearchParams();
-  const error = searchParams.get("error");
-  const notice = searchParams.get("notice");
+  const error = searchParams?.get("error") ?? null;
+  const notice = searchParams?.get("notice") ?? null;
   React.useEffect(() => onChange({ error, notice }), [error, notice, onChange]);
   return null;
 }
