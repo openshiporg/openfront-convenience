@@ -27,7 +27,8 @@ export const Promotion = list({
     business: businessField(),
     name: text({ validation: { isRequired: true } }),
     code: text({ isIndexed: true }),
-    lookupKey: text({ isIndexed: "unique", validation: { isRequired: true } }),
+    // Import identity (business:code); configurePromotion sets it, so the forms leave it alone.
+    lookupKey: text({ isIndexed: "unique", validation: { isRequired: true }, label: "Import key", ui: { itemView: { fieldMode: "read" } } }),
     status: select({
       type: "enum",
       options: [

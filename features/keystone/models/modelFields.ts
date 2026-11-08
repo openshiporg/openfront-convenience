@@ -83,7 +83,7 @@ export function currencyCodeField() {
   });
 }
 
-export function metadataField(description = "Non-authoritative metadata only") {
+export function metadataField(description = "Extra notes for integrations. Prices, stock and totals are never read from here.") {
   return json({
     defaultValue: {},
     hooks: {
