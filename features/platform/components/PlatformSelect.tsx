@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useRestoredValue } from "./RetainedForm";
 
 export type PlatformSelectOption = { value: string; label: string; hint?: string; disabled?: boolean };
 
@@ -51,7 +52,8 @@ export function PlatformSelect({
   className,
   ...aria
 }: Props) {
-  const [inner, setInner] = React.useState(defaultValue);
+  const restored = useRestoredValue(value === undefined ? name : undefined);
+  const [inner, setInner] = React.useState(restored ?? defaultValue);
   const current = value ?? inner;
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");

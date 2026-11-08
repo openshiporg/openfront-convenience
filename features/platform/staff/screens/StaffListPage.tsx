@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { PlatformListShell } from "../../components/PlatformListShell";
 import { ActionPanel, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
+import { RetainedForm } from "../../components/RetainedForm";
 import { StatusText, Td, Th, Tr, primaryButtonClass } from "../../components/cv-ui";
 import { BareTable } from "../../reconciliation/ledger-ui";
 import { loadPlatformList } from "../../lib/list-query";
@@ -64,7 +65,7 @@ export async function StaffListPage({ searchParams }: { searchParams: PlatformSe
           <summary className={`${primaryButtonClass} cursor-pointer list-none`}>Add staff</summary>
           <div className="mt-3 w-full sm:absolute sm:right-6 sm:z-20 sm:w-[32rem]">
             <ActionPanel title="Add staff">
-              <form action={addStaffAction} className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <RetainedForm action={addStaffAction} className="grid min-w-0 gap-3 sm:grid-cols-2">
                 <HiddenScope projection={scope} returnPath="/dashboard/platform/staff" />
                 {error ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{error}</p> : null}
                 <TextField label="Name" name="name" autoComplete="off" required />
@@ -76,7 +77,7 @@ export async function StaffListPage({ searchParams }: { searchParams: PlatformSe
                 <div className="pt-1 sm:col-span-2">
                   <button type="submit" className={primaryButtonClass}>Add</button>
                 </div>
-              </form>
+              </RetainedForm>
             </ActionPanel>
           </div>
         </details>

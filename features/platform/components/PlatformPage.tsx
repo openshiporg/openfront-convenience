@@ -21,6 +21,7 @@ import {
   CountBoxes,
 } from "./cv-ui";
 import { PendingSubmitButton } from "./PendingSubmitButton";
+import { RetainedForm } from "./RetainedForm";
 import { PlatformDateInput, PlatformDateTimeField } from "./PlatformDateTime";
 import { PlatformSelect } from "./PlatformSelect";
 import {
@@ -306,11 +307,11 @@ export function FormGrid({
 }) {
   const button = <PendingSubmitButton label={submit} />;
   return (
-    <form action={action} className="grid min-w-0 gap-3 sm:grid-cols-2">
+    <RetainedForm action={action} className="grid min-w-0 gap-3 sm:grid-cols-2">
       <input type="hidden" name="idempotencyKey" value={`platform-${randomUUID()}`} />
       {children}
       {submitSlot ? submitSlot(button) : button}
-    </form>
+    </RetainedForm>
   );
 }
 

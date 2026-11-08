@@ -6,6 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { PlatformSelect, RequiredProxy } from "./PlatformSelect";
+import { useRestoredValue } from "./RetainedForm";
 import { dateKey, formatDateKey, parseDateKey, splitLocalDateTime, timeOptions } from "../lib/date-fields";
 
 type Aria = { "aria-invalid"?: boolean; "aria-describedby"?: string; "aria-label"?: string };
@@ -38,7 +39,8 @@ export function PlatformDateInput({
   clearable?: boolean;
   className?: string;
 } & Aria) {
-  const [inner, setInner] = React.useState(defaultValue);
+  const restored = useRestoredValue(value === undefined ? name : undefined);
+  const [inner, setInner] = React.useState(restored ?? defaultValue);
   const current = value ?? inner;
   const [open, setOpen] = React.useState(false);
   const selected = parseDateKey(current);
@@ -163,7 +165,8 @@ export function PlatformDateTimeField({
   className,
   ...aria
 }: { name: string; defaultValue?: string; required?: boolean; disabled?: boolean; className?: string } & Aria) {
-  const [value, setValue] = React.useState(defaultValue);
+  const restored = useRestoredValue(name);
+  const [value, setValue] = React.useState(restored ?? defaultValue);
   return (
     <>
       <input type="hidden" name={name} value={value} />

@@ -5,6 +5,7 @@ import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
 import { DetailSection, FactList, PlatformDetailShell } from "../../components/PlatformDetailShell";
 import { ActionPanel, EnumField, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
+import { RetainedForm } from "../../components/RetainedForm";
 import { DataTable, StatusText, Td, Th, Tr, labelClass, primaryButtonClass } from "../../components/cv-ui";
 import { shortRef } from "../../lib/labels";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
@@ -64,7 +65,7 @@ export async function StaffDetailPage({ params, searchParams }: { params: Promis
       error={searchValue(search, "error")}
       aside={
         <ActionPanel title="Edit">
-          <form action={updateStaffAction} className="grid min-w-0 gap-3">
+          <RetainedForm action={updateStaffAction} className="grid min-w-0 gap-3">
             <HiddenScope projection={scope} returnPath={path} />
             <input type="hidden" name="employeeId" value={employee.id} />
             <EnumField
@@ -98,7 +99,7 @@ export async function StaffDetailPage({ params, searchParams }: { params: Promis
             <div className="pt-1">
               <button type="submit" className={primaryButtonClass}>Save</button>
             </div>
-          </form>
+          </RetainedForm>
         </ActionPanel>
       }
     >
