@@ -25,15 +25,18 @@ export function useRestoredValue(name: string | undefined): string | undefined {
   return name && restored && Object.hasOwn(restored, name) ? restored[name][0] : undefined;
 }
 
+// React adds "$ACTION_ID_…"-style inputs to a form while a server action is submitted; they are not the form's fields.
+const isOwnField = (name: string) => Boolean(name) && !name.startsWith("$");
+
 function fieldNames(form: HTMLFormElement): string {
-  return [...new Set(Array.from(form.elements).map((element) => (element as HTMLInputElement).name).filter(Boolean))].sort().join(",");
+  return [...new Set(Array.from(form.elements).map((element) => (element as HTMLInputElement).name).filter(isOwnField))].sort().join(",");
 }
 
 function keep(form: HTMLFormElement): Kept {
   const kept: Kept = {};
   for (const element of Array.from(form.elements) as HTMLInputElement[]) {
     const { name, type } = element;
-    if (!name || NEVER_KEPT.has(name) || type === "password" || type === "file" || type === "submit") continue;
+    if (!isOwnField(name) || NEVER_KEPT.has(name) || type === "password" || type === "file" || type === "submit") continue;
     // Checkbox groups (e.g. assigned stores) share a name: keep each ticked value, and record unticked
     // groups as empty so they come back unticked.
     kept[name] ??= [];
