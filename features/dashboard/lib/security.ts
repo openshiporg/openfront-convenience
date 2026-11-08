@@ -4,7 +4,7 @@ export const PUBLIC_REQUEST_ERROR = 'Unable to complete the request. Please try 
 const SAFE_CODES = new Set([
   'UNAUTHENTICATED', 'FORBIDDEN', 'BAD_USER_INPUT', 'GRAPHQL_VALIDATION_FAILED',
   'INTERNAL_SERVER_ERROR', 'KS_ACCESS_DENIED', 'KS_VALIDATION_FAILURE',
-  'KS_AUTHENTICATION_FAILURE', 'KS_USER_INPUT_ERROR',
+  'KS_AUTHENTICATION_FAILURE', 'KS_USER_INPUT_ERROR', 'OPERATION_REFUSED',
 ]);
 
 export function safeErrorSummary(error: unknown): { message: string; codes: string[] } {
@@ -22,6 +22,9 @@ export function safeErrorSummary(error: unknown): { message: string; codes: stri
 // Keystone codes whose messages are written for the person filling the form.
 const USER_FACING_CODES = new Set([
   'KS_VALIDATION_FAILURE', 'KS_USER_INPUT_ERROR', 'KS_ACCESS_DENIED', 'KS_EXTENSION_ERROR',
+  // A command's own refusal ("Register already has an active session"), passed through by the GraphQL route,
+  // and the coded refusals commands raise directly. Never BAD_USER_INPUT: it echoes submitted variables.
+  'OPERATION_REFUSED', 'TRANSITION_REFUSED', 'REFUND_EXCEEDS_SALE',
 ]);
 // Anything that looks like database, driver or stack output stays server-side.
 const UNSAFE_DETAIL = /prisma|invocation|\bat\s+\S+\s*\(|\bat\s+\/|node_modules|postgres(ql)?:\/\/|\bSQL\b|ECONN|query engine|\.ts:\d+|\.js:\d+/i;

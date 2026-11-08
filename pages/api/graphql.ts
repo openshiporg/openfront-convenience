@@ -13,7 +13,8 @@ function isGuardMessage(error: Error) {
 function maskConvenienceError(error: unknown, message: string, isDev?: boolean) {
   const original = error instanceof GraphQLError ? error.originalError : error;
   if (error instanceof GraphQLError && original instanceof Error && isGuardMessage(original)) {
-    return new GraphQLError(original.message, { nodes: error.nodes, source: error.source, positions: error.positions, path: error.path });
+    // Tagged so the dashboard knows the text was written for staff and shows it instead of a generic failure.
+    return new GraphQLError(original.message, { nodes: error.nodes, source: error.source, positions: error.positions, path: error.path, extensions: { code: "OPERATION_REFUSED" } });
   }
   return maskError(error, message, isDev);
 }

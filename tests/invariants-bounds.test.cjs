@@ -58,3 +58,14 @@ test('configurePromotion refuses more than 100% off before writing', () => {
   const src = fs.readFileSync(path.join(root, 'features/keystone/mutations/catalogOperations.ts'), 'utf8');
   assert.match(src, /valueBasisPoints > 10_000\)\s*throw new Error\("A percentage promotion can take at most 100% off"\)/);
 });
+
+test('command refusals are tagged by the GraphQL route and shown by the dashboard', () => {
+  const route = fs.readFileSync(path.join(root, 'pages/api/graphql.ts'), 'utf8');
+  assert.match(route, /extensions: \{ code: "OPERATION_REFUSED" \}/);
+  const { publicGraphQLErrorMessage } = loadTs('features/dashboard/lib/security.ts');
+  const of = (errors) => publicGraphQLErrorMessage({ response: { errors } });
+  assert.equal(of([{ message: 'A percentage promotion can take at most 100% off', extensions: { code: 'OPERATION_REFUSED' } }]), 'A percentage promotion can take at most 100% off');
+  assert.equal(of([{ message: 'Calculated refund must be positive and within the remaining sale total', extensions: { code: 'REFUND_EXCEEDS_SALE' } }]), 'Calculated refund must be positive and within the remaining sale total');
+  // Masked failures stay generic.
+  assert.equal(of([{ message: 'Unexpected error.', extensions: { code: 'INTERNAL_SERVER_ERROR' } }]), 'Unable to complete the request. Please try again.');
+});
