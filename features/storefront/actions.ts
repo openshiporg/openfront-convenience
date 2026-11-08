@@ -9,6 +9,7 @@ import { isCommonPassword } from "./lib/password-rules";
 import { basket, catalog, lastWebOrder } from "./lib/data";
 import { isDuplicateEmail } from "./lib/auth-errors";
 import { reorderable } from "./lib/reorder";
+import { clearBasket, readBasket, writeBasket } from "./lib/basket-cookies";
 
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 const basketMutation = `mutation Basket($input: StorefrontBasketInput!) { updateStorefrontBasket(input: $input) }`;
@@ -17,9 +18,10 @@ export async function changeBasket(form: FormData) {
   const variantId = value(form, "variantId") || undefined;
   const lineId = value(form, "lineId") || undefined;
   const quantity = Number(value(form, "quantity") || "1");
-  const existingCartId = jar.get("convenience-basket")?.value;
+  const stored = readBasket(jar);
+  const existingCartId = stored.cartId;
   let cartId = existingCartId ?? randomUUID();
-  let token = jar.get("convenience-basket-proof")?.value ?? randomBytes(32).toString("hex");
+  let token = stored.token ?? randomBytes(32).toString("hex");
   let result = await keystoneClient<{ updateStorefrontBasket: { id: string } | null }>(basketMutation, { input: { cartId, token, variantId, lineId, quantity, claim: true } });
   if ((!result.success || !result.data.updateStorefrontBasket?.id) && existingCartId && variantId && !lineId) {
     // The stored basket expired or belongs to another session: start a fresh one, as E-commerce does.
@@ -28,8 +30,7 @@ export async function changeBasket(form: FormData) {
     result = await keystoneClient<{ updateStorefrontBasket: { id: string } | null }>(basketMutation, { input: { cartId, token, variantId, quantity, claim: true } });
   }
   if (!result.success || !result.data.updateStorefrontBasket?.id) redirect("/basket?error=basket");
-  const options = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 86400 };
-  jar.set("convenience-basket", cartId, options);jar.set("convenience-basket-proof", token, options);
+  writeBasket(jar, cartId, token);
   revalidatePath("/basket");redirect("/basket");
 }
 export async function customerAuth(form: FormData) {
@@ -60,8 +61,7 @@ export async function customerSignout() {
   await keystoneClient("mutation { endSession }");
   const jar = await cookies();
   jar.delete("keystonejs-session");
-  jar.delete("convenience-basket");
-  jar.delete("convenience-basket-proof");
+  clearBasket(jar);
   redirect("/account/signin");
 }
 
@@ -71,8 +71,7 @@ export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean; 
   const variantId = value(form, "variantId") || undefined;
   const lineId = value(form, "lineId") || undefined;
   const quantity = Math.max(0, Math.min(99, Number(value(form, "quantity") || "0") || 0));
-  const existing = jar.get("convenience-basket")?.value;
-  const proof = jar.get("convenience-basket-proof")?.value;
+  const { cartId: existing, token: proof } = readBasket(jar);
   if (!lineId && quantity === 0) return { ok: true };
   let cartId = existing ?? randomUUID();
   let token = proof ?? randomBytes(32).toString("hex");
@@ -88,9 +87,7 @@ export async function setBasketQuantity(form: FormData): Promise<{ ok: boolean; 
     const error = !result.success ? String(result.error || "") : "";
     return { ok: false, message: stockError(result) ? (error.includes("Sold out") ? "Sold out" : "No more in stock") : undefined };
   }
-  const options = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 86400 };
-  jar.set("convenience-basket", cartId, options);
-  jar.set("convenience-basket-proof", token, options);
+  writeBasket(jar, cartId, token);
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -113,7 +110,7 @@ export async function reorderLast() {
 type PickupPayment = { clientSecret: string; publishableKey: string; paymentId: string; amountCents: number; currencyCode: string };
 async function basketProof() {
   const jar = await cookies();
-  const cartId = jar.get("convenience-basket")?.value; const token = jar.get("convenience-basket-proof")?.value;
+  const { cartId, token } = readBasket(jar);
   return cartId && token ? { cartId, token } : null;
 }
 /** Starts the Stripe payment for the shopper's basket; the amount is computed on the server. */
@@ -153,7 +150,6 @@ export async function removeBasketLine(form: FormData) {
 /** A finished order starts a fresh basket next time. */
 export async function startNewBasket() {
   const jar = await cookies();
-  jar.delete("convenience-basket");
-  jar.delete("convenience-basket-proof");
+  clearBasket(jar);
   redirect("/shop");
 }

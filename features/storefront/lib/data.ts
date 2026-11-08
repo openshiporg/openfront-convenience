@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { readBasket } from "./basket-cookies";
 
 export type Catalog = { currency: string; onlinePickup: boolean; page: number; pageSize: number; total: number; categories: string[]; products: { id: string; title: string; image: { url: string; alt: string } | null; description: string; category: string; variants: { id: string; title: string; priceCents: number; unitOfMeasure: string; availability: "in_stock" | "ask" | "sold_out" | "untracked" }[] }[] };
 export type Basket = { id: string; status: string; currencyCode: string; subtotalCents: number; taxCents: number; totalCents: number; lines: { id: string; titleSnapshot: string; variantTitleSnapshot: string; quantity: string; unitPriceCents: number; subtotalCents?: number; totalCents: number }[] };
@@ -11,7 +12,7 @@ export async function catalog(filters: { search?: string; category?: string; pag
   return result.success ? result.data.storefrontCatalog : null;
 }
 export async function basket() {
-  const jar = await cookies(); const cartId = jar.get("convenience-basket")?.value; const token = jar.get("convenience-basket-proof")?.value;
+  const { cartId, token } = readBasket(await cookies());
   if (!cartId || !token) return null;
   const result = await keystoneClient<{ storefrontBasket: Basket | null }>("query Basket($cartId: ID!, $token: String!) { storefrontBasket(cartId: $cartId, token: $token) }", { cartId, token });
   return result.success ? result.data.storefrontBasket : null;
@@ -43,7 +44,8 @@ export type PickupOrder = { id: string; receiptNumber: string; pickupStatus: "no
 export async function pickupOrder(link?: { cart?: string; token?: string }): Promise<PickupOrder | null> {
   const jar = await cookies();
   // The emailed receipt link carries the guest's own basket proof; otherwise the browser's cookies hold it.
-  const cartId = link?.cart || jar.get("convenience-basket")?.value; const token = link?.token || jar.get("convenience-basket-proof")?.value;
+  const stored = readBasket(jar);
+  const cartId = link?.cart || stored.cartId; const token = link?.token || stored.token;
   if (!cartId || !token) return null;
   const result = await keystoneClient<{ storefrontPickupOrder: PickupOrder | null }>("query Order($cartId: ID!, $token: String!) { storefrontPickupOrder(cartId: $cartId, token: $token) }", { cartId, token });
   return result.success ? result.data.storefrontPickupOrder : null;
