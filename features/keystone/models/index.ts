@@ -48,8 +48,6 @@ import { OfflineOperation } from "./OfflineOperation";
 import { OfflineOperationBatch } from "./OfflineOperationBatch";
 import { OperationalAlert } from "./OperationalAlert";
 import { OperationalHeartbeat } from "./OperationalHeartbeat";
-import { OutboxAttempt } from "./OutboxAttempt";
-import { OutboxEvent } from "./OutboxEvent";
 import { PaymentProvider } from "./PaymentProvider";
 import { PaymentReconciliation } from "./PaymentReconciliation";
 import { PaymentReconciliationLine } from "./PaymentReconciliationLine";
@@ -191,8 +189,6 @@ export const models = {
   ExportDestination,
   ExportBatch,
   ExportLine,
-  OutboxEvent,
-  OutboxAttempt,
 
   ApiKey,
   AuthenticationThrottle,

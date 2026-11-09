@@ -3273,7 +3273,7 @@ export async function conveniencePlatformProjection(
   }
 
   if (surface === "recovery") {
-    const [devices, batches, outbox, apiKeys] = await Promise.all([
+    const [devices, batches, apiKeys] = await Promise.all([
       context.prisma.offlineDevice.findMany({
         where: scope,
         select: {
@@ -3299,23 +3299,6 @@ export async function conveniencePlatformProjection(
         },
         orderBy: { receivedAt: "desc" },
         take: limit,
-      }),
-      context.prisma.outboxEvent.findMany({
-        where: {
-          businessId,
-          ...(unrestrictedStores
-            ? { OR: [{ storeId }, { storeId: null }] }
-            : { storeId }),
-        },
-        select: {
-          id: true,
-          eventKey: true,
-          topic: true,
-          status: true,
-          lastError: true,
-        },
-        orderBy: { occurredAt: "desc" },
-        take: 500,
       }),
       context.prisma.apiKey.findMany({
         where: {
@@ -3346,13 +3329,6 @@ export async function conveniencePlatformProjection(
       label: entry.name,
       detail: entry.keyPrefix,
     }));
-    controls.outboxEvents = outbox
-      .filter((entry) => entry.status === "dead_letter")
-      .map((entry) => ({
-        id: entry.id,
-        label: entry.eventKey,
-        detail: `${entry.topic} · ${entry.lastError || "delivery failed"}`,
-      }));
     metrics = [
       metric(
         "Active devices",
@@ -3365,12 +3341,6 @@ export async function conveniencePlatformProjection(
         batches.reduce((sum, entry) => sum + entry.conflictCount, 0),
         "Server-evidence mismatches",
         "critical",
-      ),
-      metric(
-        "Outbox dead letters",
-        outbox.filter((entry) => entry.status === "dead_letter").length,
-        "Eligible for controlled replay",
-        "attention",
       ),
     ];
     rows = batches.map((entry) => ({

@@ -1,10 +1,5 @@
-import { randomUUID } from "node:crypto";
-
-import type { Prisma } from "@prisma/client";
 import type { BaseListTypeInfo, ListHooks } from "@keystone-6/core/types";
-import type { Context } from ".keystone/types";
 
-import { fingerprintInput } from "../lib/idempotency";
 import { requireRelationshipId, requiredRelationshipHooks } from "./validation";
 
 type VendorItem = {
@@ -27,49 +22,6 @@ function normalizeVendorData(resolvedData: ResolvedData, businessId?: string | n
     next.lookupKey = `${effectiveBusinessId}:${next.vendorNumber}`;
   }
   return next;
-}
-
-async function emitVendorEvent(
-  operation: "create" | "update" | "delete",
-  item: VendorItem | null | undefined,
-  originalItem: VendorItem | null | undefined,
-  context: Context,
-) {
-  const aggregate = item ?? originalItem;
-  if (!aggregate?.id || !aggregate.businessId) return;
-  const aggregateId = aggregate.id.toString();
-  const payload = {
-    operation,
-    vendor: {
-      id: aggregateId,
-      name: aggregate.name ?? "",
-      vendorNumber: aggregate.vendorNumber ?? "",
-      status: aggregate.status ?? "",
-    },
-    previous: operation === "update" ? originalItem ?? null : null,
-  };
-  const topic = `convenience.vendor.${operation}.v1`;
-  await context.prisma.outboxEvent.create({
-    data: {
-      businessId: aggregate.businessId,
-      eventKey: `hook:vendor:${aggregateId}:${operation}:${randomUUID()}`,
-      topic,
-      schemaVersion: 1,
-      aggregateType: "Vendor",
-      aggregateId,
-      action: `vendor.${operation}`,
-      payload: payload as Prisma.InputJsonValue,
-      payloadHash: fingerprintInput(payload),
-      status: "pending",
-      attempts: 0,
-      totalAttempts: 0,
-      replayCount: 0,
-      maxAttempts: 8,
-      availableAt: new Date(),
-      occurredAt: new Date(),
-    },
-    select: { id: true, topic: true },
-  });
 }
 
 export const vendorHooks = {
@@ -95,13 +47,5 @@ export const vendorHooks = {
       });
       if (purchaseOrders) throw new Error("Vendor with purchase orders cannot be deleted");
     },
-  },
-  afterOperation: async ({ operation, item, originalItem, context }) => {
-    await emitVendorEvent(
-      operation,
-      item as VendorItem | null,
-      originalItem as VendorItem | null,
-      context as unknown as Context,
-    );
   },
 } satisfies ListHooks<BaseListTypeInfo>;

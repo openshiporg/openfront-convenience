@@ -33,7 +33,6 @@ export async function setOwnPosPin(
     input: args.input,
     resourceType: "Employee",
     action: "employee.pos_pin.set",
-    emitOutbox: false,
     execute: async (transaction) => {
       const employee = await transaction.employee.findFirst({
         where: {

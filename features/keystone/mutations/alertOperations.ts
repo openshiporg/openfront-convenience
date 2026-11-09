@@ -144,7 +144,6 @@ export async function evaluateOperationalAlerts(
         lotterySettlements,
         moneySettlements,
         paymentReconciliations,
-        deadLetters,
       ] = await Promise.all([
         boundedPages("Store-day alert source", (cursor) =>
           transaction.storeDay.findMany({
@@ -227,24 +226,6 @@ export async function evaluateOperationalAlerts(
               storeId: true,
               reconciliationNumber: true,
               varianceCents: true,
-            },
-            ...page(cursor),
-          }),
-        ),
-        boundedPages("Outbox dead-letter alert source", (cursor) =>
-          transaction.outboxEvent.findMany({
-            where: {
-              businessId: args.input.businessId,
-              ...(args.input.storeId
-                ? { OR: [{ storeId: args.input.storeId }, { storeId: null }] }
-                : {}),
-              status: "dead_letter",
-            },
-            select: {
-              id: true,
-              storeId: true,
-              eventKey: true,
-              lastError: true,
             },
             ...page(cursor),
           }),
@@ -380,21 +361,6 @@ export async function evaluateOperationalAlerts(
           resourceId: reconciliation.id,
           observedValue: String(reconciliation.varianceCents),
           thresholdValue: "0",
-        });
-      }
-      for (const event of deadLetters) {
-        candidates.push({
-          storeId: event.storeId,
-          type: "integration_failure",
-          severity: "critical",
-          title: `Outbox dead letter · ${event.eventKey}`,
-          message:
-            event.lastError ||
-            "Durable event delivery exhausted its retry policy.",
-          resourceType: "OutboxEvent",
-          resourceId: event.id,
-          observedValue: "dead_letter",
-          thresholdValue: "delivered",
         });
       }
 

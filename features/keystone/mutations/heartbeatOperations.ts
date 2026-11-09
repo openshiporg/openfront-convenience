@@ -10,7 +10,7 @@ export async function recordOperationalHeartbeat(
   args: {
     input: {
       businessId: string;
-      kind: "outbox" | "alerts" | "backup";
+      kind: "alerts" | "backup";
       workerId: string;
       status: "healthy" | "failed";
       details?: Record<string, unknown> | null;
@@ -18,7 +18,7 @@ export async function recordOperationalHeartbeat(
   },
   context: Context,
 ) {
-  if (!["outbox", "alerts", "backup"].includes(args.input.kind))
+  if (!["alerts", "backup"].includes(args.input.kind))
     throw new Error("Heartbeat kind is invalid");
   if (!["healthy", "failed"].includes(args.input.status))
     throw new Error("Heartbeat status is invalid");

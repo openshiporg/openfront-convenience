@@ -8498,7 +8498,6 @@ type OperationalHeartbeat {
 }
 
 enum OperationalHeartbeatKindType {
-  outbox
   alerts
   backup
 }
@@ -8899,190 +8898,6 @@ input ExportLineOrderByInput {
   sourceType: OrderDirection
   sourceId: OrderDirection
   occurredAt: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-type OutboxEvent {
-  id: ID!
-  business: Business
-  store: Store
-  eventKey: String
-  topic: String
-  schemaVersion: Int
-  aggregateType: String
-  aggregateId: String
-  action: String
-  payload: JSON
-  payloadHash: String
-  status: OutboxEventStatusType
-  attempts: Int
-  totalAttempts: Int
-  replayCount: Int
-  maxAttempts: Int
-  availableAt: DateTime
-  lockedAt: DateTime
-  lockOwner: String
-  deliveredAt: DateTime
-  deadLetteredAt: DateTime
-  lastError: String
-  idempotency: IdempotencyKey
-  attemptsLog(where: OutboxAttemptWhereInput! = {}, orderBy: [OutboxAttemptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxAttemptWhereUniqueInput): [OutboxAttempt!]
-  attemptsLogCount(where: OutboxAttemptWhereInput! = {}): Int
-  occurredAt: DateTime
-  metadata: JSON
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-enum OutboxEventStatusType {
-  pending
-  processing
-  retry
-  delivered
-  dead_letter
-}
-
-input OutboxEventWhereUniqueInput {
-  id: ID
-  eventKey: String
-}
-
-input OutboxEventWhereInput {
-  AND: [OutboxEventWhereInput!]
-  OR: [OutboxEventWhereInput!]
-  NOT: [OutboxEventWhereInput!]
-  id: IDFilter
-  business: BusinessWhereInput
-  store: StoreWhereInput
-  eventKey: StringFilter
-  topic: StringFilter
-  schemaVersion: IntFilter
-  aggregateType: StringFilter
-  aggregateId: StringFilter
-  action: StringFilter
-  payloadHash: StringFilter
-  status: OutboxEventStatusTypeNullableFilter
-  attempts: IntFilter
-  totalAttempts: IntFilter
-  replayCount: IntFilter
-  maxAttempts: IntFilter
-  availableAt: DateTimeFilter
-  lockedAt: DateTimeNullableFilter
-  lockOwner: StringFilter
-  deliveredAt: DateTimeNullableFilter
-  deadLetteredAt: DateTimeNullableFilter
-  lastError: StringFilter
-  idempotency: IdempotencyKeyWhereInput
-  attemptsLog: OutboxAttemptManyRelationFilter
-  occurredAt: DateTimeFilter
-  createdAt: DateTimeFilter
-  updatedAt: DateTimeFilter
-}
-
-input OutboxEventStatusTypeNullableFilter {
-  equals: OutboxEventStatusType
-  in: [OutboxEventStatusType!]
-  notIn: [OutboxEventStatusType!]
-  not: OutboxEventStatusTypeNullableFilter
-}
-
-input OutboxAttemptManyRelationFilter {
-  every: OutboxAttemptWhereInput
-  some: OutboxAttemptWhereInput
-  none: OutboxAttemptWhereInput
-}
-
-input OutboxEventOrderByInput {
-  id: OrderDirection
-  eventKey: OrderDirection
-  topic: OrderDirection
-  schemaVersion: OrderDirection
-  aggregateType: OrderDirection
-  aggregateId: OrderDirection
-  action: OrderDirection
-  payloadHash: OrderDirection
-  status: OrderDirection
-  attempts: OrderDirection
-  totalAttempts: OrderDirection
-  replayCount: OrderDirection
-  maxAttempts: OrderDirection
-  availableAt: OrderDirection
-  lockedAt: OrderDirection
-  lockOwner: OrderDirection
-  deliveredAt: OrderDirection
-  deadLetteredAt: OrderDirection
-  lastError: OrderDirection
-  occurredAt: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-type OutboxAttempt {
-  id: ID!
-  business: Business
-  store: Store
-  event: OutboxEvent
-  attemptKey: String
-  attemptNumber: Int
-  workerId: String
-  outcome: OutboxAttemptOutcomeType
-  startedAt: DateTime
-  finishedAt: DateTime
-  error: String
-  metadata: JSON
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-enum OutboxAttemptOutcomeType {
-  processing
-  delivered
-  retry
-  dead_letter
-  abandoned
-}
-
-input OutboxAttemptWhereUniqueInput {
-  id: ID
-  attemptKey: String
-}
-
-input OutboxAttemptWhereInput {
-  AND: [OutboxAttemptWhereInput!]
-  OR: [OutboxAttemptWhereInput!]
-  NOT: [OutboxAttemptWhereInput!]
-  id: IDFilter
-  business: BusinessWhereInput
-  store: StoreWhereInput
-  event: OutboxEventWhereInput
-  attemptKey: StringFilter
-  attemptNumber: IntFilter
-  workerId: StringFilter
-  outcome: OutboxAttemptOutcomeTypeNullableFilter
-  startedAt: DateTimeFilter
-  finishedAt: DateTimeNullableFilter
-  error: StringFilter
-  createdAt: DateTimeFilter
-  updatedAt: DateTimeFilter
-}
-
-input OutboxAttemptOutcomeTypeNullableFilter {
-  equals: OutboxAttemptOutcomeType
-  in: [OutboxAttemptOutcomeType!]
-  notIn: [OutboxAttemptOutcomeType!]
-  not: OutboxAttemptOutcomeTypeNullableFilter
-}
-
-input OutboxAttemptOrderByInput {
-  id: OrderDirection
-  attemptKey: OrderDirection
-  attemptNumber: OrderDirection
-  workerId: OrderDirection
-  outcome: OrderDirection
-  startedAt: OrderDirection
-  finishedAt: OrderDirection
-  error: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -9493,6 +9308,7 @@ type Mutation {
   updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
   startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
   settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
+  setStorefrontReceiptEmail(input: StorefrontReceiptEmailInput!): JSON!
   markSalePickedUp(saleId: ID!): JSON!
   revokeCurrentUserSessions: Boolean!
   recordOperationalHeartbeat(input: RecordOperationalHeartbeatInput!): OperationalHeartbeatResult!
@@ -9579,9 +9395,6 @@ type Mutation {
   registerOfflineDevice(input: RegisterOfflineDeviceInput!): OperationResult!
   transitionOfflineDevice(input: TransitionOfflineDeviceInput!): OperationResult!
   recordOfflineReplayBatch(input: RecordOfflineReplayBatchInput!): OfflineReplayResult!
-  claimOutboxEvents(input: ClaimOutboxEventsInput!): ClaimOutboxEventsResult!
-  completeOutboxEvent(input: CompleteOutboxEventInput!): OperationResult!
-  replayOutboxEvent(input: ReplayOutboxEventInput!): OperationResult!
   createBusinessApiKey(input: CreateBusinessApiKeyInput!): ApiKeyOperationResult!
   revokeBusinessApiKey(input: RevokeBusinessApiKeyInput!): ApiKeyOperationResult!
 }
@@ -9879,12 +9692,6 @@ type Query {
   exportLine(where: ExportLineWhereUniqueInput!): ExportLine
   exportLines(where: ExportLineWhereInput! = {}, orderBy: [ExportLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ExportLineWhereUniqueInput): [ExportLine!]
   exportLinesCount(where: ExportLineWhereInput! = {}): Int
-  outboxEvent(where: OutboxEventWhereUniqueInput!): OutboxEvent
-  outboxEvents(where: OutboxEventWhereInput! = {}, orderBy: [OutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxEventWhereUniqueInput): [OutboxEvent!]
-  outboxEventsCount(where: OutboxEventWhereInput! = {}): Int
-  outboxAttempt(where: OutboxAttemptWhereUniqueInput!): OutboxAttempt
-  outboxAttempts(where: OutboxAttemptWhereInput! = {}, orderBy: [OutboxAttemptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxAttemptWhereUniqueInput): [OutboxAttempt!]
-  outboxAttemptsCount(where: OutboxAttemptWhereInput! = {}): Int
   apiKey(where: ApiKeyWhereUniqueInput!): ApiKey
   apiKeys(where: ApiKeyWhereInput! = {}, orderBy: [ApiKeyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ApiKeyWhereUniqueInput): [ApiKey!]
   apiKeysCount(where: ApiKeyWhereInput! = {}): Int
@@ -10310,31 +10117,6 @@ type ApiKeyOperationResult {
   replayed: Boolean!
   reference: String
   token: String
-}
-
-type ClaimedOutboxEvent {
-  id: ID!
-  eventKey: String!
-  topic: String!
-  schemaVersion: Int!
-  aggregateType: String!
-  aggregateId: String!
-  action: String!
-  payload: JSON
-  payloadHash: String!
-  totalAttempts: Int!
-}
-
-type ClaimOutboxEventsResult {
-  workerId: String!
-  leaseToken: String!
-  events: [ClaimedOutboxEvent!]!
-}
-
-enum OutboxCompletionOutcome {
-  delivered
-  retry
-  dead_letter
 }
 
 type ConvenienceStoreReportingSummary {
@@ -11455,29 +11237,6 @@ input ApprovePaymentReconciliationInput {
   idempotencyKey: String!
 }
 
-input ClaimOutboxEventsInput {
-  businessId: ID!
-  workerId: String!
-  limit: Int
-}
-
-input CompleteOutboxEventInput {
-  businessId: ID!
-  eventId: ID!
-  workerId: String!
-  leaseToken: String!
-  outcome: OutboxCompletionOutcome!
-  error: String
-  retryAfterSeconds: Int
-  idempotencyKey: String!
-}
-
-input ReplayOutboxEventInput {
-  businessId: ID!
-  eventId: ID!
-  idempotencyKey: String!
-}
-
 input CreateBusinessApiKeyInput {
   businessId: ID!
   name: String!
@@ -11497,6 +11256,12 @@ input RevokeBusinessApiKeyInput {
 input StorefrontPickupInput {
   cartId: ID!
   token: String!
+}
+
+input StorefrontReceiptEmailInput {
+  cartId: ID!
+  token: String!
+  email: String
 }
 
 input StorefrontBasketInput {

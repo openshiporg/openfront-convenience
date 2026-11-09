@@ -15,7 +15,6 @@ export const OperationalHeartbeat = list({
     kind: select({
       type: "enum",
       options: [
-        { label: "Outbox", value: "outbox" },
         { label: "Alerts", value: "alerts" },
         { label: "Backup", value: "backup" },
       ],

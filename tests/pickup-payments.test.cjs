@@ -89,7 +89,6 @@ function webhookHarness() {
     refund: { findUnique: async () => null },
     operationalAlert: { findUnique: async () => null, create: async ({ data }) => data },
     auditEvent: { create: async () => ({}) },
-    outboxEvent: { create: async () => ({}) },
   };
   const secret = 'whsec_test_secret';
   const stripeStub = class { constructor() { this.webhooks = { constructEvent: (raw, signature, key) => {

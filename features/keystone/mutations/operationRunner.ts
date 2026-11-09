@@ -16,7 +16,6 @@ import {
   fingerprintInput,
   normalizeIdempotencyKey,
 } from "../lib/idempotency";
-import { enqueueOperationOutbox } from "../lib/outbox";
 import { assertOperationActor } from "../lib/operationActor";
 import { lockOperationAuthority } from "../lib/authorityFence";
 import { redactSensitiveValues } from "../lib/secretPolicy";
@@ -42,7 +41,6 @@ type IdempotentOperationArgs<T extends OperationSnapshot> = {
   input: unknown;
   resourceType: string;
   action: string;
-  emitOutbox?: boolean;
   execute: (
     transaction: Prisma.TransactionClient,
     idempotencyId: string,
@@ -200,7 +198,6 @@ export async function runIdempotentOperation<T extends OperationSnapshot>({
   input,
   resourceType,
   action,
-  emitOutbox = true,
   execute,
 }: IdempotentOperationArgs<T>): Promise<T & { replayed: boolean }> {
   let session = requireSession(context);
@@ -449,17 +446,6 @@ export async function runIdempotentOperation<T extends OperationSnapshot>({
               },
             },
           });
-          if (emitOutbox) {
-            await enqueueOperationOutbox(transaction, {
-              businessId,
-              storeId,
-              idempotencyId: record.id,
-              action,
-              resourceType,
-              resourceId,
-              result: redactSensitiveValues(snapshot) as OperationSnapshot,
-            });
-          }
 
           return snapshot;
         },

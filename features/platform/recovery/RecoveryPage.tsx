@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import {
   recordOfflineReplayBatchAction,
   registerOfflineDeviceAction,
-  replayOutboxEventAction,
   revokeMachineApiKeyAction,
   transitionOfflineDeviceAction,
 } from "../actions";
@@ -30,20 +29,12 @@ export async function RecoveryPage({ searchParams }: { searchParams: PlatformSea
   const state = await getPlatformProjection("recovery", searchParams);
   const projection = state.projection;
   const controls = projection?.controls ?? {};
-  // What needs the manager: rejected and conflicting replay batches, then dead-letter deliveries, then partial batches.
+  // What needs the manager: rejected and conflicting replay batches, then partial batches.
   const queue = projection
     ? [
         ...projection.rows
           .filter((row) => row.status in BATCH_RANK)
           .map((row) => ({ kind: "batch" as const, rank: BATCH_RANK[row.status], id: row.id, title: row.title, detail: row.detail, status: row.status })),
-        ...(controls.outboxEvents ?? []).map((event) => ({
-          kind: "delivery" as const,
-          rank: 2,
-          id: event.id,
-          title: event.label,
-          detail: event.detail ?? "",
-          status: "dead_letter",
-        })),
       ].sort((a, b) => a.rank - b.rank)
     : [];
   return <PlatformPage title="Recovery" {...state} showMetrics={false}>
@@ -65,27 +56,18 @@ export async function RecoveryPage({ searchParams }: { searchParams: PlatformSea
               {queue.map((item) => (
                 <Tr key={`${item.kind}-${item.id}`}>
                   <Td className="font-mono text-[12px] [overflow-wrap:anywhere]">{item.title}</Td>
-                  <Td priority={2} className="text-muted-foreground">{item.kind === "batch" ? "Replay batch" : "Outbox delivery"}</Td>
+                  <Td priority={2} className="text-muted-foreground">Replay batch</Td>
                   <Td priority={2} className="text-muted-foreground [overflow-wrap:anywhere]">{item.detail || "—"}</Td>
                   <Td><StatusText status={item.status} /></Td>
                   <Td className="text-right">
-                    {item.kind === "delivery" ? (
-                      <form action={replayOutboxEventAction} className="inline-flex">
-                        <input type="hidden" name="idempotencyKey" value={`platform-${randomUUID()}`} />
-                        <HiddenScope projection={projection} returnPath={path} />
-                        <input type="hidden" name="eventId" value={item.id} />
-                        <QueueSubmit label="Replay" />
-                      </form>
-                    ) : (
-                      <span className="text-[12px] text-muted-foreground">Offline replay below</span>
-                    )}
+                    <span className="text-[12px] text-muted-foreground">Offline replay below</span>
                   </Td>
                 </Tr>
               ))}
             </tbody>
           </DataTable>
         ) : (
-          <p className="py-2 text-sm text-muted-foreground">No rejected batches, conflicts or dead letters</p>
+          <p className="py-2 text-sm text-muted-foreground">No rejected or conflicting batches</p>
         )}
       </section>
     ) : null}
@@ -109,12 +91,6 @@ export async function RecoveryPage({ searchParams }: { searchParams: PlatformSea
                       <EnumField label="Operation" name="operationType" values={[{ value: "createPosCart", label: "Create POS cart" }, { value: "addPosCartLine", label: "Add POS line" }, { value: "applyPromotionToCart", label: "Apply promotion" }, { value: "completePosSale", label: "Complete POS sale" }, { value: "recordCashMovement", label: "Record cash movement" }]} />
                       <TextField label="Operation idempotency key" name="operationIdempotencyKey" required />
                       <TextField label="Operation payload (JSON object)" name="payload" placeholder='{"cartId":"…","barcode":"…","quantity":"1"}' required />
-                    </FormGrid>
-                  </ActionPanel>
-                  <ActionPanel title="Replay dead-letter delivery">
-                    <FormGrid action={replayOutboxEventAction} submit="Replay delivery">
-                      <HiddenScope projection={projection} returnPath={path} />
-                      <SelectField label="Dead-letter event" name="eventId" options={controls.outboxEvents ?? []} />
                     </FormGrid>
                   </ActionPanel>
                 </PanelGrid>

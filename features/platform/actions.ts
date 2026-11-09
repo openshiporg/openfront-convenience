@@ -136,7 +136,6 @@ const OPERATION_NOTICES: Record<string, string> = {
   refundPosSale: "Refund completed",
   registerOfflineDevice: "Device registered",
   removePosCartLine: "Line removed",
-  replayOutboxEvent: "Delivery requeued",
   revokeBusinessApiKey: "Key revoked",
   setFuelPrice: "Fuel price saved",
   setOwnPosPin: "PIN set",
@@ -1942,22 +1941,6 @@ export async function transitionExportBatchAction(formData: FormData) {
       nextStatus: field(formData, "nextStatus"),
       externalReference: field(formData, "externalReference") || null,
       failureMessage: field(formData, "failureMessage") || null,
-    },
-  );
-}
-
-export async function replayOutboxEventAction(formData: FormData) {
-  return executeOperation(
-    formData,
-    `
-    mutation PlatformReplayOutbox($input: ReplayOutboxEventInput!) {
-      replayOutboxEvent(input: $input) { id status replayed reference }
-    }
-  `,
-    "replayOutboxEvent",
-    {
-      businessId: field(formData, "businessId"),
-      eventId: field(formData, "eventId"),
     },
   );
 }

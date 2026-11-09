@@ -160,13 +160,12 @@ The [model registry](features/keystone/models/index.ts) and [Prisma schema](sche
 - `npm run typecheck` - Run the configured TypeScript check.
 - `npm run test` - Run the repository's configured test suite.
 - `npm run bootstrap:admin` - Run the owner-approved first-administrator bootstrap.
-- `npm run worker:outbox` - Run the configured outbox delivery entry point.
 - `npm run worker:alerts` - Run operational alert processing.
 
 Use a disposable development database for migration generation. Review the script before running it against any existing data.
 
 ### Operational Delivery
-The registered [workflow commands](features/keystone/mutations/index.ts) cover payment events, integrations, restricted sales, offline replay, and operational recovery. Run outbox and alert workers separately when those workflows are enabled.
+The registered [workflow commands](features/keystone/mutations/index.ts) cover payment events, integrations, restricted sales, offline replay, and operational recovery. Alert processing runs separately when enabled.
 
 ## Documentation
 
@@ -214,7 +213,7 @@ npm start
 ```
 
 ### Scaling Considerations
-Schedule `npm run worker:outbox` and `npm run worker:alerts` for enabled delivery and alert workflows. Preserve business/store scope across processes and review offline replay and reconciliation before adding registers.
+Schedule `npm run worker:alerts` for enabled alert workflows. Preserve business/store scope across processes and review offline replay and reconciliation before adding registers.
 
 ## Contributing
 

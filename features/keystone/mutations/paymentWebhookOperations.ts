@@ -228,36 +228,6 @@ export async function ingestPaymentWebhook(
         metadata: { paymentProviderId: provider.id, payloadDigest },
       },
     });
-    const payload = {
-      businessId: provider.businessId,
-      storeId,
-      paymentProviderId: provider.id,
-      webhookEventId: webhook.id,
-      eventType: event.eventType,
-      status,
-      resource: { type: resourceType, id: resourceId },
-    };
-    await transaction.outboxEvent.create({
-      data: {
-        businessId: provider.businessId,
-        storeId,
-        eventKey: `payment-webhook:${webhook.id}:v1`,
-        topic: `convenience.payment_webhook.${event.eventType}.v1`,
-        schemaVersion: 1,
-        aggregateType: resourceType,
-        aggregateId: resourceId,
-        action: `payment_webhook.${event.eventType}`,
-        payload,
-        payloadHash: fingerprintInput(payload),
-        status: "pending",
-        attempts: 0,
-        totalAttempts: 0,
-        replayCount: 0,
-        maxAttempts: 8,
-        availableAt: processedAt,
-        occurredAt: event.occurredAt,
-      },
-    });
     return { id: webhook.id, status, replayed: false };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   // After the commit, never inside it. Lazy import keeps the mail path out of the keystone import graph.

@@ -399,8 +399,6 @@ const directStoreListKeys = new Set([
   "OfflineOperation",
   "OfflineOperationBatch",
   "OperationalAlert",
-  "OutboxAttempt",
-  "OutboxEvent",
   "PaymentReconciliation",
   "PaymentReconciliationLine",
   "PrepBatch",

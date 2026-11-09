@@ -22,7 +22,6 @@ import {
   fingerprintInput,
   normalizeIdempotencyKey,
 } from "../lib/idempotency";
-import { enqueueOperationOutbox } from "../lib/outbox";
 import { requireSession } from "./operationRunner";
 import { lockOperationAuthority } from "../lib/authorityFence";
 import { currentRetailSession } from "../lib/retailCashBoundary";
@@ -713,15 +712,6 @@ export default async function onboardConvenienceBusiness(
           changes: { businessCode: business.code, storeCode: store.code, registerId: register.id, onboardingVersion: seed.version },
           occurredAt: new Date(),
         },
-      });
-      await enqueueOperationOutbox(transaction, {
-        businessId: business.id,
-        storeId: store.id,
-        idempotencyId: idempotency.id,
-        action: "business.onboard",
-        resourceType: "Business",
-        resourceId: business.id,
-        result: snapshot,
       });
     }
     return { ...snapshot, replayed: Boolean(priorIdempotency) };

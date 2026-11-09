@@ -120,8 +120,6 @@ model Business {
   from_ExportDestination_business              ExportDestination[]              @relation("ExportDestination_business")
   from_ExportBatch_business                    ExportBatch[]                    @relation("ExportBatch_business")
   from_ExportLine_business                     ExportLine[]                     @relation("ExportLine_business")
-  from_OutboxEvent_business                    OutboxEvent[]                    @relation("OutboxEvent_business")
-  from_OutboxAttempt_business                  OutboxAttempt[]                  @relation("OutboxAttempt_business")
   from_ApiKey_business                         ApiKey[]                         @relation("ApiKey_business")
   from_IdempotencyKey_business                 IdempotencyKey[]                 @relation("IdempotencyKey_business")
   from_AuditEvent_business                     AuditEvent[]                     @relation("AuditEvent_business")
@@ -388,8 +386,6 @@ model Store {
   from_ExportDestination_stores           ExportDestination[]         @relation("ExportDestination_stores")
   from_ExportBatch_store                  ExportBatch[]               @relation("ExportBatch_store")
   from_ExportLine_store                   ExportLine[]                @relation("ExportLine_store")
-  from_OutboxEvent_store                  OutboxEvent[]               @relation("OutboxEvent_store")
-  from_OutboxAttempt_store                OutboxAttempt[]             @relation("OutboxAttempt_store")
   from_ApiKey_stores                      ApiKey[]                    @relation("ApiKey_stores")
   from_AuditEvent_store                   AuditEvent[]                @relation("AuditEvent_store")
 
@@ -3149,76 +3145,6 @@ model ExportLine {
   @@index([sourceId])
 }
 
-model OutboxEvent {
-  id             String                @id @default(cuid())
-  business       Business?             @relation("OutboxEvent_business", fields: [businessId], references: [id])
-  businessId     String?               @map("business")
-  store          Store?                @relation("OutboxEvent_store", fields: [storeId], references: [id])
-  storeId        String?               @map("store")
-  eventKey       String                @unique @default("")
-  topic          String                @default("")
-  schemaVersion  Int                   @default(1)
-  aggregateType  String                @default("")
-  aggregateId    String                @default("")
-  action         String                @default("")
-  payload        Json?                 @default("{}")
-  payloadHash    String                @default("")
-  status         OutboxEventStatusType @default(pending)
-  attempts       Int                   @default(0)
-  totalAttempts  Int                   @default(0)
-  replayCount    Int                   @default(0)
-  maxAttempts    Int                   @default(8)
-  availableAt    DateTime              @default(now())
-  lockedAt       DateTime?
-  lockOwner      String                @default("")
-  deliveredAt    DateTime?
-  deadLetteredAt DateTime?
-  lastError      String                @default("")
-  idempotency    IdempotencyKey?       @relation("OutboxEvent_idempotency", fields: [idempotencyId], references: [id])
-  idempotencyId  String?               @map("idempotency")
-  attemptsLog    OutboxAttempt[]       @relation("OutboxAttempt_event")
-  occurredAt     DateTime
-  metadata       Json?                 @default("{}")
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @default(now()) @updatedAt
-
-  @@index([businessId])
-  @@index([storeId])
-  @@index([topic])
-  @@index([aggregateType])
-  @@index([aggregateId])
-  @@index([action])
-  @@index([status])
-  @@index([availableAt])
-  @@index([idempotencyId])
-}
-
-model OutboxAttempt {
-  id            String                   @id @default(cuid())
-  business      Business?                @relation("OutboxAttempt_business", fields: [businessId], references: [id])
-  businessId    String?                  @map("business")
-  store         Store?                   @relation("OutboxAttempt_store", fields: [storeId], references: [id])
-  storeId       String?                  @map("store")
-  event         OutboxEvent?             @relation("OutboxAttempt_event", fields: [eventId], references: [id])
-  eventId       String?                  @map("event")
-  attemptKey    String                   @unique @default("")
-  attemptNumber Int
-  workerId      String                   @default("")
-  outcome       OutboxAttemptOutcomeType @default(processing)
-  startedAt     DateTime
-  finishedAt    DateTime?
-  error         String                   @default("")
-  metadata      Json?                    @default("{}")
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @default(now()) @updatedAt
-
-  @@index([businessId])
-  @@index([storeId])
-  @@index([eventId])
-  @@index([workerId])
-  @@index([outcome])
-}
-
 model ApiKey {
   id                              String           @id @default(cuid())
   business                        Business?        @relation("ApiKey_business", fields: [businessId], references: [id])
@@ -3305,7 +3231,6 @@ model IdempotencyKey {
   from_OfflineOperationBatch_idempotency   OfflineOperationBatch[]   @relation("OfflineOperationBatch_idempotency")
   from_AlertEvaluation_idempotency         AlertEvaluation[]         @relation("AlertEvaluation_idempotency")
   from_ExportBatch_idempotency             ExportBatch[]             @relation("ExportBatch_idempotency")
-  from_OutboxEvent_idempotency             OutboxEvent[]             @relation("OutboxEvent_idempotency")
   from_AuditEvent_idempotency              AuditEvent[]              @relation("AuditEvent_idempotency")
   from_WebhookEvent_idempotency            WebhookEvent[]            @relation("WebhookEvent_idempotency")
 
@@ -4185,7 +4110,6 @@ enum OperationalAlertStatusType {
 }
 
 enum OperationalHeartbeatKindType {
-  outbox
   alerts
   backup
 }
@@ -4228,22 +4152,6 @@ enum ExportBatchStatusType {
   delivered
   failed
   cancelled
-}
-
-enum OutboxEventStatusType {
-  pending
-  processing
-  retry
-  delivered
-  dead_letter
-}
-
-enum OutboxAttemptOutcomeType {
-  processing
-  delivered
-  retry
-  dead_letter
-  abandoned
 }
 
 enum ApiKeyStatusType {

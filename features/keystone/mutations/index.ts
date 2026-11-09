@@ -98,11 +98,6 @@ import {
   generatePaymentReconciliation,
 } from "./paymentOperations";
 import {
-  claimOutboxEvents,
-  completeOutboxEvent,
-  replayOutboxEvent,
-} from "./outboxOperations";
-import {
   addPosCartLine,
   completePosSale,
   createPosCart,
@@ -429,31 +424,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         replayed: Boolean!
         reference: String
         token: String
-      }
-
-      type ClaimedOutboxEvent {
-        id: ID!
-        eventKey: String!
-        topic: String!
-        schemaVersion: Int!
-        aggregateType: String!
-        aggregateId: String!
-        action: String!
-        payload: JSON
-        payloadHash: String!
-        totalAttempts: Int!
-      }
-
-      type ClaimOutboxEventsResult {
-        workerId: String!
-        leaseToken: String!
-        events: [ClaimedOutboxEvent!]!
-      }
-
-      enum OutboxCompletionOutcome {
-        delivered
-        retry
-        dead_letter
       }
 
       type ConvenienceStoreReportingSummary {
@@ -1574,29 +1544,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         idempotencyKey: String!
       }
 
-      input ClaimOutboxEventsInput {
-        businessId: ID!
-        workerId: String!
-        limit: Int
-      }
-
-      input CompleteOutboxEventInput {
-        businessId: ID!
-        eventId: ID!
-        workerId: String!
-        leaseToken: String!
-        outcome: OutboxCompletionOutcome!
-        error: String
-        retryAfterSeconds: Int
-        idempotencyKey: String!
-      }
-
-      input ReplayOutboxEventInput {
-        businessId: ID!
-        eventId: ID!
-        idempotencyKey: String!
-      }
-
       input CreateBusinessApiKeyInput {
         businessId: ID!
         name: String!
@@ -1827,11 +1774,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordOfflineReplayBatch(
           input: RecordOfflineReplayBatchInput!
         ): OfflineReplayResult!
-        claimOutboxEvents(
-          input: ClaimOutboxEventsInput!
-        ): ClaimOutboxEventsResult!
-        completeOutboxEvent(input: CompleteOutboxEventInput!): OperationResult!
-        replayOutboxEvent(input: ReplayOutboxEventInput!): OperationResult!
         createBusinessApiKey(
           input: CreateBusinessApiKeyInput!
         ): ApiKeyOperationResult!
@@ -1954,9 +1896,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         registerOfflineDevice,
         transitionOfflineDevice,
         recordOfflineReplayBatch,
-        claimOutboxEvents,
-        completeOutboxEvent,
-        replayOutboxEvent,
         createBusinessApiKey,
         revokeBusinessApiKey,
       },

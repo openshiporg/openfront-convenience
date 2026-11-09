@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,6 +30,741 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// features/keystone/lib/email-layout.ts
+function storeNameFromEnv(fallback = "Convenience") {
+  const match = /^\s*"?([^"<]+?)"?\s*</.exec(process.env.SMTP_FROM || "");
+  return match?.[1]?.trim() || fallback;
+}
+function emailButton(label, href) {
+  return `<table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 24px;">
+<tr><td class="em-btn" align="center" bgcolor="${C.button}" style="border-radius:8px;background:${C.button};">
+<a class="em-btn-a" href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:600;line-height:20px;color:${C.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a>
+</td></tr></table>`;
+}
+function emailItems(items) {
+  const rows = items.map(
+    (item) => `<tr>
+<td class="em-line" style="padding:14px 0;border-bottom:1px solid ${C.line};font-family:${FONT};vertical-align:top;">
+<div class="em-text" style="font-size:15px;line-height:21px;font-weight:600;color:${C.text};">${escapeHtml(item.title)}</div>
+<div class="em-muted" style="font-size:13px;line-height:19px;color:${C.muted};">${[item.detail, `Qty ${item.quantity}`].filter(Boolean).map(escapeHtml).join(" \xB7 ")}</div>
+</td>
+<td class="em-line em-text" align="right" style="padding:14px 0 14px 12px;border-bottom:1px solid ${C.line};font-family:${FONT};font-size:15px;line-height:21px;color:${C.text};vertical-align:top;white-space:nowrap;">${escapeHtml(item.amount || "")}</td>
+</tr>`
+  ).join("");
+  return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:0 0 8px;border-top:1px solid ${C.line};" class="em-line">${rows}</table>`;
+}
+function emailTotals(rows) {
+  const last = rows.length - 1;
+  const body = rows.map((row, i) => {
+    const strong = i === last;
+    const style = strong ? `padding:12px 0 0;border-top:1px solid ${C.line};font-size:17px;line-height:24px;font-weight:700;color:${C.text};` : `padding:4px 0;font-size:14px;line-height:20px;color:${C.muted};`;
+    const cls = strong ? "em-line em-text" : "em-muted";
+    return `<tr><td class="${cls}" style="font-family:${FONT};${style}">${escapeHtml(row.label)}</td><td class="${cls}" align="right" style="font-family:${FONT};${style}white-space:nowrap;">${escapeHtml(row.value)}</td></tr>`;
+  }).join("");
+  return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 8px;">${body}</table>`;
+}
+function emailLayout(input) {
+  const store = escapeHtml(input.storeName || storeNameFromEnv());
+  const support = escapeHtml(input.supportEmail || SUPPORT_EMAIL);
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${escapeHtml(input.title)}</title>
+<style>
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+a { color:${C.link}; }
+@media (max-width: 620px) { .em-pad { padding-left:20px !important; padding-right:20px !important; } }
+@media (prefers-color-scheme: dark) {
+  .em-canvas { background:#09090b !important; }
+  .em-card { background:#18181b !important; border-color:#27272a !important; }
+  .em-text { color:#fafafa !important; }
+  .em-muted { color:#a1a1aa !important; }
+  .em-line { border-color:#3f3f46 !important; }
+  .em-panel { background:#27272a !important; border-color:#3f3f46 !important; color:#fafafa !important; }
+  .em-btn { background:#fafafa !important; }
+  .em-btn-a { color:#18181b !important; }
+  .em-link { color:#fafafa !important; }
+}
+[data-ogsc] .em-text { color:#fafafa !important; }
+[data-ogsc] .em-muted { color:#a1a1aa !important; }
+[data-ogsb] .em-canvas { background:#09090b !important; }
+[data-ogsb] .em-card { background:#18181b !important; }
+</style>
+</head>
+<body class="em-canvas" style="margin:0;padding:0;background:${C.canvas};">
+${input.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${escapeHtml(input.preheader)}</div>` : ""}
+<table role="presentation" class="em-canvas" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="${C.canvas}" style="background:${C.canvas};">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;">
+<tr><td class="em-pad" style="padding:8px 32px 20px;font-family:${FONT};font-size:18px;line-height:24px;font-weight:700;letter-spacing:-0.01em;"><span class="em-text" style="color:${C.text};">${store}</span></td></tr>
+<tr><td class="em-card" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr><td class="em-pad" style="padding:32px 32px 16px;">
+<h1 class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:24px;line-height:32px;font-weight:700;letter-spacing:-0.02em;color:${C.text};">${escapeHtml(input.title)}</h1>
+${input.body}
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="em-pad" style="padding:20px 32px 8px;font-family:${FONT};font-size:13px;line-height:20px;color:${C.subtle};">
+<span class="em-muted" style="color:${C.subtle};">${input.footerNote ? `${input.footerNote}<br>` : ""}Questions? Email <a class="em-link" href="mailto:${support}" style="color:${C.muted};text-decoration:underline;">${support}</a>.<br>${store}</span>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+var SUPPORT_EMAIL, FONT, C, escapeHtml, p, emailParagraph, emailMuted;
+var init_email_layout = __esm({
+  "features/keystone/lib/email-layout.ts"() {
+    "use strict";
+    SUPPORT_EMAIL = "hello@convenience.openship.org";
+    FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+    C = {
+      canvas: "#f4f4f5",
+      card: "#ffffff",
+      text: "#18181b",
+      muted: "#52525b",
+      subtle: "#71717a",
+      line: "#e4e4e7",
+      panel: "#fafafa",
+      button: "#18181b",
+      buttonText: "#ffffff",
+      link: "#18181b"
+    };
+    escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    p = (html, style = "") => `<p class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:16px;line-height:24px;color:${C.text};${style}">${html}</p>`;
+    emailParagraph = p;
+    emailMuted = (html) => `<p class="em-muted" style="margin:0 0 16px;font-family:${FONT};font-size:14px;line-height:22px;color:${C.muted};">${html}</p>`;
+  }
+});
+
+// features/integrations/payment/stripe.ts
+var stripe_exports = {};
+__export(stripe_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction,
+  capturePaymentFunction: () => capturePaymentFunction,
+  createPaymentFunction: () => createPaymentFunction,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction,
+  getPaymentStatusFunction: () => getPaymentStatusFunction,
+  handleWebhookFunction: () => handleWebhookFunction,
+  refundPaymentFunction: () => refundPaymentFunction
+});
+function stripeRefundReference(id2) {
+  if (id2.startsWith("pi_")) return { payment_intent: id2 };
+  if (id2.startsWith("ch_")) return { charge: id2 };
+  throw new Error("Stripe refund requires a payment intent or charge reference");
+}
+async function createPaymentFunction({ order, amount, currency, idempotencyKey }) {
+  const stripe = getStripeClient();
+  const paymentIntent = await stripe.paymentIntents.create(
+    {
+      amount,
+      currency: currency.toLowerCase(),
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        orderId: order?.id || "",
+        orderNumber: order?.orderNumber || ""
+      }
+    },
+    idempotencyKey ? { idempotencyKey } : void 0
+  );
+  return {
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id
+  };
+}
+async function capturePaymentFunction({ paymentId, amount, idempotencyKey }) {
+  const stripe = getStripeClient();
+  const paymentIntent = await stripe.paymentIntents.capture(paymentId, {
+    ...amount == null ? {} : { amount_to_capture: amount }
+  }, idempotencyKey ? { idempotencyKey } : void 0);
+  return {
+    status: paymentIntent.status,
+    amount: paymentIntent.amount_received,
+    currencyCode: paymentIntent.currency.toUpperCase(),
+    data: paymentIntent
+  };
+}
+async function refundPaymentFunction({ paymentId, amount, idempotencyKey, refundId }) {
+  const stripe = getStripeClient();
+  const refund = refundId ? await stripe.refunds.retrieve(refundId) : await stripe.refunds.create(
+    { ...stripeRefundReference(paymentId), amount, ...idempotencyKey ? { metadata: { convenienceRefundKey: idempotencyKey } } : {} },
+    idempotencyKey ? { idempotencyKey } : void 0
+  );
+  return {
+    id: refund.id,
+    refundId: refund.id,
+    status: refund.status,
+    amount: refund.amount,
+    data: refund
+  };
+}
+async function getPaymentStatusFunction({ paymentId }) {
+  const stripe = getStripeClient();
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentId);
+  const refunds = [];
+  let refundsComplete = true;
+  for await (const refund of stripe.refunds.list({ payment_intent: paymentId, limit: 100 })) {
+    if (refunds.length >= 1e3) {
+      refundsComplete = false;
+      break;
+    }
+    refunds.push(refund);
+  }
+  return {
+    status: paymentIntent.status,
+    amount: paymentIntent.status === "succeeded" ? paymentIntent.amount_received : paymentIntent.amount,
+    currencyCode: paymentIntent.currency.toUpperCase(),
+    refunds,
+    refundsComplete,
+    data: paymentIntent
+  };
+}
+async function generatePaymentLinkFunction({ paymentId }) {
+  return `https://dashboard.stripe.com/payments/${paymentId}`;
+}
+async function handleWebhookFunction({ event, headers, rawBody }) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    throw new Error("Stripe webhook secret is not configured");
+  }
+  const stripe = getStripeClient();
+  try {
+    if (!rawBody) throw new Error("Stripe webhook raw body is required");
+    const stripeEvent = stripe.webhooks.constructEvent(
+      rawBody,
+      headers["stripe-signature"],
+      webhookSecret
+    );
+    return {
+      isValid: true,
+      event: stripeEvent,
+      type: stripeEvent.type,
+      resource: stripeEvent.data.object
+    };
+  } catch (err) {
+    throw new Error(`Webhook signature verification failed: ${err?.message || "Unknown error"}`);
+  }
+}
+async function cancelPaymentFunction({ paymentId, idempotencyKey }) {
+  const stripe = getStripeClient();
+  const current = await stripe.paymentIntents.retrieve(paymentId);
+  if (current.status === "canceled") return { status: "cancelled" };
+  if (current.status === "succeeded") return { status: "succeeded" };
+  const cancelled = await stripe.paymentIntents.cancel(paymentId, {}, idempotencyKey ? { idempotencyKey } : void 0);
+  return { status: cancelled.status === "canceled" ? "cancelled" : cancelled.status };
+}
+var import_stripe2, getStripeClient;
+var init_stripe = __esm({
+  "features/integrations/payment/stripe.ts"() {
+    "use strict";
+    import_stripe2 = __toESM(require("stripe"));
+    getStripeClient = () => {
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        throw new Error("Stripe secret key not configured");
+      }
+      return new import_stripe2.default(stripeKey);
+    };
+  }
+});
+
+// features/lib/currency-units.ts
+function currencyMinorUnitDigits(currencyCode = "USD") {
+  const code2 = currencyCode.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code2)) throw new Error(`Invalid currency code: ${currencyCode}`);
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency: code2 }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    throw new Error(`Unsupported currency code: ${currencyCode}`);
+  }
+}
+function currencyMinorUnitScale(currencyCode = "USD") {
+  return 10 ** currencyMinorUnitDigits(currencyCode);
+}
+function majorToMinorUnits(value, currencyCode = "USD") {
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.round(parsed * currencyMinorUnitScale(currencyCode));
+}
+function minorToMajorUnits(value, currencyCode = "USD") {
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed / currencyMinorUnitScale(currencyCode);
+}
+var init_currency_units = __esm({
+  "features/lib/currency-units.ts"() {
+    "use strict";
+  }
+});
+
+// features/integrations/payment/paypal.ts
+var paypal_exports = {};
+__export(paypal_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction2,
+  capturePaymentFunction: () => capturePaymentFunction2,
+  createPaymentFunction: () => createPaymentFunction2,
+  formatPayPalAmount: () => formatPayPalAmount,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction2,
+  getPaymentStatusFunction: () => getPaymentStatusFunction2,
+  handleWebhookFunction: () => handleWebhookFunction2,
+  normalizePayPalStatus: () => normalizePayPalStatus,
+  parsePayPalAmount: () => parsePayPalAmount,
+  refundPaymentFunction: () => refundPaymentFunction2
+});
+async function handleWebhookFunction2({ event, headers }) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) {
+    throw new Error("PayPal webhook ID is not configured");
+  }
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/v1/notifications/verify-webhook-signature`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        auth_algo: headers["paypal-auth-algo"],
+        cert_url: headers["paypal-cert-url"],
+        transmission_id: headers["paypal-transmission-id"],
+        transmission_sig: headers["paypal-transmission-sig"],
+        transmission_time: headers["paypal-transmission-time"],
+        webhook_id: webhookId,
+        webhook_event: event
+      })
+    }
+  );
+  const verification = await response.json();
+  const isValid = verification.verification_status === "SUCCESS";
+  if (!isValid) {
+    throw new Error("Invalid webhook signature");
+  }
+  return {
+    isValid: true,
+    event,
+    type: event.event_type,
+    resource: event.resource
+  };
+}
+async function createPaymentFunction2({ order, amount, currency, idempotencyKey }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...idempotencyKey ? { "PayPal-Request-Id": idempotencyKey } : {}
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: currency.toUpperCase(),
+            value: formatPayPalAmount(amount, currency)
+          },
+          custom_id: order?.id
+        }
+      ]
+    })
+  });
+  const orderResult = await response.json();
+  if (orderResult.error) {
+    throw new Error(`PayPal order creation failed: ${orderResult.error.message}`);
+  }
+  return {
+    orderId: orderResult.id,
+    status: orderResult.status
+  };
+}
+async function capturePaymentFunction2({ paymentId, idempotencyKey }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/v2/checkout/orders/${paymentId}/capture`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "PayPal-Request-Id": idempotencyKey || `capture:${paymentId}`
+      }
+    }
+  );
+  const capture = await response.json();
+  if (capture.error) {
+    throw new Error(`PayPal capture failed: ${capture.error.message}`);
+  }
+  const capturedAmount = capture.purchase_units[0].payments.captures[0].amount;
+  return {
+    status: normalizePayPalStatus(capture.status),
+    amount: parsePayPalAmount(capturedAmount.value, capturedAmount.currency_code),
+    currencyCode: capturedAmount.currency_code.toUpperCase(),
+    data: capture
+  };
+}
+async function refundPaymentFunction2({ paymentId, amount, currency = "USD", idempotencyKey, refundId }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    refundId ? `${baseUrl}/v2/payments/refunds/${refundId}` : `${baseUrl}/v2/payments/captures/${paymentId}/refund`,
+    {
+      method: refundId ? "GET" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...idempotencyKey ? { "PayPal-Request-Id": idempotencyKey } : {}
+      },
+      body: refundId ? void 0 : JSON.stringify({
+        amount: {
+          value: formatPayPalAmount(amount, currency),
+          currency_code: currency.toUpperCase()
+        }
+      })
+    }
+  );
+  const refund = await response.json();
+  if (refund.error) {
+    throw new Error(`PayPal refund failed: ${refund.error.message}`);
+  }
+  return {
+    id: refund.id,
+    refundId: refund.id,
+    status: refund.status,
+    amount: parsePayPalAmount(refund.amount.value, refund.amount.currency_code),
+    data: refund
+  };
+}
+async function getPaymentStatusFunction2({ paymentId }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(`${baseUrl}/v2/checkout/orders/${paymentId}`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+  const orderResult = await response.json();
+  if (orderResult.error) {
+    throw new Error(`PayPal status check failed: ${orderResult.error.message}`);
+  }
+  const purchaseUnits = orderResult.purchase_units || [];
+  const orderAmount = purchaseUnits[0]?.amount;
+  if (!orderAmount?.currency_code || orderAmount.value == null) throw new Error("PayPal order is missing its quoted amount or currency");
+  const captures = purchaseUnits.flatMap((unit) => unit.payments?.captures || []);
+  const currencies = [orderAmount.currency_code, ...captures.map((capture) => capture.amount?.currency_code)].filter(Boolean).map((currency) => currency.toUpperCase());
+  if (new Set(currencies).size !== 1) throw new Error("PayPal order and capture currencies do not match");
+  const status = normalizePayPalStatus(orderResult.status);
+  const capturedAmount = captures.reduce((sum, capture) => {
+    if (capture.amount?.value == null) throw new Error("PayPal capture is missing its amount");
+    return sum + parsePayPalAmount(capture.amount.value, capture.amount.currency_code);
+  }, 0);
+  const refundsComplete = status === "requires_capture" ? captures.length === 0 : status === "succeeded" && captures.length > 0 && captures.every((capture) => capture.status === "COMPLETED");
+  return {
+    status,
+    amount: status === "succeeded" ? capturedAmount : parsePayPalAmount(orderAmount.value, orderAmount.currency_code),
+    currencyCode: currencies[0],
+    refunds: [],
+    refundsComplete,
+    data: orderResult
+  };
+}
+async function generatePaymentLinkFunction2({ paymentId }) {
+  return `https://www.paypal.com/activity/payment/${paymentId}`;
+}
+async function cancelPaymentFunction2({ paymentId }) {
+  const current = await getPaymentStatusFunction2({ paymentId });
+  if (["CREATED", "PAYER_ACTION_REQUIRED"].includes(current.data?.status)) return { status: "abandoned" };
+  return { status: current.status };
+}
+var getPayPalBaseUrl, formatPayPalAmount, parsePayPalAmount, normalizePayPalStatus, getPayPalAccessToken;
+var init_paypal = __esm({
+  "features/integrations/payment/paypal.ts"() {
+    "use strict";
+    init_currency_units();
+    getPayPalBaseUrl = () => {
+      const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
+      return isSandbox ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
+    };
+    formatPayPalAmount = (amount, currency) => {
+      const digits = currencyMinorUnitDigits(currency);
+      return minorToMajorUnits(amount, currency).toFixed(digits);
+    };
+    parsePayPalAmount = (value, currency) => {
+      const normalized = String(value).trim();
+      if (!/^\d+(?:\.\d+)?$/.test(normalized)) throw new Error("PayPal returned an invalid decimal amount");
+      const digits = currencyMinorUnitDigits(currency);
+      const fraction = normalized.split(".")[1] || "";
+      if (fraction.length > digits && /[1-9]/.test(fraction.slice(digits))) {
+        throw new Error("PayPal amount precision exceeds the currency minor unit");
+      }
+      const amount = majorToMinorUnits(normalized, currency);
+      if (!Number.isSafeInteger(amount)) throw new Error("PayPal amount exceeds the supported safe range");
+      return amount;
+    };
+    normalizePayPalStatus = (status) => {
+      switch ((status || "").toUpperCase()) {
+        case "COMPLETED":
+          return "succeeded";
+        case "APPROVED":
+          return "requires_capture";
+        case "VOIDED":
+          return "canceled";
+        default:
+          return "pending";
+      }
+    };
+    getPayPalAccessToken = async () => {
+      const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        throw new Error("PayPal credentials not configured");
+      }
+      const baseUrl = getPayPalBaseUrl();
+      const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-Language": "en_US",
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`
+        },
+        body: "grant_type=client_credentials"
+      });
+      const { access_token } = await response.json();
+      if (!access_token) {
+        throw new Error("Failed to get PayPal access token");
+      }
+      return access_token;
+    };
+  }
+});
+
+// features/integrations/payment/manual.ts
+var manual_exports = {};
+__export(manual_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction3,
+  capturePaymentFunction: () => capturePaymentFunction3,
+  createPaymentFunction: () => createPaymentFunction3,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction3,
+  getPaymentStatusFunction: () => getPaymentStatusFunction3,
+  handleWebhookFunction: () => handleWebhookFunction3,
+  refundPaymentFunction: () => refundPaymentFunction3
+});
+async function handleWebhookFunction3({ event, headers }) {
+  return {
+    isValid: true,
+    event,
+    type: event.type,
+    resource: event.data
+  };
+}
+async function createPaymentFunction3({ order, amount, currency }) {
+  return {
+    status: "pending",
+    data: {
+      status: "pending",
+      amount,
+      currency: currency.toLowerCase(),
+      orderId: order?.id
+    }
+  };
+}
+async function capturePaymentFunction3({ paymentId, amount }) {
+  return {
+    status: "captured",
+    amount,
+    data: {
+      status: "captured",
+      amount,
+      captured_at: (/* @__PURE__ */ new Date()).toISOString()
+    }
+  };
+}
+async function refundPaymentFunction3({ paymentId, amount }) {
+  return {
+    status: "refunded",
+    amount,
+    data: {
+      status: "refunded",
+      amount,
+      refunded_at: (/* @__PURE__ */ new Date()).toISOString()
+    }
+  };
+}
+async function getPaymentStatusFunction3({ paymentId }) {
+  return {
+    status: "succeeded",
+    data: {
+      status: "succeeded"
+    }
+  };
+}
+async function generatePaymentLinkFunction3({ paymentId }) {
+  return null;
+}
+async function cancelPaymentFunction3() {
+  return { status: "cancelled" };
+}
+var init_manual = __esm({
+  "features/integrations/payment/manual.ts"() {
+    "use strict";
+  }
+});
+
+// features/keystone/lib/orderMail.ts
+var orderMail_exports = {};
+__export(orderMail_exports, {
+  sendOrderConfirmationEmail: () => sendOrderConfirmationEmail
+});
+function transport2() {
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  if (!process.env.SMTP_HOST || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Email delivery is not configured");
+  return (0, import_nodemailer2.createTransport)({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : void 0
+  });
+}
+async function sendOrderConfirmationEmail(order) {
+  if (!order.to) return { sent: false, error: "no_recipient" };
+  try {
+    const rows = order.lines.map((line) => `<tr><td style="padding:4px 0">${escapeHtml(line.title)} \xD7 ${escapeHtml(line.quantity)}</td><td align="right" style="padding:4px 0">${escapeHtml(line.total)}</td></tr>`).join("");
+    const info = await transport2().sendMail({
+      to: order.to,
+      from: process.env.SMTP_FROM,
+      subject: `Your pickup order ${order.orderNumber} at ${order.storeName}`,
+      html: emailLayout({
+        storeName: order.storeName,
+        preheader: `Order ${order.orderNumber}`,
+        title: "Your order is placed",
+        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(order.orderNumber)}</strong> at ${escapeHtml(order.storeName)}. Show this number at the counter when you pick it up.`)}
+${emailItems(order.lines.map((line) => ({ title: line.title, quantity: line.quantity, amount: line.total })))}
+${emailTotals([{ label: "Paid", value: order.total }])}
+${emailButton("View your receipt", order.link)}`
+      })
+    });
+    return { sent: true, messageId: typeof info?.messageId === "string" ? info.messageId : void 0, response: typeof info?.response === "string" ? info.response : void 0 };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
+  }
+}
+var import_nodemailer2;
+var init_orderMail = __esm({
+  "features/keystone/lib/orderMail.ts"() {
+    "use strict";
+    import_nodemailer2 = require("nodemailer");
+    init_email_layout();
+  }
+});
+
+// features/keystone/lib/orderConfirmation.ts
+var orderConfirmation_exports = {};
+__export(orderConfirmation_exports, {
+  CONFIRMATION_ACTION: () => CONFIRMATION_ACTION,
+  deliverOrderConfirmation: () => deliverOrderConfirmation,
+  orderConfirmationConfigured: () => orderConfirmationConfigured,
+  sendConfirmationAfterCommit: () => sendConfirmationAfterCommit
+});
+function orderConfirmationConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_STORE_LINK);
+}
+async function deliverOrderConfirmation(prisma, saleId, proof, send) {
+  try {
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      select: {
+        id: true,
+        businessId: true,
+        storeId: true,
+        receiptNumber: true,
+        currencyCode: true,
+        totalCents: true,
+        store: { select: { name: true } },
+        customer: { select: { email: true, name: true } },
+        lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 }
+      }
+    });
+    if (!sale) return;
+    let audit;
+    try {
+      audit = await prisma.auditEvent.create({
+        data: { businessId: sale.businessId, storeId: sale.storeId, eventNumber: `confirmation-email:${sale.id}`, action: CONFIRMATION_ACTION, resourceType: "Sale", resourceId: sale.id, result: "succeeded", actorType: "integration", occurredAt: /* @__PURE__ */ new Date(), metadata: { status: "sending" } },
+        select: { id: true }
+      });
+    } catch (error) {
+      if (error?.code === "P2002") return;
+      throw error;
+    }
+    const mark = (status, error, messageId, response) => prisma.auditEvent.update({ where: { id: audit.id }, data: { metadata: { status, ...messageId ? { messageId: messageId.slice(0, 200) } : {}, ...response ? { smtpResponse: response.slice(0, 300) } : {}, ...error ? { error: error.slice(0, 200) } : {} } } });
+    try {
+      const cart = await prisma.cart.findFirst({ where: { saleId: sale.id }, select: { id: true, metadata: true } });
+      const guestEmail = cart?.metadata?.receiptEmail;
+      const email = sale.customer?.email || (typeof guestEmail === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail) ? guestEmail : "");
+      if (!email) {
+        await mark("skipped_no_recipient");
+        return;
+      }
+      if (!orderConfirmationConfigured()) {
+        await mark("skipped_not_configured");
+        return;
+      }
+      const money = (cents) => new Intl.NumberFormat("en-US", { style: "currency", currency: sale.currencyCode || "USD" }).format((cents || 0) / 100);
+      const deliver = send || (await Promise.resolve().then(() => (init_orderMail(), orderMail_exports))).sendOrderConfirmationEmail;
+      const result = await deliver({
+        to: email,
+        storeName: sale.store?.name || "the store",
+        orderNumber: sale.receiptNumber,
+        name: sale.customer?.name || "there",
+        lines: sale.lines.map((line) => ({ title: line.variantTitleSnapshot ? `${line.titleSnapshot} (${line.variantTitleSnapshot})` : line.titleSnapshot, quantity: String(line.quantity), total: money(line.totalCents) })),
+        total: money(sale.totalCents),
+        link: receiptLink(sale.id, Boolean(sale.customer?.email), proof, cart?.id)
+      });
+      await (result.sent ? mark("sent", void 0, result.messageId, result.response) : mark("failed", result.error || "send_failed"));
+    } catch (error) {
+      try {
+        await mark("failed", error instanceof Error ? error.message : "send_failed");
+      } catch {
+      }
+    }
+  } catch (error) {
+    console.error("Order confirmation email bookkeeping failed:", error instanceof Error ? error.message : "unknown");
+  }
+}
+function receiptLink(saleId, signedIn, proof, cartId) {
+  const base = String(process.env.SMTP_STORE_LINK).replace(/\/$/, "");
+  if (signedIn) return `${base}/account/receipts/${encodeURIComponent(saleId)}`;
+  if (proof && cartId && proof.cartId === cartId) return `${base}/checkout/complete?cart=${encodeURIComponent(proof.cartId)}&token=${encodeURIComponent(proof.token)}`;
+  return `${base}/checkout/complete`;
+}
+async function sendConfirmationAfterCommit(prisma, saleId, proof) {
+  try {
+    await deliverOrderConfirmation(prisma, saleId, proof);
+  } catch {
+  }
+}
+var CONFIRMATION_ACTION;
+var init_orderConfirmation = __esm({
+  "features/keystone/lib/orderConfirmation.ts"() {
+    "use strict";
+    CONFIRMATION_ACTION = "pickup.order.confirmation_email";
+  }
+});
+
 // keystone.ts
 var keystone_exports = {};
 __export(keystone_exports, {
@@ -36,7 +774,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core96 = require("@keystone-6/core");
+var import_core94 = require("@keystone-6/core");
 var import_session = require("@keystone-6/core/session");
 var import_bcryptjs4 = __toESM(require("bcryptjs"));
 var import_config = require("dotenv/config");
@@ -293,8 +1031,6 @@ var directStoreListKeys = /* @__PURE__ */ new Set([
   "OfflineOperation",
   "OfflineOperationBatch",
   "OperationalAlert",
-  "OutboxAttempt",
-  "OutboxEvent",
   "PaymentReconciliation",
   "PaymentReconciliationLine",
   "PrepBatch",
@@ -486,6 +1222,23 @@ function assertStorePermission(session, businessId, storeId, permission) {
     throw new Error("Access denied for this store");
   }
 }
+function scopesStillHeldByCreator(scopes, businessId, creator) {
+  if (!creator) return [];
+  const human = {
+    itemId: creator.id,
+    listKey: "User",
+    data: {
+      name: "",
+      email: "",
+      isPlatformAdmin: creator.isPlatformAdmin,
+      platformAdminApprovedAt: creator.platformAdminApprovedAt,
+      employees: creator.employees
+    }
+  };
+  return scopes.filter(
+    (scope) => permissionKeys.includes(scope) && canAccessBusiness(human, businessId, scope)
+  );
+}
 
 // features/keystone/lib/machineAuth.ts
 function parseMachineApiToken(value) {
@@ -495,6 +1248,7 @@ function parseMachineApiToken(value) {
 
 // features/keystone/lib/mail.ts
 var import_nodemailer = require("nodemailer");
+init_email_layout();
 function getBaseUrlForEmails() {
   if (process.env.SMTP_STORE_LINK) {
     return process.env.SMTP_STORE_LINK;
@@ -516,37 +1270,13 @@ var transport = (0, import_nodemailer.createTransport)({
   } : void 0
 });
 function passwordResetEmail({ url }) {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  return emailLayout({
+    preheader: "Use this link to choose a new password.",
+    title: "Reset your password",
+    body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
+${emailButton("Reset password", url)}
+${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`
+  });
 }
 async function sendPasswordResetEmail(resetToken, to, baseUrl) {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
@@ -1043,7 +1773,7 @@ var BankDeposit = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_fields9 = require("@keystone-6/core/fields");
 
-// features/lib/sanitize-store-logo.ts
+// features/keystone/utils/storeLogo.ts
 var ALLOWED_ELEMENTS = /* @__PURE__ */ new Set([
   "svg",
   "g",
@@ -1105,8 +1835,12 @@ var ATTRIBUTE_PATTERN = /\s+([A-Za-z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
 var TAG_PATTERN = /<\/?\s*([A-Za-z][\w:-]*)([^<>]*)>/g;
 function sanitizeStoreLogoSvg(svg) {
   const source = svg.trim();
-  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) return "";
-  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) return "";
+  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) {
+    return "";
+  }
+  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) {
+    return "";
+  }
   let tagCount = 0;
   let match;
   TAG_PATTERN.lastIndex = 0;
@@ -1574,13 +2308,155 @@ var Business = (0, import_core7.list)({
 // features/keystone/models/Cart.ts
 var import_core8 = require("@keystone-6/core");
 var import_fields10 = require("@keystone-6/core/fields");
+
+// features/keystone/lib/transitionPolicy.ts
+var import_graphql = require("graphql");
+var REGISTER_SESSION_TRANSITIONS = {
+  open: ["closing", "suspended"],
+  closing: ["closed", "open"],
+  suspended: ["open", "closed"],
+  closed: []
+};
+var PURCHASE_ORDER_TRANSITIONS = {
+  draft: ["submitted", "cancelled"],
+  submitted: ["approved", "cancelled"],
+  approved: ["partially_received", "received", "cancelled"],
+  partially_received: ["received", "cancelled"],
+  received: [],
+  cancelled: []
+};
+var RECEIVING_TRANSITIONS = {
+  draft: ["posted", "cancelled"],
+  posted: [],
+  cancelled: []
+};
+var INVENTORY_COUNT_TRANSITIONS = {
+  draft: ["counting", "cancelled"],
+  counting: ["submitted", "cancelled"],
+  submitted: ["approved", "counting", "cancelled"],
+  approved: [],
+  cancelled: []
+};
+var CART_TRANSITIONS = {
+  open: ["held", "converted", "abandoned", "voided"],
+  held: ["open", "converted", "abandoned", "voided"],
+  converted: [],
+  abandoned: [],
+  voided: []
+};
+var SALE_TRANSITIONS = {
+  open: ["completed", "voided"],
+  completed: ["partially_refunded", "refunded", "voided"],
+  partially_refunded: ["refunded"],
+  refunded: [],
+  voided: []
+};
+var TENDER_TRANSITIONS = {
+  pending: ["authorized", "captured", "failed", "cancelled"],
+  authorized: ["captured", "cancelled", "failed"],
+  captured: ["partially_refunded", "refunded", "cancelled"],
+  partially_refunded: ["refunded"],
+  refunded: [],
+  failed: [],
+  cancelled: []
+};
+var REFUND_TRANSITIONS = {
+  requested: ["approved", "rejected", "cancelled"],
+  approved: ["processing", "completed", "cancelled"],
+  processing: ["completed", "failed"],
+  completed: [],
+  failed: ["processing", "cancelled"],
+  rejected: [],
+  cancelled: []
+};
+var RETURN_TRANSITIONS = {
+  requested: ["approved", "rejected", "cancelled"],
+  approved: ["received", "cancelled"],
+  received: ["completed"],
+  completed: [],
+  rejected: [],
+  cancelled: []
+};
+var PREP_BATCH_TRANSITIONS = {
+  planned: ["in_progress", "cancelled"],
+  in_progress: ["completed", "discarded", "cancelled"],
+  completed: ["discarded"],
+  discarded: [],
+  cancelled: []
+};
+var FUEL_TRANSACTION_TRANSITIONS = {
+  requested: ["authorized", "declined", "cancelled"],
+  authorized: ["dispensing", "cancelled"],
+  dispensing: ["completed", "stopped"],
+  completed: ["refunded"],
+  stopped: ["completed", "cancelled"],
+  refunded: [],
+  declined: [],
+  cancelled: []
+};
+var STORE_DAY_TRANSITIONS = {
+  draft: ["in_review"],
+  in_review: ["reconciled", "locked"],
+  reconciled: ["locked", "reopened"],
+  locked: [],
+  reopened: ["in_review", "reconciled", "locked"]
+};
+var FUEL_RECONCILIATION_TRANSITIONS = {
+  draft: ["in_review"],
+  in_review: ["approved", "locked", "disputed"],
+  approved: ["locked", "disputed"],
+  locked: [],
+  disputed: ["in_review"]
+};
+var BANK_DEPOSIT_TRANSITIONS = {
+  prepared: ["in_transit", "deposited", "voided"],
+  in_transit: ["deposited", "voided"],
+  deposited: ["verified"],
+  verified: [],
+  voided: []
+};
+function evaluateTransition(transitions2, currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) return { replay: true };
+  const allowed = transitions2[currentStatus];
+  if (!allowed?.includes(nextStatus)) {
+    throw new import_graphql.GraphQLError(`Cannot transition from ${currentStatus} to ${nextStatus}`, { extensions: { code: "TRANSITION_REFUSED" } });
+  }
+  return { replay: false };
+}
+function transitionGuard(transitions2, label) {
+  return {
+    validateInput({ operation, item, resolvedData, addValidationError }) {
+      if (operation !== "update") return;
+      const next = resolvedData?.status;
+      if (next === void 0 || next === null || next === item?.status) return;
+      if (!transitions2[item?.status]?.includes(next)) {
+        addValidationError(`${label} cannot move from ${item?.status} to ${next}`);
+      }
+    }
+  };
+}
+function combineValidateInput(...hooks) {
+  return {
+    async validateInput(args) {
+      for (const hook of hooks) await hook.validateInput(args);
+    }
+  };
+}
+async function moveStatus(delegate, transitions2, where, from, to, data = {}, label = "Record") {
+  if (evaluateTransition(transitions2, from, to).replay) return false;
+  const moved = await delegate.updateMany({ where: { ...where, status: from }, data: { ...data, status: to } });
+  if (moved.count !== 1) throw new import_graphql.GraphQLError(`${label} changed while moving from ${from} to ${to}; refresh and retry`, { extensions: { code: "STATE_CHANGED" } });
+  return true;
+}
+
+// features/keystone/models/Cart.ts
 var Cart = (0, import_core8.list)({
   access: tenantAccess("canReadSales", "canManageSales", {
     create: false,
     update: false,
     delete: false
   }),
-  hooks: requiredRelationshipHooks("business", "store"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store"), transitionGuard(CART_TRANSITIONS, "Cart")),
   ui: {
     labelField: "cartNumber",
     listView: { initialColumns: ["cartNumber", "store", "source", "status", "totalCents", "updatedAt"] }
@@ -2669,13 +3545,9 @@ var import_core26 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
 var FuelTransaction = (0, import_core26.list)({
   access: immutableTenantAccess("canReadFuel"),
-  hooks: requiredRelationshipHooks(
-    "business",
-    "store",
-    "site",
-    "pump",
-    "nozzle",
-    "grade"
+  hooks: combineValidateInput(
+    requiredRelationshipHooks("business", "store", "site", "pump", "nozzle", "grade"),
+    transitionGuard(FUEL_TRANSACTION_TRANSITIONS, "Fuel transaction")
   ),
   ui: {
     labelField: "transactionNumber",
@@ -3818,7 +4690,6 @@ var OperationalHeartbeat = (0, import_core50.list)({
     kind: (0, import_fields52.select)({
       type: "enum",
       options: [
-        { label: "Outbox", value: "outbox" },
         { label: "Alerts", value: "alerts" },
         { label: "Backup", value: "backup" }
       ],
@@ -3839,101 +4710,11 @@ var OperationalHeartbeat = (0, import_core50.list)({
   }
 });
 
-// features/keystone/models/OutboxAttempt.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
-var OutboxAttempt = (0, import_core51.list)({
-  access: immutableTenantAccess("canReadIntegrations"),
-  hooks: requiredRelationshipHooks("business", "event"),
-  ui: {
-    labelField: "attemptKey",
-    listView: { initialColumns: ["event", "attemptNumber", "outcome", "workerId", "finishedAt"] }
-  },
-  fields: {
-    business: businessField(),
-    store: storeField(),
-    event: (0, import_fields53.relationship)({ ref: "OutboxEvent.attemptsLog" }),
-    attemptKey: (0, import_fields53.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    attemptNumber: (0, import_fields53.integer)({ validation: { isRequired: true, min: 1 } }),
-    workerId: (0, import_fields53.text)({ validation: { isRequired: true }, isIndexed: true }),
-    outcome: (0, import_fields53.select)({
-      type: "enum",
-      options: [
-        { label: "Processing", value: "processing" },
-        { label: "Delivered", value: "delivered" },
-        { label: "Retry", value: "retry" },
-        { label: "Dead Letter", value: "dead_letter" },
-        { label: "Abandoned", value: "abandoned" }
-      ],
-      defaultValue: "processing",
-      validation: { isRequired: true },
-      isIndexed: true
-    }),
-    startedAt: (0, import_fields53.timestamp)({ validation: { isRequired: true } }),
-    finishedAt: (0, import_fields53.timestamp)(),
-    error: (0, import_fields53.text)({ ui: { displayMode: "textarea" } }),
-    metadata: metadataField("Immutable delivery-attempt evidence"),
-    ...trackingFields
-  }
-});
-
-// features/keystone/models/OutboxEvent.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
-var OutboxEvent = (0, import_core52.list)({
-  access: immutableTenantAccess("canReadIntegrations"),
-  hooks: requiredRelationshipHooks("business"),
-  ui: {
-    labelField: "eventKey",
-    listView: { initialColumns: ["topic", "aggregateType", "aggregateId", "status", "availableAt"] }
-  },
-  fields: {
-    business: businessField(),
-    store: storeField(),
-    eventKey: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    topic: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: true }),
-    schemaVersion: (0, import_fields54.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1 } }),
-    aggregateType: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: true }),
-    aggregateId: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: true }),
-    action: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: true }),
-    payload: (0, import_fields54.json)({ defaultValue: {} }),
-    payloadHash: (0, import_fields54.text)({ validation: { isRequired: true } }),
-    status: (0, import_fields54.select)({
-      type: "enum",
-      options: [
-        { label: "Pending", value: "pending" },
-        { label: "Processing", value: "processing" },
-        { label: "Retry", value: "retry" },
-        { label: "Delivered", value: "delivered" },
-        { label: "Dead Letter", value: "dead_letter" }
-      ],
-      defaultValue: "pending",
-      validation: { isRequired: true },
-      isIndexed: true
-    }),
-    attempts: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    totalAttempts: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    replayCount: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    maxAttempts: (0, import_fields54.integer)({ defaultValue: 8, validation: { isRequired: true, min: 1 } }),
-    availableAt: (0, import_fields54.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true }, isIndexed: true }),
-    lockedAt: (0, import_fields54.timestamp)(),
-    lockOwner: (0, import_fields54.text)(),
-    deliveredAt: (0, import_fields54.timestamp)(),
-    deadLetteredAt: (0, import_fields54.timestamp)(),
-    lastError: (0, import_fields54.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields54.relationship)({ ref: "IdempotencyKey" }),
-    attemptsLog: (0, import_fields54.relationship)({ ref: "OutboxAttempt.event", many: true }),
-    occurredAt: (0, import_fields54.timestamp)({ validation: { isRequired: true } }),
-    metadata: metadataField("Durable propagation state; payload is an immutable operation snapshot"),
-    ...trackingFields
-  }
-});
-
 // features/keystone/models/PaymentProvider.ts
-var import_core53 = require("@keystone-6/core");
-var import_access59 = require("@keystone-6/core/access");
-var import_fields55 = require("@keystone-6/core/fields");
-var PaymentProvider = (0, import_core53.list)({
+var import_core51 = require("@keystone-6/core");
+var import_access57 = require("@keystone-6/core/access");
+var import_fields53 = require("@keystone-6/core/fields");
+var PaymentProvider = (0, import_core51.list)({
   access: tenantAccess("canReadIntegrations", "canManageIntegrations", { create: false, update: false, delete: false }),
   hooks: {
     validateInput(args) {
@@ -3956,10 +4737,10 @@ var PaymentProvider = (0, import_core53.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields55.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields55.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields55.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields55.select)({
+    name: (0, import_fields53.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields53.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields53.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields53.select)({
       type: "enum",
       options: [
         { label: "Configured", value: "configured" },
@@ -3970,14 +4751,16 @@ var PaymentProvider = (0, import_core53.list)({
       defaultValue: "configured",
       validation: { isRequired: true }
     }),
-    adapterKey: (0, import_fields55.text)({ validation: { isRequired: true } }),
-    createPaymentFunction: (0, import_fields55.text)({ defaultValue: "manual", validation: { isRequired: true } }),
-    capturePaymentFunction: (0, import_fields55.text)({ defaultValue: "manual", validation: { isRequired: true } }),
-    refundPaymentFunction: (0, import_fields55.text)({ defaultValue: "manual", validation: { isRequired: true } }),
-    getPaymentStatusFunction: (0, import_fields55.text)({ defaultValue: "manual", validation: { isRequired: true } }),
-    handleWebhookFunction: (0, import_fields55.text)({ defaultValue: "manual", validation: { isRequired: true } }),
-    credentialReference: (0, import_fields55.text)({
-      access: { read: import_access59.denyAll },
+    adapterKey: (0, import_fields53.text)({ validation: { isRequired: true } }),
+    createPaymentFunction: (0, import_fields53.text)({ defaultValue: "manual", validation: { isRequired: true } }),
+    capturePaymentFunction: (0, import_fields53.text)({ defaultValue: "manual", validation: { isRequired: true } }),
+    refundPaymentFunction: (0, import_fields53.text)({ defaultValue: "manual", validation: { isRequired: true } }),
+    getPaymentStatusFunction: (0, import_fields53.text)({ defaultValue: "manual", validation: { isRequired: true } }),
+    handleWebhookFunction: (0, import_fields53.text)({ defaultValue: "manual", validation: { isRequired: true } }),
+    // Optional: shared-registry providers (stripe, paypal, manual, https URL) set this; terminal providers leave it empty.
+    generatePaymentLinkFunction: (0, import_fields53.text)({ defaultValue: "" }),
+    credentialReference: (0, import_fields53.text)({
+      access: { read: import_access57.denyAll },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "hidden" },
@@ -3985,20 +4768,20 @@ var PaymentProvider = (0, import_core53.list)({
         description: "env:// or secret-manager reference; never an inline credential"
       }
     }),
-    configuration: (0, import_fields55.json)({
+    configuration: (0, import_fields53.json)({
       defaultValue: {},
       ui: { description: "Non-secret provider configuration only" }
     }),
-    tenders: (0, import_fields55.relationship)({ ref: "Tender.paymentProvider", many: true }),
+    tenders: (0, import_fields53.relationship)({ ref: "Tender.paymentProvider", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PaymentReconciliation.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
-var PaymentReconciliation = (0, import_core54.list)({
+var import_core52 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+var PaymentReconciliation = (0, import_core52.list)({
   access: tenantAccess("canReadPayments", "canManagePayments", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store", "paymentProvider"),
   ui: {
@@ -4008,10 +4791,10 @@ var PaymentReconciliation = (0, import_core54.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    paymentProvider: (0, import_fields56.relationship)({ ref: "PaymentProvider" }),
-    reconciliationNumber: (0, import_fields56.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    lookupKey: (0, import_fields56.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    status: (0, import_fields56.select)({
+    paymentProvider: (0, import_fields54.relationship)({ ref: "PaymentProvider" }),
+    reconciliationNumber: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    lookupKey: (0, import_fields54.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    status: (0, import_fields54.select)({
       type: "enum",
       options: [
         { label: "In Review", value: "in_review" },
@@ -4023,8 +4806,8 @@ var PaymentReconciliation = (0, import_core54.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    periodStartedAt: (0, import_fields56.timestamp)({ validation: { isRequired: true } }),
-    periodEndedAt: (0, import_fields56.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
+    periodStartedAt: (0, import_fields54.timestamp)({ validation: { isRequired: true } }),
+    periodEndedAt: (0, import_fields54.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
     currencyCode: currencyCodeField(),
     capturedCents: centsField({ defaultValue: 0 }),
     refundedCents: centsField({ defaultValue: 0 }),
@@ -4032,22 +4815,22 @@ var PaymentReconciliation = (0, import_core54.list)({
     expectedSettlementCents: centsField({ defaultValue: 0, allowNegative: true }),
     reportedSettlementCents: centsField({ defaultValue: 0, allowNegative: true }),
     varianceCents: centsField({ defaultValue: 0, allowNegative: true }),
-    tenderCount: (0, import_fields56.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    exceptionCount: (0, import_fields56.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    lines: (0, import_fields56.relationship)({ ref: "PaymentReconciliationLine.reconciliation", many: true }),
-    approvedBy: (0, import_fields56.relationship)({ ref: "Employee" }),
-    approvedAt: (0, import_fields56.timestamp)(),
-    notes: (0, import_fields56.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields56.relationship)({ ref: "IdempotencyKey" }),
+    tenderCount: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    exceptionCount: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    lines: (0, import_fields54.relationship)({ ref: "PaymentReconciliationLine.reconciliation", many: true }),
+    approvedBy: (0, import_fields54.relationship)({ ref: "Employee" }),
+    approvedAt: (0, import_fields54.timestamp)(),
+    notes: (0, import_fields54.text)({ ui: { displayMode: "textarea" } }),
+    idempotency: (0, import_fields54.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField("Provider-reported settlement evidence; no cardholder data"),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PaymentReconciliationLine.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
-var PaymentReconciliationLine = (0, import_core55.list)({
+var import_core53 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
+var PaymentReconciliationLine = (0, import_core53.list)({
   access: immutableTenantAccess("canReadPayments"),
   hooks: requiredRelationshipHooks("business", "store", "reconciliation", "tender"),
   ui: {
@@ -4057,9 +4840,9 @@ var PaymentReconciliationLine = (0, import_core55.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    reconciliation: (0, import_fields57.relationship)({ ref: "PaymentReconciliation.lines" }),
-    tender: (0, import_fields57.relationship)({ ref: "Tender" }),
-    lineKey: (0, import_fields57.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    reconciliation: (0, import_fields55.relationship)({ ref: "PaymentReconciliation.lines" }),
+    tender: (0, import_fields55.relationship)({ ref: "Tender" }),
+    lineKey: (0, import_fields55.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     capturedCents: centsField({ defaultValue: 0 }),
     refundedCents: centsField({ defaultValue: 0 }),
     reportedFeeCents: centsField({ defaultValue: 0 }),
@@ -4070,11 +4853,11 @@ var PaymentReconciliationLine = (0, import_core55.list)({
 });
 
 // features/keystone/models/PrepBatch.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
-var PrepBatch = (0, import_core56.list)({
+var import_core54 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
+var PrepBatch = (0, import_core54.list)({
   access: tenantAccess("canReadPreparedFood", "canManagePreparedFood", { create: false, update: false, delete: false }),
-  hooks: requiredRelationshipHooks("business", "store", "recipe"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "recipe"), transitionGuard(PREP_BATCH_TRANSITIONS, "Prep batch")),
   ui: {
     labelField: "batchNumber",
     listView: { initialColumns: ["batchNumber", "recipe", "store", "status", "quantityMade", "expiresAt"] }
@@ -4082,9 +4865,9 @@ var PrepBatch = (0, import_core56.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    batchNumber: (0, import_fields58.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    recipe: (0, import_fields58.relationship)({ ref: "Recipe.batches" }),
-    status: (0, import_fields58.select)({
+    batchNumber: (0, import_fields56.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    recipe: (0, import_fields56.relationship)({ ref: "Recipe.batches" }),
+    status: (0, import_fields56.select)({
       type: "enum",
       access: { create: () => false, update: () => false },
       options: [
@@ -4098,7 +4881,7 @@ var PrepBatch = (0, import_core56.list)({
       validation: { isRequired: true }
     }),
     quantityPlanned: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
-    quantityMade: (0, import_fields58.decimal)({
+    quantityMade: (0, import_fields56.decimal)({
       access: { create: () => false, update: () => false },
       precision: 18,
       scale: 4,
@@ -4106,22 +4889,22 @@ var PrepBatch = (0, import_core56.list)({
       validation: { isRequired: true, min: "0.0000" }
     }),
     actualCostCents: centsField({ defaultValue: 0 }),
-    outputLot: (0, import_fields58.relationship)({ ref: "InventoryLot" }),
-    preparedBy: (0, import_fields58.relationship)({ ref: "Employee" }),
-    startedAt: (0, import_fields58.timestamp)(),
-    completedAt: (0, import_fields58.timestamp)(),
-    expiresAt: (0, import_fields58.timestamp)(),
-    notes: (0, import_fields58.text)({ ui: { displayMode: "textarea" } }),
-    wasteEvents: (0, import_fields58.relationship)({ ref: "WasteEvent.prepBatch", many: true }),
+    outputLot: (0, import_fields56.relationship)({ ref: "InventoryLot" }),
+    preparedBy: (0, import_fields56.relationship)({ ref: "Employee" }),
+    startedAt: (0, import_fields56.timestamp)(),
+    completedAt: (0, import_fields56.timestamp)(),
+    expiresAt: (0, import_fields56.timestamp)(),
+    notes: (0, import_fields56.text)({ ui: { displayMode: "textarea" } }),
+    wasteEvents: (0, import_fields56.relationship)({ ref: "WasteEvent.prepBatch", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PriceBook.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
-var PriceBook = (0, import_core57.list)({
+var import_core55 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+var PriceBook = (0, import_core55.list)({
   access: tenantAccess("canReadPricing", "canManagePricing", { create: false, update: false, delete: false }),
   hooks: {
     validateInput(args) {
@@ -4140,10 +4923,10 @@ var PriceBook = (0, import_core57.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields59.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields59.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields59.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields59.select)({
+    name: (0, import_fields57.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields57.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields57.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields57.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4155,20 +4938,20 @@ var PriceBook = (0, import_core57.list)({
       validation: { isRequired: true }
     }),
     currencyCode: currencyCodeField(),
-    priority: (0, import_fields59.integer)({ defaultValue: 0 }),
-    startsAt: (0, import_fields59.timestamp)(),
-    endsAt: (0, import_fields59.timestamp)(),
-    stores: (0, import_fields59.relationship)({ ref: "Store", many: true }),
-    entries: (0, import_fields59.relationship)({ ref: "PriceBookEntry.priceBook", many: true }),
+    priority: (0, import_fields57.integer)({ defaultValue: 0 }),
+    startsAt: (0, import_fields57.timestamp)(),
+    endsAt: (0, import_fields57.timestamp)(),
+    stores: (0, import_fields57.relationship)({ ref: "Store", many: true }),
+    entries: (0, import_fields57.relationship)({ ref: "PriceBookEntry.priceBook", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PriceBookEntry.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
-var PriceBookEntry = (0, import_core58.list)({
+var import_core56 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
+var PriceBookEntry = (0, import_core56.list)({
   access: tenantAccess("canReadPricing", "canManagePricing", { create: false, update: false, delete: false }),
   hooks: {
     validateInput(args) {
@@ -4187,13 +4970,13 @@ var PriceBookEntry = (0, import_core58.list)({
   },
   fields: {
     business: businessField(),
-    priceBook: (0, import_fields60.relationship)({ ref: "PriceBook.entries" }),
-    variant: (0, import_fields60.relationship)({ ref: "ProductVariant.priceEntries" }),
-    lookupKey: (0, import_fields60.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    priceBook: (0, import_fields58.relationship)({ ref: "PriceBook.entries" }),
+    variant: (0, import_fields58.relationship)({ ref: "ProductVariant.priceEntries" }),
+    lookupKey: (0, import_fields58.text)({ isIndexed: "unique", validation: { isRequired: true } }),
     amountCents: centsField(),
     minQuantity: quantityField({ defaultValue: "1.0000", min: "0.0001" }),
     maxQuantity: quantityField({ required: false, min: "0.0001" }),
-    status: (0, import_fields60.select)({
+    status: (0, import_fields58.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4203,18 +4986,18 @@ var PriceBookEntry = (0, import_core58.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    startsAt: (0, import_fields60.timestamp)(),
-    endsAt: (0, import_fields60.timestamp)(),
+    startsAt: (0, import_fields58.timestamp)(),
+    endsAt: (0, import_fields58.timestamp)(),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Product.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core57 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
 var import_fields_document = require("@keystone-6/fields-document");
-var Product = (0, import_core59.list)({
+var Product = (0, import_core57.list)({
   access: tenantAccess("canReadCatalog", "canManageCatalog", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business"),
   ui: {
@@ -4223,11 +5006,11 @@ var Product = (0, import_core59.list)({
   },
   fields: {
     business: businessField(),
-    title: (0, import_fields61.text)({ validation: { isRequired: true } }),
-    handle: (0, import_fields61.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields61.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    title: (0, import_fields59.text)({ validation: { isRequired: true } }),
+    handle: (0, import_fields59.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields59.text)({ isIndexed: "unique", validation: { isRequired: true } }),
     description: (0, import_fields_document.document)({ formatting: true, links: true, dividers: true }),
-    status: (0, import_fields61.select)({
+    status: (0, import_fields59.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4238,7 +5021,7 @@ var Product = (0, import_core59.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    regulatedSaleType: (0, import_fields61.select)({
+    regulatedSaleType: (0, import_fields59.select)({
       type: "enum",
       options: [
         { label: "None", value: "none" },
@@ -4251,23 +5034,23 @@ var Product = (0, import_core59.list)({
       defaultValue: "none",
       validation: { isRequired: true }
     }),
-    minimumAge: (0, import_fields61.integer)({ validation: { min: 0, max: 120 } }),
-    preparedFood: (0, import_fields61.checkbox)({ defaultValue: false }),
-    discountable: (0, import_fields61.checkbox)({ defaultValue: true }),
-    returnable: (0, import_fields61.checkbox)({ defaultValue: true }),
-    taxCategory: (0, import_fields61.relationship)({ ref: "TaxCategory.products" }),
-    categories: (0, import_fields61.relationship)({ ref: "ProductCategory.products", many: true }),
-    images: (0, import_fields61.relationship)({ ref: "ProductImage.products", many: true }),
-    variants: (0, import_fields61.relationship)({ ref: "ProductVariant.product", many: true }),
+    minimumAge: (0, import_fields59.integer)({ validation: { min: 0, max: 120 } }),
+    preparedFood: (0, import_fields59.checkbox)({ defaultValue: false }),
+    discountable: (0, import_fields59.checkbox)({ defaultValue: true }),
+    returnable: (0, import_fields59.checkbox)({ defaultValue: true }),
+    taxCategory: (0, import_fields59.relationship)({ ref: "TaxCategory.products" }),
+    categories: (0, import_fields59.relationship)({ ref: "ProductCategory.products", many: true }),
+    images: (0, import_fields59.relationship)({ ref: "ProductImage.products", many: true }),
+    variants: (0, import_fields59.relationship)({ ref: "ProductVariant.product", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ProductBarcode.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
-var ProductBarcode = (0, import_core60.list)({
+var import_core58 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
+var ProductBarcode = (0, import_core58.list)({
   access: tenantAccess("canReadCatalog", "canManageCatalog", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "variant"),
   ui: {
@@ -4276,10 +5059,10 @@ var ProductBarcode = (0, import_core60.list)({
   },
   fields: {
     business: businessField(),
-    variant: (0, import_fields62.relationship)({ ref: "ProductVariant.barcodes" }),
-    value: (0, import_fields62.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields62.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    format: (0, import_fields62.select)({
+    variant: (0, import_fields60.relationship)({ ref: "ProductVariant.barcodes" }),
+    value: (0, import_fields60.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields60.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    format: (0, import_fields60.select)({
       type: "enum",
       options: [
         { label: "UPC-A", value: "upc_a" },
@@ -4292,7 +5075,7 @@ var ProductBarcode = (0, import_core60.list)({
       ],
       validation: { isRequired: true }
     }),
-    embeddedDataType: (0, import_fields62.select)({
+    embeddedDataType: (0, import_fields60.select)({
       type: "enum",
       options: [
         { label: "None", value: "none" },
@@ -4302,9 +5085,9 @@ var ProductBarcode = (0, import_core60.list)({
       defaultValue: "none",
       validation: { isRequired: true }
     }),
-    embeddedPrefix: (0, import_fields62.text)(),
-    isPrimary: (0, import_fields62.checkbox)({ defaultValue: false }),
-    status: (0, import_fields62.select)({
+    embeddedPrefix: (0, import_fields60.text)(),
+    isPrimary: (0, import_fields60.checkbox)({ defaultValue: false }),
+    status: (0, import_fields60.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -4319,28 +5102,28 @@ var ProductBarcode = (0, import_core60.list)({
 });
 
 // features/keystone/models/ProductImage.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
-var ProductImage = (0, import_core61.list)({
+var import_core59 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
+var ProductImage = (0, import_core59.list)({
   access: tenantAccess("canReadCatalog", "canManageCatalog", { delete: true }),
   ui: {
     listView: { initialColumns: ["image", "altText", "order", "products"] }
   },
   fields: {
     business: businessField(),
-    image: (0, import_fields63.image)({ storage: "my_images" }),
-    altText: (0, import_fields63.text)(),
-    order: (0, import_fields63.integer)({ defaultValue: 0 }),
-    products: (0, import_fields63.relationship)({ ref: "Product.images", many: true }),
+    image: (0, import_fields61.image)({ storage: "my_images" }),
+    altText: (0, import_fields61.text)(),
+    order: (0, import_fields61.integer)({ defaultValue: 0 }),
+    products: (0, import_fields61.relationship)({ ref: "Product.images", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ProductCategory.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
-var ProductCategory = (0, import_core62.list)({
+var import_core60 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
+var ProductCategory = (0, import_core60.list)({
   access: tenantAccess("canReadCatalog", "canManageCatalog", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business"),
   ui: {
@@ -4349,11 +5132,11 @@ var ProductCategory = (0, import_core62.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields64.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields64.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields64.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    description: (0, import_fields64.text)({ ui: { displayMode: "textarea" } }),
-    status: (0, import_fields64.select)({
+    name: (0, import_fields62.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields62.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields62.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    description: (0, import_fields62.text)({ ui: { displayMode: "textarea" } }),
+    status: (0, import_fields62.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4363,19 +5146,19 @@ var ProductCategory = (0, import_core62.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    requiresManagerApproval: (0, import_fields64.checkbox)({ defaultValue: false }),
-    parent: (0, import_fields64.relationship)({ ref: "ProductCategory.children" }),
-    children: (0, import_fields64.relationship)({ ref: "ProductCategory.parent", many: true }),
-    products: (0, import_fields64.relationship)({ ref: "Product.categories", many: true }),
+    requiresManagerApproval: (0, import_fields62.checkbox)({ defaultValue: false }),
+    parent: (0, import_fields62.relationship)({ ref: "ProductCategory.children" }),
+    children: (0, import_fields62.relationship)({ ref: "ProductCategory.parent", many: true }),
+    products: (0, import_fields62.relationship)({ ref: "Product.categories", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ProductVariant.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
-var ProductVariant = (0, import_core63.list)({
+var import_core61 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
+var ProductVariant = (0, import_core61.list)({
   access: tenantAccess("canReadCatalog", "canManageCatalog", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "product"),
   ui: {
@@ -4384,11 +5167,11 @@ var ProductVariant = (0, import_core63.list)({
   },
   fields: {
     business: businessField(),
-    product: (0, import_fields65.relationship)({ ref: "Product.variants" }),
-    title: (0, import_fields65.text)({ validation: { isRequired: true } }),
-    sku: (0, import_fields65.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields65.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields65.select)({
+    product: (0, import_fields63.relationship)({ ref: "Product.variants" }),
+    title: (0, import_fields63.text)({ validation: { isRequired: true } }),
+    sku: (0, import_fields63.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields63.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields63.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -4398,7 +5181,7 @@ var ProductVariant = (0, import_core63.list)({
       defaultValue: "active",
       validation: { isRequired: true }
     }),
-    sellBy: (0, import_fields65.select)({
+    sellBy: (0, import_fields63.select)({
       type: "enum",
       options: [
         { label: "Unit", value: "unit" },
@@ -4408,7 +5191,7 @@ var ProductVariant = (0, import_core63.list)({
       defaultValue: "unit",
       validation: { isRequired: true }
     }),
-    unitOfMeasure: (0, import_fields65.select)({
+    unitOfMeasure: (0, import_fields63.select)({
       type: "enum",
       options: [
         { label: "Each", value: "each" },
@@ -4428,22 +5211,22 @@ var ProductVariant = (0, import_core63.list)({
       required: false,
       description: "Current reference cost in cents; lot costs remain authoritative for valuation"
     }),
-    trackInventory: (0, import_fields65.checkbox)({ defaultValue: true }),
-    allowNegativeInventory: (0, import_fields65.checkbox)({ defaultValue: false }),
-    barcodes: (0, import_fields65.relationship)({ ref: "ProductBarcode.variant", many: true }),
-    priceEntries: (0, import_fields65.relationship)({ ref: "PriceBookEntry.variant", many: true }),
-    stockLevels: (0, import_fields65.relationship)({ ref: "StockLevel.variant", many: true }),
-    lots: (0, import_fields65.relationship)({ ref: "InventoryLot.variant", many: true }),
-    vendorItems: (0, import_fields65.relationship)({ ref: "VendorItem.variant", many: true }),
+    trackInventory: (0, import_fields63.checkbox)({ defaultValue: true }),
+    allowNegativeInventory: (0, import_fields63.checkbox)({ defaultValue: false }),
+    barcodes: (0, import_fields63.relationship)({ ref: "ProductBarcode.variant", many: true }),
+    priceEntries: (0, import_fields63.relationship)({ ref: "PriceBookEntry.variant", many: true }),
+    stockLevels: (0, import_fields63.relationship)({ ref: "StockLevel.variant", many: true }),
+    lots: (0, import_fields63.relationship)({ ref: "InventoryLot.variant", many: true }),
+    vendorItems: (0, import_fields63.relationship)({ ref: "VendorItem.variant", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Promotion.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
-var Promotion = (0, import_core64.list)({
+var import_core62 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
+var Promotion = (0, import_core62.list)({
   access: tenantAccess("canReadPromotions", "canManagePromotions", { create: false, update: false, delete: false }),
   hooks: {
     validateInput(args) {
@@ -4462,10 +5245,10 @@ var Promotion = (0, import_core64.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields66.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields66.text)({ isIndexed: true }),
-    lookupKey: (0, import_fields66.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields66.select)({
+    name: (0, import_fields64.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields64.text)({ isIndexed: true }),
+    lookupKey: (0, import_fields64.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields64.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4478,25 +5261,25 @@ var Promotion = (0, import_core64.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    priority: (0, import_fields66.integer)({ defaultValue: 0 }),
-    stackable: (0, import_fields66.checkbox)({ defaultValue: false }),
-    requiresCode: (0, import_fields66.checkbox)({ defaultValue: false }),
-    usageLimit: (0, import_fields66.integer)({ validation: { min: 1 } }),
-    perCustomerLimit: (0, import_fields66.integer)({ validation: { min: 1 } }),
-    startsAt: (0, import_fields66.timestamp)(),
-    endsAt: (0, import_fields66.timestamp)(),
-    stores: (0, import_fields66.relationship)({ ref: "Store", many: true }),
-    rules: (0, import_fields66.relationship)({ ref: "PromotionRule.promotion", many: true }),
-    redemptions: (0, import_fields66.relationship)({ ref: "PromotionRedemption.promotion", many: true }),
+    priority: (0, import_fields64.integer)({ defaultValue: 0 }),
+    stackable: (0, import_fields64.checkbox)({ defaultValue: false }),
+    requiresCode: (0, import_fields64.checkbox)({ defaultValue: false }),
+    usageLimit: (0, import_fields64.integer)({ validation: { min: 1 } }),
+    perCustomerLimit: (0, import_fields64.integer)({ validation: { min: 1 } }),
+    startsAt: (0, import_fields64.timestamp)(),
+    endsAt: (0, import_fields64.timestamp)(),
+    stores: (0, import_fields64.relationship)({ ref: "Store", many: true }),
+    rules: (0, import_fields64.relationship)({ ref: "PromotionRule.promotion", many: true }),
+    redemptions: (0, import_fields64.relationship)({ ref: "PromotionRedemption.promotion", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PromotionRedemption.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
-var PromotionRedemption = (0, import_core65.list)({
+var import_core63 = require("@keystone-6/core");
+var import_fields65 = require("@keystone-6/core/fields");
+var PromotionRedemption = (0, import_core63.list)({
   access: immutableTenantAccess("canReadPromotions"),
   hooks: requiredRelationshipHooks("business", "store", "promotion", "sale"),
   ui: {
@@ -4506,21 +5289,21 @@ var PromotionRedemption = (0, import_core65.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    promotion: (0, import_fields67.relationship)({ ref: "Promotion.redemptions" }),
-    sale: (0, import_fields67.relationship)({ ref: "Sale.promotionRedemptions" }),
-    loyaltyAccount: (0, import_fields67.relationship)({ ref: "LoyaltyAccount" }),
-    codeSnapshot: (0, import_fields67.text)(),
+    promotion: (0, import_fields65.relationship)({ ref: "Promotion.redemptions" }),
+    sale: (0, import_fields65.relationship)({ ref: "Sale.promotionRedemptions" }),
+    loyaltyAccount: (0, import_fields65.relationship)({ ref: "LoyaltyAccount" }),
+    codeSnapshot: (0, import_fields65.text)(),
     amountCents: centsField(),
-    redeemedAt: (0, import_fields67.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    redeemedAt: (0, import_fields65.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PromotionRule.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
-var PromotionRule = (0, import_core66.list)({
+var import_core64 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
+var PromotionRule = (0, import_core64.list)({
   access: tenantAccess("canReadPromotions", "canManagePromotions", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "promotion"),
   ui: {
@@ -4529,10 +5312,10 @@ var PromotionRule = (0, import_core66.list)({
   },
   fields: {
     business: businessField(),
-    promotion: (0, import_fields68.relationship)({ ref: "Promotion.rules" }),
-    name: (0, import_fields68.text)({ validation: { isRequired: true } }),
-    priority: (0, import_fields68.integer)({ defaultValue: 0 }),
-    ruleType: (0, import_fields68.select)({
+    promotion: (0, import_fields66.relationship)({ ref: "Promotion.rules" }),
+    name: (0, import_fields66.text)({ validation: { isRequired: true } }),
+    priority: (0, import_fields66.integer)({ defaultValue: 0 }),
+    ruleType: (0, import_fields66.select)({
       type: "enum",
       options: [
         { label: "Item Discount", value: "item_discount" },
@@ -4543,7 +5326,7 @@ var PromotionRule = (0, import_core66.list)({
       ],
       validation: { isRequired: true }
     }),
-    benefitMethod: (0, import_fields68.select)({
+    benefitMethod: (0, import_fields66.select)({
       type: "enum",
       options: [
         { label: "Percentage", value: "percentage" },
@@ -4553,24 +5336,24 @@ var PromotionRule = (0, import_core66.list)({
       ],
       validation: { isRequired: true }
     }),
-    valueBasisPoints: (0, import_fields68.integer)({ validation: { min: 0, max: 1e4 } }),
+    valueBasisPoints: (0, import_fields66.integer)({ validation: { min: 0, max: 1e4 } }),
     valueCents: centsField({ required: false }),
     minQuantity: quantityField({ required: false, min: "0.0001" }),
     buyQuantity: quantityField({ required: false, min: "0.0001" }),
     getQuantity: quantityField({ required: false, min: "0.0001" }),
     minSubtotalCents: centsField({ required: false }),
     maxDiscountCents: centsField({ required: false }),
-    products: (0, import_fields68.relationship)({ ref: "Product", many: true }),
-    categories: (0, import_fields68.relationship)({ ref: "ProductCategory", many: true }),
+    products: (0, import_fields66.relationship)({ ref: "Product", many: true }),
+    categories: (0, import_fields66.relationship)({ ref: "ProductCategory", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PurchaseOrder.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
-var PurchaseOrder = (0, import_core67.list)({
+var import_core65 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
+var PurchaseOrder = (0, import_core65.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store", "vendor"),
   ui: {
@@ -4580,9 +5363,9 @@ var PurchaseOrder = (0, import_core67.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    vendor: (0, import_fields69.relationship)({ ref: "Vendor.purchaseOrders" }),
-    poNumber: (0, import_fields69.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields69.select)({
+    vendor: (0, import_fields67.relationship)({ ref: "Vendor.purchaseOrders" }),
+    poNumber: (0, import_fields67.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields67.select)({
       type: "enum",
       access: { create: () => false, update: () => false },
       options: [
@@ -4601,25 +5384,25 @@ var PurchaseOrder = (0, import_core67.list)({
     taxCents: centsField({ defaultValue: 0 }),
     shippingCents: centsField({ defaultValue: 0 }),
     totalCents: centsField({ defaultValue: 0 }),
-    orderedAt: (0, import_fields69.timestamp)(),
-    expectedAt: (0, import_fields69.timestamp)(),
-    submittedAt: (0, import_fields69.timestamp)(),
-    approvedAt: (0, import_fields69.timestamp)(),
-    cancelledAt: (0, import_fields69.timestamp)(),
-    createdBy: (0, import_fields69.relationship)({ ref: "Employee" }),
-    approvedBy: (0, import_fields69.relationship)({ ref: "Employee" }),
-    lines: (0, import_fields69.relationship)({ ref: "PurchaseOrderLine.purchaseOrder", many: true }),
-    receivings: (0, import_fields69.relationship)({ ref: "Receiving.purchaseOrder", many: true }),
-    notes: (0, import_fields69.text)({ ui: { displayMode: "textarea" } }),
+    orderedAt: (0, import_fields67.timestamp)(),
+    expectedAt: (0, import_fields67.timestamp)(),
+    submittedAt: (0, import_fields67.timestamp)(),
+    approvedAt: (0, import_fields67.timestamp)(),
+    cancelledAt: (0, import_fields67.timestamp)(),
+    createdBy: (0, import_fields67.relationship)({ ref: "Employee" }),
+    approvedBy: (0, import_fields67.relationship)({ ref: "Employee" }),
+    lines: (0, import_fields67.relationship)({ ref: "PurchaseOrderLine.purchaseOrder", many: true }),
+    receivings: (0, import_fields67.relationship)({ ref: "Receiving.purchaseOrder", many: true }),
+    notes: (0, import_fields67.text)({ ui: { displayMode: "textarea" } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PurchaseOrderLine.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
-var PurchaseOrderLine = (0, import_core68.list)({
+var import_core66 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
+var PurchaseOrderLine = (0, import_core66.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store", "purchaseOrder", "variant"),
   ui: {
@@ -4629,13 +5412,13 @@ var PurchaseOrderLine = (0, import_core68.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    purchaseOrder: (0, import_fields70.relationship)({ ref: "PurchaseOrder.lines" }),
-    vendorItem: (0, import_fields70.relationship)({ ref: "VendorItem.purchaseOrderLines" }),
-    variant: (0, import_fields70.relationship)({ ref: "ProductVariant" }),
-    descriptionSnapshot: (0, import_fields70.text)({ validation: { isRequired: true } }),
-    vendorSkuSnapshot: (0, import_fields70.text)(),
+    purchaseOrder: (0, import_fields68.relationship)({ ref: "PurchaseOrder.lines" }),
+    vendorItem: (0, import_fields68.relationship)({ ref: "VendorItem.purchaseOrderLines" }),
+    variant: (0, import_fields68.relationship)({ ref: "ProductVariant" }),
+    descriptionSnapshot: (0, import_fields68.text)({ validation: { isRequired: true } }),
+    vendorSkuSnapshot: (0, import_fields68.text)(),
     quantityOrdered: quantityField({ min: "0.0001" }),
-    quantityReceived: (0, import_fields70.decimal)({
+    quantityReceived: (0, import_fields68.decimal)({
       access: { create: () => false, update: () => false },
       precision: 18,
       scale: 4,
@@ -4645,19 +5428,19 @@ var PurchaseOrderLine = (0, import_core68.list)({
     quantityCancelled: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
     unitCostCents: centsField(),
     lineTotalCents: centsField(),
-    receivingLines: (0, import_fields70.relationship)({ ref: "ReceivingLine.purchaseOrderLine", many: true }),
-    notes: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
+    receivingLines: (0, import_fields68.relationship)({ ref: "ReceivingLine.purchaseOrderLine", many: true }),
+    notes: (0, import_fields68.text)({ ui: { displayMode: "textarea" } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Receiving.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
-var Receiving = (0, import_core69.list)({
+var import_core67 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
+var Receiving = (0, import_core67.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
-  hooks: requiredRelationshipHooks("business", "store", "purchaseOrder", "vendor"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "purchaseOrder", "vendor"), transitionGuard(RECEIVING_TRANSITIONS, "Receiving")),
   ui: {
     labelField: "receivingNumber",
     listView: { initialColumns: ["receivingNumber", "purchaseOrder", "vendor", "store", "status", "receivedAt"] }
@@ -4665,11 +5448,11 @@ var Receiving = (0, import_core69.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    purchaseOrder: (0, import_fields71.relationship)({ ref: "PurchaseOrder.receivings" }),
-    vendor: (0, import_fields71.relationship)({ ref: "Vendor" }),
-    receivingNumber: (0, import_fields71.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    vendorDocumentNumber: (0, import_fields71.text)({ isIndexed: true }),
-    status: (0, import_fields71.select)({
+    purchaseOrder: (0, import_fields69.relationship)({ ref: "PurchaseOrder.receivings" }),
+    vendor: (0, import_fields69.relationship)({ ref: "Vendor" }),
+    receivingNumber: (0, import_fields69.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    vendorDocumentNumber: (0, import_fields69.text)({ isIndexed: true }),
+    status: (0, import_fields69.select)({
       type: "enum",
       access: { create: () => false, update: () => false },
       options: [
@@ -4680,20 +5463,20 @@ var Receiving = (0, import_core69.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    receivedAt: (0, import_fields71.timestamp)(),
-    postedAt: (0, import_fields71.timestamp)(),
-    receivedBy: (0, import_fields71.relationship)({ ref: "Employee" }),
-    lines: (0, import_fields71.relationship)({ ref: "ReceivingLine.receiving", many: true }),
-    discrepancyNotes: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
+    receivedAt: (0, import_fields69.timestamp)(),
+    postedAt: (0, import_fields69.timestamp)(),
+    receivedBy: (0, import_fields69.relationship)({ ref: "Employee" }),
+    lines: (0, import_fields69.relationship)({ ref: "ReceivingLine.receiving", many: true }),
+    discrepancyNotes: (0, import_fields69.text)({ ui: { displayMode: "textarea" } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ReceivingLine.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
-var ReceivingLine = (0, import_core70.list)({
+var import_core68 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
+var ReceivingLine = (0, import_core68.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store", "receiving", "purchaseOrderLine", "variant"),
   ui: {
@@ -4703,13 +5486,13 @@ var ReceivingLine = (0, import_core70.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    receiving: (0, import_fields72.relationship)({ ref: "Receiving.lines" }),
-    purchaseOrderLine: (0, import_fields72.relationship)({ ref: "PurchaseOrderLine.receivingLines" }),
-    variant: (0, import_fields72.relationship)({ ref: "ProductVariant" }),
+    receiving: (0, import_fields70.relationship)({ ref: "Receiving.lines" }),
+    purchaseOrderLine: (0, import_fields70.relationship)({ ref: "PurchaseOrderLine.receivingLines" }),
+    variant: (0, import_fields70.relationship)({ ref: "ProductVariant" }),
     quantityExpected: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
     quantityAccepted: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
     quantityRejected: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
-    rejectionReason: (0, import_fields72.select)({
+    rejectionReason: (0, import_fields70.select)({
       type: "enum",
       options: [
         { label: "None", value: "none" },
@@ -4723,18 +5506,18 @@ var ReceivingLine = (0, import_core70.list)({
       validation: { isRequired: true }
     }),
     unitCostCents: centsField(),
-    notes: (0, import_fields72.text)({ ui: { displayMode: "textarea" } }),
-    lots: (0, import_fields72.relationship)({ ref: "InventoryLot.receivingLine", many: true }),
-    inventoryEntries: (0, import_fields72.relationship)({ ref: "InventoryLedgerEntry.receivingLine", many: true }),
+    notes: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
+    lots: (0, import_fields70.relationship)({ ref: "InventoryLot.receivingLine", many: true }),
+    inventoryEntries: (0, import_fields70.relationship)({ ref: "InventoryLedgerEntry.receivingLine", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Recipe.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
-var Recipe = (0, import_core71.list)({
+var import_core69 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
+var Recipe = (0, import_core69.list)({
   access: tenantAccess("canReadPreparedFood", "canManagePreparedFood", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "outputVariant"),
   ui: {
@@ -4743,11 +5526,11 @@ var Recipe = (0, import_core71.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields73.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields73.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields73.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    outputVariant: (0, import_fields73.relationship)({ ref: "ProductVariant" }),
-    status: (0, import_fields73.select)({
+    name: (0, import_fields71.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields71.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields71.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    outputVariant: (0, import_fields71.relationship)({ ref: "ProductVariant" }),
+    status: (0, import_fields71.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -4758,21 +5541,21 @@ var Recipe = (0, import_core71.list)({
       validation: { isRequired: true }
     }),
     yieldQuantity: quantityField({ defaultValue: "1.0000", min: "0.0001" }),
-    yieldUnit: (0, import_fields73.text)({ defaultValue: "each", validation: { isRequired: true } }),
-    instructions: (0, import_fields73.text)({ ui: { displayMode: "textarea" } }),
-    allergenNotes: (0, import_fields73.text)({ ui: { displayMode: "textarea" } }),
-    active: (0, import_fields73.checkbox)({ defaultValue: true }),
-    ingredients: (0, import_fields73.relationship)({ ref: "RecipeIngredient.recipe", many: true }),
-    batches: (0, import_fields73.relationship)({ ref: "PrepBatch.recipe", many: true }),
+    yieldUnit: (0, import_fields71.text)({ defaultValue: "each", validation: { isRequired: true } }),
+    instructions: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
+    allergenNotes: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
+    active: (0, import_fields71.checkbox)({ defaultValue: true }),
+    ingredients: (0, import_fields71.relationship)({ ref: "RecipeIngredient.recipe", many: true }),
+    batches: (0, import_fields71.relationship)({ ref: "PrepBatch.recipe", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RecipeIngredient.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
-var RecipeIngredient = (0, import_core72.list)({
+var import_core70 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
+var RecipeIngredient = (0, import_core70.list)({
   access: tenantAccess("canReadPreparedFood", "canManagePreparedFood", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "recipe", "inputVariant"),
   ui: {
@@ -4781,25 +5564,25 @@ var RecipeIngredient = (0, import_core72.list)({
   },
   fields: {
     business: businessField(),
-    recipe: (0, import_fields74.relationship)({ ref: "Recipe.ingredients" }),
-    inputVariant: (0, import_fields74.relationship)({ ref: "ProductVariant" }),
-    nameSnapshot: (0, import_fields74.text)({ validation: { isRequired: true } }),
+    recipe: (0, import_fields72.relationship)({ ref: "Recipe.ingredients" }),
+    inputVariant: (0, import_fields72.relationship)({ ref: "ProductVariant" }),
+    nameSnapshot: (0, import_fields72.text)({ validation: { isRequired: true } }),
     quantity: quantityField({ min: "0.0001" }),
-    unit: (0, import_fields74.text)({ validation: { isRequired: true } }),
-    wasteBasisPoints: (0, import_fields74.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 } }),
-    optional: (0, import_fields74.checkbox)({ defaultValue: false }),
-    notes: (0, import_fields74.text)({ ui: { displayMode: "textarea" } }),
+    unit: (0, import_fields72.text)({ validation: { isRequired: true } }),
+    wasteBasisPoints: (0, import_fields72.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 } }),
+    optional: (0, import_fields72.checkbox)({ defaultValue: false }),
+    notes: (0, import_fields72.text)({ ui: { displayMode: "textarea" } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Refund.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
-var Refund = (0, import_core73.list)({
+var import_core71 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
+var Refund = (0, import_core71.list)({
   access: immutableTenantAccess("canReadPayments"),
-  hooks: requiredRelationshipHooks("business", "store", "sale", "originalTender"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "sale", "originalTender"), transitionGuard(REFUND_TRANSITIONS, "Refund")),
   ui: {
     labelField: "refundNumber",
     listView: { initialColumns: ["refundNumber", "sale", "status", "amountCents", "processedAt"] }
@@ -4807,11 +5590,11 @@ var Refund = (0, import_core73.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    sale: (0, import_fields75.relationship)({ ref: "Sale.refunds" }),
-    originalTender: (0, import_fields75.relationship)({ ref: "Tender.refunds" }),
-    tenderAllocations: (0, import_fields75.relationship)({ ref: "RefundTenderAllocation.refund", many: true }),
-    refundNumber: (0, import_fields75.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields75.select)({
+    sale: (0, import_fields73.relationship)({ ref: "Sale.refunds" }),
+    originalTender: (0, import_fields73.relationship)({ ref: "Tender.refunds" }),
+    tenderAllocations: (0, import_fields73.relationship)({ ref: "RefundTenderAllocation.refund", many: true }),
+    refundNumber: (0, import_fields73.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields73.select)({
       type: "enum",
       options: [
         { label: "Requested", value: "requested" },
@@ -4825,7 +5608,7 @@ var Refund = (0, import_core73.list)({
       defaultValue: "requested",
       validation: { isRequired: true }
     }),
-    reason: (0, import_fields75.select)({
+    reason: (0, import_fields73.select)({
       type: "enum",
       options: [
         { label: "Customer Return", value: "customer_return" },
@@ -4839,26 +5622,26 @@ var Refund = (0, import_core73.list)({
     }),
     amountCents: centsField(),
     currencyCode: currencyCodeField(),
-    providerRefundId: (0, import_fields75.text)({ isIndexed: true }),
-    providerLookupKey: (0, import_fields75.text)({ isIndexed: "unique", db: { isNullable: true } }),
-    requestedBy: (0, import_fields75.relationship)({ ref: "Employee" }),
-    approvedBy: (0, import_fields75.relationship)({ ref: "Employee" }),
-    processedBy: (0, import_fields75.relationship)({ ref: "Employee" }),
-    requestedAt: (0, import_fields75.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    processedAt: (0, import_fields75.timestamp)(),
-    lines: (0, import_fields75.relationship)({ ref: "RefundLine.refund", many: true }),
-    loyaltyEntries: (0, import_fields75.relationship)({ ref: "LoyaltyLedgerEntry.refund", many: true }),
-    notes: (0, import_fields75.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields75.relationship)({ ref: "IdempotencyKey" }),
+    providerRefundId: (0, import_fields73.text)({ isIndexed: true }),
+    providerLookupKey: (0, import_fields73.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    requestedBy: (0, import_fields73.relationship)({ ref: "Employee" }),
+    approvedBy: (0, import_fields73.relationship)({ ref: "Employee" }),
+    processedBy: (0, import_fields73.relationship)({ ref: "Employee" }),
+    requestedAt: (0, import_fields73.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    processedAt: (0, import_fields73.timestamp)(),
+    lines: (0, import_fields73.relationship)({ ref: "RefundLine.refund", many: true }),
+    loyaltyEntries: (0, import_fields73.relationship)({ ref: "LoyaltyLedgerEntry.refund", many: true }),
+    notes: (0, import_fields73.text)({ ui: { displayMode: "textarea" } }),
+    idempotency: (0, import_fields73.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RefundLine.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
-var RefundLine = (0, import_core74.list)({
+var import_core72 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
+var RefundLine = (0, import_core72.list)({
   access: immutableTenantAccess("canReadPayments"),
   hooks: requiredRelationshipHooks("business", "store", "refund", "saleLine"),
   ui: {
@@ -4868,13 +5651,13 @@ var RefundLine = (0, import_core74.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    refund: (0, import_fields76.relationship)({ ref: "Refund.lines" }),
-    saleLine: (0, import_fields76.relationship)({ ref: "SaleLine.refundLines" }),
+    refund: (0, import_fields74.relationship)({ ref: "Refund.lines" }),
+    saleLine: (0, import_fields74.relationship)({ ref: "SaleLine.refundLines" }),
     quantity: quantityField({ min: "0.0001" }),
     subtotalCents: centsField(),
     taxCents: centsField({ defaultValue: 0 }),
     totalCents: centsField(),
-    reason: (0, import_fields76.select)({
+    reason: (0, import_fields74.select)({
       type: "enum",
       options: [
         { label: "Returned", value: "returned" },
@@ -4885,17 +5668,17 @@ var RefundLine = (0, import_core74.list)({
       ],
       validation: { isRequired: true }
     }),
-    note: (0, import_fields76.text)({ ui: { displayMode: "textarea" } }),
-    returnLine: (0, import_fields76.relationship)({ ref: "ReturnLine.refundLine" }),
+    note: (0, import_fields74.text)({ ui: { displayMode: "textarea" } }),
+    returnLine: (0, import_fields74.relationship)({ ref: "ReturnLine.refundLine" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RefundTenderAllocation.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
-var RefundTenderAllocation = (0, import_core75.list)({
+var import_core73 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
+var RefundTenderAllocation = (0, import_core73.list)({
   access: immutableTenantAccess("canReadPayments"),
   hooks: requiredRelationshipHooks("business", "store", "refund", "tender"),
   ui: {
@@ -4905,9 +5688,9 @@ var RefundTenderAllocation = (0, import_core75.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    refund: (0, import_fields77.relationship)({ ref: "Refund.tenderAllocations" }),
-    tender: (0, import_fields77.relationship)({ ref: "Tender.refundAllocations" }),
-    method: (0, import_fields77.select)({
+    refund: (0, import_fields75.relationship)({ ref: "Refund.tenderAllocations" }),
+    tender: (0, import_fields75.relationship)({ ref: "Tender.refundAllocations" }),
+    method: (0, import_fields75.select)({
       type: "enum",
       options: [
         { label: "Cash", value: "cash" },
@@ -4926,7 +5709,7 @@ var RefundTenderAllocation = (0, import_core75.list)({
     }),
     amountCents: centsField(),
     currencyCode: currencyCodeField(),
-    status: (0, import_fields77.select)({
+    status: (0, import_fields75.select)({
       type: "enum",
       options: [
         { label: "Completed", value: "completed" },
@@ -4935,17 +5718,17 @@ var RefundTenderAllocation = (0, import_core75.list)({
       defaultValue: "completed",
       validation: { isRequired: true }
     }),
-    providerRefundId: (0, import_fields77.text)(),
-    providerLookupKey: (0, import_fields77.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    providerRefundId: (0, import_fields75.text)(),
+    providerLookupKey: (0, import_fields75.text)({ isIndexed: "unique", db: { isNullable: true } }),
     metadata: metadataField("Immutable provider-authority evidence without raw credentials"),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Register.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
-var Register = (0, import_core76.list)({
+var import_core74 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
+var Register = (0, import_core74.list)({
   access: tenantAccess("canReadCash", "canManageCash", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store"),
   ui: {
@@ -4954,11 +5737,11 @@ var Register = (0, import_core76.list)({
   },
   fields: {
     business: businessField(),
-    store: (0, import_fields78.relationship)({ ref: "Store.registers" }),
-    name: (0, import_fields78.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields78.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields78.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields78.select)({
+    store: (0, import_fields76.relationship)({ ref: "Store.registers" }),
+    name: (0, import_fields76.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields76.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields76.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields76.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -4969,18 +5752,18 @@ var Register = (0, import_core76.list)({
       defaultValue: "active",
       validation: { isRequired: true }
     }),
-    deviceIdentifier: (0, import_fields78.text)({ isIndexed: true }),
-    lastHeartbeatAt: (0, import_fields78.timestamp)(),
-    sessions: (0, import_fields78.relationship)({ ref: "RegisterSession.register", many: true }),
+    deviceIdentifier: (0, import_fields76.text)({ isIndexed: true }),
+    lastHeartbeatAt: (0, import_fields76.timestamp)(),
+    sessions: (0, import_fields76.relationship)({ ref: "RegisterSession.register", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RegisterSession.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields79 = require("@keystone-6/core/fields");
-var RegisterSession = (0, import_core77.list)({
+var import_core75 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
+var RegisterSession = (0, import_core75.list)({
   access: tenantAccess("canReadCash", "canManageCash", {
     create: false,
     update: false,
@@ -4994,11 +5777,11 @@ var RegisterSession = (0, import_core77.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    register: (0, import_fields79.relationship)({ ref: "Register.sessions" }),
-    employee: (0, import_fields79.relationship)({ ref: "Employee.registerSessions" }),
-    shift: (0, import_fields79.relationship)({ ref: "Shift.registerSessions" }),
-    sessionNumber: (0, import_fields79.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields79.select)({
+    register: (0, import_fields77.relationship)({ ref: "Register.sessions" }),
+    employee: (0, import_fields77.relationship)({ ref: "Employee.registerSessions" }),
+    shift: (0, import_fields77.relationship)({ ref: "Shift.registerSessions" }),
+    sessionNumber: (0, import_fields77.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields77.select)({
       type: "enum",
       access: { create: () => false, update: () => false },
       options: [
@@ -5014,23 +5797,23 @@ var RegisterSession = (0, import_core77.list)({
     expectedCashCents: centsField({ defaultValue: 0 }),
     countedCashCents: centsField({ required: false }),
     overShortCents: centsField({ required: false, allowNegative: true }),
-    openedAt: (0, import_fields79.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    closingStartedAt: (0, import_fields79.timestamp)(),
-    closedAt: (0, import_fields79.timestamp)(),
-    closingNotes: (0, import_fields79.text)({ ui: { displayMode: "textarea" } }),
-    cashMovements: (0, import_fields79.relationship)({ ref: "CashMovement.registerSession", many: true }),
-    sales: (0, import_fields79.relationship)({ ref: "Sale.registerSession", many: true }),
+    openedAt: (0, import_fields77.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    closingStartedAt: (0, import_fields77.timestamp)(),
+    closedAt: (0, import_fields77.timestamp)(),
+    closingNotes: (0, import_fields77.text)({ ui: { displayMode: "textarea" } }),
+    cashMovements: (0, import_fields77.relationship)({ ref: "CashMovement.registerSession", many: true }),
+    sales: (0, import_fields77.relationship)({ ref: "Sale.registerSession", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Return.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields80 = require("@keystone-6/core/fields");
-var Return = (0, import_core78.list)({
+var import_core76 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
+var Return = (0, import_core76.list)({
   access: immutableTenantAccess("canReadSales"),
-  hooks: requiredRelationshipHooks("business", "store", "sale"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store", "sale"), transitionGuard(RETURN_TRANSITIONS, "Return")),
   ui: {
     labelField: "returnNumber",
     listView: { initialColumns: ["returnNumber", "sale", "status", "reason", "requestedAt"] }
@@ -5038,10 +5821,10 @@ var Return = (0, import_core78.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    sale: (0, import_fields80.relationship)({ ref: "Sale.returns" }),
-    refund: (0, import_fields80.relationship)({ ref: "Refund" }),
-    returnNumber: (0, import_fields80.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields80.select)({
+    sale: (0, import_fields78.relationship)({ ref: "Sale.returns" }),
+    refund: (0, import_fields78.relationship)({ ref: "Refund" }),
+    returnNumber: (0, import_fields78.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields78.select)({
       type: "enum",
       options: [
         { label: "Requested", value: "requested" },
@@ -5054,7 +5837,7 @@ var Return = (0, import_core78.list)({
       defaultValue: "requested",
       validation: { isRequired: true }
     }),
-    reason: (0, import_fields80.select)({
+    reason: (0, import_fields78.select)({
       type: "enum",
       options: [
         { label: "Unwanted", value: "unwanted" },
@@ -5066,24 +5849,24 @@ var Return = (0, import_core78.list)({
       ],
       validation: { isRequired: true }
     }),
-    requestedBy: (0, import_fields80.relationship)({ ref: "Employee" }),
-    approvedBy: (0, import_fields80.relationship)({ ref: "Employee" }),
-    receivedBy: (0, import_fields80.relationship)({ ref: "Employee" }),
-    requestedAt: (0, import_fields80.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    receivedAt: (0, import_fields80.timestamp)(),
-    completedAt: (0, import_fields80.timestamp)(),
-    lines: (0, import_fields80.relationship)({ ref: "ReturnLine.return", many: true }),
-    notes: (0, import_fields80.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields80.relationship)({ ref: "IdempotencyKey" }),
+    requestedBy: (0, import_fields78.relationship)({ ref: "Employee" }),
+    approvedBy: (0, import_fields78.relationship)({ ref: "Employee" }),
+    receivedBy: (0, import_fields78.relationship)({ ref: "Employee" }),
+    requestedAt: (0, import_fields78.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    receivedAt: (0, import_fields78.timestamp)(),
+    completedAt: (0, import_fields78.timestamp)(),
+    lines: (0, import_fields78.relationship)({ ref: "ReturnLine.return", many: true }),
+    notes: (0, import_fields78.text)({ ui: { displayMode: "textarea" } }),
+    idempotency: (0, import_fields78.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ReturnLine.ts
-var import_core79 = require("@keystone-6/core");
-var import_fields81 = require("@keystone-6/core/fields");
-var ReturnLine = (0, import_core79.list)({
+var import_core77 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
+var ReturnLine = (0, import_core77.list)({
   access: immutableTenantAccess("canReadSales"),
   hooks: requiredRelationshipHooks("business", "store", "return", "saleLine"),
   ui: {
@@ -5093,10 +5876,10 @@ var ReturnLine = (0, import_core79.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    return: (0, import_fields81.relationship)({ ref: "Return.lines" }),
-    saleLine: (0, import_fields81.relationship)({ ref: "SaleLine.returnLines" }),
+    return: (0, import_fields79.relationship)({ ref: "Return.lines" }),
+    saleLine: (0, import_fields79.relationship)({ ref: "SaleLine.returnLines" }),
     quantity: quantityField({ min: "0.0001" }),
-    disposition: (0, import_fields81.select)({
+    disposition: (0, import_fields79.select)({
       type: "enum",
       options: [
         { label: "Restock", value: "restock" },
@@ -5107,7 +5890,7 @@ var ReturnLine = (0, import_core79.list)({
       ],
       validation: { isRequired: true }
     }),
-    condition: (0, import_fields81.select)({
+    condition: (0, import_fields79.select)({
       type: "enum",
       options: [
         { label: "Sealed", value: "sealed" },
@@ -5119,30 +5902,30 @@ var ReturnLine = (0, import_core79.list)({
       defaultValue: "unknown",
       validation: { isRequired: true }
     }),
-    refundLine: (0, import_fields81.relationship)({ ref: "RefundLine.returnLine" }),
-    restockLedgerEntries: (0, import_fields81.relationship)({
+    refundLine: (0, import_fields79.relationship)({ ref: "RefundLine.returnLine" }),
+    restockLedgerEntries: (0, import_fields79.relationship)({
       ref: "InventoryLedgerEntry.returnLine",
       many: true
     }),
-    note: (0, import_fields81.text)({ ui: { displayMode: "textarea" } }),
+    note: (0, import_fields79.text)({ ui: { displayMode: "textarea" } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Role.ts
-var import_core80 = require("@keystone-6/core");
-var import_fields83 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // features/keystone/models/permissionFields.ts
-var import_fields82 = require("@keystone-6/core/fields");
+var import_fields80 = require("@keystone-6/core/fields");
 function labelForPermission(permission) {
   return permission.replace(/^can/, "Can ").replace(/([A-Z])/g, " $1").replace(/\s+/g, " ").trim();
 }
 var permissionFields = Object.fromEntries(
   permissionKeys.map((permission) => [
     permission,
-    (0, import_fields82.checkbox)({
+    (0, import_fields80.checkbox)({
       defaultValue: false,
       label: labelForPermission(permission)
     })
@@ -5151,8 +5934,10 @@ var permissionFields = Object.fromEntries(
 
 // features/keystone/models/Role.ts
 var roleRelationshipHooks = requiredRelationshipHooks("business");
-var Role = (0, import_core80.list)({
-  access: tenantAccess("canManageRoles", "canManageRoles", { delete: false }),
+var Role = (0, import_core78.list)({
+  // Delete is tenant-scoped to role managers (E-commerce parity) and refused
+  // while any employee still holds the role (validateDelete below).
+  access: tenantAccess("canManageRoles", "canManageRoles", { delete: true }),
   hooks: {
     ...roleRelationshipHooks,
     async validateInput(args) {
@@ -5173,20 +5958,31 @@ var Role = (0, import_core80.list)({
           args.addValidationError(`A role cannot grant ${permission} beyond the role manager's own permissions`);
         }
       }
+    },
+    async validateDelete({ item, context, addValidationError }) {
+      const session = context.session;
+      if (session?.apiKeyId) {
+        addValidationError("Machine sessions cannot mutate human authorization roles");
+        return;
+      }
+      const assigned = await context.prisma.employee.count({ where: { roleId: String(item.id) } });
+      if (assigned > 0) {
+        addValidationError("Reassign this role's employees before deleting it");
+      }
     }
   },
   ui: {
     hideCreate: (args) => !permissions.canManageRoles(args),
-    hideDelete: true,
+    hideDelete: (args) => !permissions.canManageRoles(args),
     labelField: "name",
     listView: { initialColumns: ["name", "business", "employees"] }
   },
   fields: {
-    name: (0, import_fields83.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields83.text)({ ui: { displayMode: "textarea" } }),
-    business: (0, import_fields83.relationship)({ ref: "Business.roles", access: { update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    name: (0, import_fields81.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields81.text)({ ui: { displayMode: "textarea" } }),
+    business: (0, import_fields81.relationship)({ ref: "Business.roles", access: { update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
     ...permissionFields,
-    employees: (0, import_fields83.relationship)({
+    employees: (0, import_fields81.relationship)({
       ref: "Employee.role",
       many: true,
       access: { create: () => false, update: () => false },
@@ -5197,11 +5993,11 @@ var Role = (0, import_core80.list)({
 });
 
 // features/keystone/models/Sale.ts
-var import_core81 = require("@keystone-6/core");
-var import_fields84 = require("@keystone-6/core/fields");
-var Sale = (0, import_core81.list)({
+var import_core79 = require("@keystone-6/core");
+var import_fields82 = require("@keystone-6/core/fields");
+var Sale = (0, import_core79.list)({
   access: immutableTenantAccess("canReadSales"),
-  hooks: requiredRelationshipHooks("business", "store"),
+  hooks: combineValidateInput(requiredRelationshipHooks("business", "store"), transitionGuard(SALE_TRANSITIONS, "Sale")),
   ui: {
     labelField: "receiptNumber",
     listView: { initialColumns: ["receiptNumber", "store", "status", "totalCents", "cashier", "completedAt"] }
@@ -5209,8 +6005,8 @@ var Sale = (0, import_core81.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    receiptNumber: (0, import_fields84.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    source: (0, import_fields84.select)({
+    receiptNumber: (0, import_fields82.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    source: (0, import_fields82.select)({
       type: "enum",
       options: [
         { label: "POS", value: "pos" },
@@ -5221,7 +6017,7 @@ var Sale = (0, import_core81.list)({
       ],
       validation: { isRequired: true }
     }),
-    status: (0, import_fields84.select)({
+    status: (0, import_fields82.select)({
       type: "enum",
       options: [
         { label: "Open", value: "open" },
@@ -5233,6 +6029,17 @@ var Sale = (0, import_core81.list)({
       defaultValue: "open",
       validation: { isRequired: true }
     }),
+    // Online pickup orders only; in-store sales stay "none".
+    pickupStatus: (0, import_fields82.select)({
+      type: "enum",
+      options: [
+        { label: "Not a pickup order", value: "none" },
+        { label: "Ready for pickup", value: "ready_for_pickup" },
+        { label: "Picked up", value: "picked_up" }
+      ],
+      defaultValue: "none",
+      validation: { isRequired: true }
+    }),
     currencyCode: currencyCodeField(),
     subtotalCents: centsField(),
     discountCents: centsField({ defaultValue: 0 }),
@@ -5240,31 +6047,31 @@ var Sale = (0, import_core81.list)({
     roundingCents: centsField({ defaultValue: 0, allowNegative: true }),
     totalCents: centsField(),
     refundedCents: centsField({ defaultValue: 0 }),
-    cart: (0, import_fields84.relationship)({ ref: "Cart.sale" }),
-    registerSession: (0, import_fields84.relationship)({ ref: "RegisterSession.sales" }),
-    cashier: (0, import_fields84.relationship)({ ref: "Employee" }),
-    customer: (0, import_fields84.relationship)({ ref: "User.sales" }),
-    loyaltyAccount: (0, import_fields84.relationship)({ ref: "LoyaltyAccount" }),
-    lines: (0, import_fields84.relationship)({ ref: "SaleLine.sale", many: true }),
-    tenders: (0, import_fields84.relationship)({ ref: "Tender.sale", many: true }),
-    refunds: (0, import_fields84.relationship)({ ref: "Refund.sale", many: true }),
-    returns: (0, import_fields84.relationship)({ ref: "Return.sale", many: true }),
-    promotionRedemptions: (0, import_fields84.relationship)({ ref: "PromotionRedemption.sale", many: true }),
-    loyaltyEntries: (0, import_fields84.relationship)({ ref: "LoyaltyLedgerEntry.sale", many: true }),
-    ageVerifications: (0, import_fields84.relationship)({ ref: "AgeVerification.sale", many: true }),
-    startedAt: (0, import_fields84.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    completedAt: (0, import_fields84.timestamp)(),
-    voidedAt: (0, import_fields84.timestamp)(),
-    idempotency: (0, import_fields84.relationship)({ ref: "IdempotencyKey" }),
+    cart: (0, import_fields82.relationship)({ ref: "Cart.sale" }),
+    registerSession: (0, import_fields82.relationship)({ ref: "RegisterSession.sales" }),
+    cashier: (0, import_fields82.relationship)({ ref: "Employee" }),
+    customer: (0, import_fields82.relationship)({ ref: "User.sales" }),
+    loyaltyAccount: (0, import_fields82.relationship)({ ref: "LoyaltyAccount" }),
+    lines: (0, import_fields82.relationship)({ ref: "SaleLine.sale", many: true }),
+    tenders: (0, import_fields82.relationship)({ ref: "Tender.sale", many: true }),
+    refunds: (0, import_fields82.relationship)({ ref: "Refund.sale", many: true }),
+    returns: (0, import_fields82.relationship)({ ref: "Return.sale", many: true }),
+    promotionRedemptions: (0, import_fields82.relationship)({ ref: "PromotionRedemption.sale", many: true }),
+    loyaltyEntries: (0, import_fields82.relationship)({ ref: "LoyaltyLedgerEntry.sale", many: true }),
+    ageVerifications: (0, import_fields82.relationship)({ ref: "AgeVerification.sale", many: true }),
+    startedAt: (0, import_fields82.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    completedAt: (0, import_fields82.timestamp)(),
+    voidedAt: (0, import_fields82.timestamp)(),
+    idempotency: (0, import_fields82.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/SaleLine.ts
-var import_core82 = require("@keystone-6/core");
-var import_fields85 = require("@keystone-6/core/fields");
-var SaleLine = (0, import_core82.list)({
+var import_core80 = require("@keystone-6/core");
+var import_fields83 = require("@keystone-6/core/fields");
+var SaleLine = (0, import_core80.list)({
   access: immutableTenantAccess("canReadSales"),
   hooks: requiredRelationshipHooks("business", "store", "sale"),
   ui: {
@@ -5274,45 +6081,45 @@ var SaleLine = (0, import_core82.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    sale: (0, import_fields85.relationship)({ ref: "Sale.lines" }),
-    lineNumber: (0, import_fields85.integer)({ validation: { isRequired: true, min: 1 } }),
-    titleSnapshot: (0, import_fields85.text)({ validation: { isRequired: true } }),
-    variantTitleSnapshot: (0, import_fields85.text)(),
-    skuSnapshot: (0, import_fields85.text)(),
-    barcodeSnapshot: (0, import_fields85.text)(),
-    imageUrlSnapshot: (0, import_fields85.text)(),
-    productSnapshot: (0, import_fields85.json)({ defaultValue: {} }),
+    sale: (0, import_fields83.relationship)({ ref: "Sale.lines" }),
+    lineNumber: (0, import_fields83.integer)({ validation: { isRequired: true, min: 1 } }),
+    titleSnapshot: (0, import_fields83.text)({ validation: { isRequired: true } }),
+    variantTitleSnapshot: (0, import_fields83.text)(),
+    skuSnapshot: (0, import_fields83.text)(),
+    barcodeSnapshot: (0, import_fields83.text)(),
+    imageUrlSnapshot: (0, import_fields83.text)(),
+    productSnapshot: (0, import_fields83.json)({ defaultValue: {} }),
     quantity: quantityField({ min: "0.0001" }),
-    unitOfMeasure: (0, import_fields85.text)({ validation: { isRequired: true } }),
+    unitOfMeasure: (0, import_fields83.text)({ validation: { isRequired: true } }),
     unitPriceCents: centsField(),
     subtotalCents: centsField(),
     discountCents: centsField({ defaultValue: 0 }),
-    taxCategorySnapshot: (0, import_fields85.text)(),
+    taxCategorySnapshot: (0, import_fields83.text)(),
     // Snapshot of the tax rate fraction applied to this line.
-    taxRate: (0, import_fields85.float)({ defaultValue: 0, validation: { min: 0, max: 1 } }),
-    taxInclusive: (0, import_fields85.checkbox)({ defaultValue: false }),
+    taxRate: (0, import_fields83.float)({ defaultValue: 0, validation: { min: 0, max: 1 } }),
+    taxInclusive: (0, import_fields83.checkbox)({ defaultValue: false }),
     taxCents: centsField({ defaultValue: 0 }),
     totalCents: centsField(),
-    promotionSnapshot: (0, import_fields85.json)({ defaultValue: [] }),
-    regulatedSaleType: (0, import_fields85.text)({ defaultValue: "none" }),
-    minimumAge: (0, import_fields85.integer)({ validation: { min: 0, max: 120 } }),
-    ageVerified: (0, import_fields85.checkbox)({ defaultValue: false }),
-    product: (0, import_fields85.relationship)({ ref: "Product" }),
-    variant: (0, import_fields85.relationship)({ ref: "ProductVariant" }),
-    barcode: (0, import_fields85.relationship)({ ref: "ProductBarcode" }),
-    ageVerification: (0, import_fields85.relationship)({ ref: "AgeVerification" }),
-    inventoryEntries: (0, import_fields85.relationship)({ ref: "InventoryLedgerEntry.saleLine", many: true }),
-    refundLines: (0, import_fields85.relationship)({ ref: "RefundLine.saleLine", many: true }),
-    returnLines: (0, import_fields85.relationship)({ ref: "ReturnLine.saleLine", many: true }),
+    promotionSnapshot: (0, import_fields83.json)({ defaultValue: [] }),
+    regulatedSaleType: (0, import_fields83.text)({ defaultValue: "none" }),
+    minimumAge: (0, import_fields83.integer)({ validation: { min: 0, max: 120 } }),
+    ageVerified: (0, import_fields83.checkbox)({ defaultValue: false }),
+    product: (0, import_fields83.relationship)({ ref: "Product" }),
+    variant: (0, import_fields83.relationship)({ ref: "ProductVariant" }),
+    barcode: (0, import_fields83.relationship)({ ref: "ProductBarcode" }),
+    ageVerification: (0, import_fields83.relationship)({ ref: "AgeVerification" }),
+    inventoryEntries: (0, import_fields83.relationship)({ ref: "InventoryLedgerEntry.saleLine", many: true }),
+    refundLines: (0, import_fields83.relationship)({ ref: "RefundLine.saleLine", many: true }),
+    returnLines: (0, import_fields83.relationship)({ ref: "ReturnLine.saleLine", many: true }),
     metadata: metadataField("Immutable checkout-time line metadata"),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Shift.ts
-var import_core83 = require("@keystone-6/core");
-var import_fields86 = require("@keystone-6/core/fields");
-var Shift = (0, import_core83.list)({
+var import_core81 = require("@keystone-6/core");
+var import_fields84 = require("@keystone-6/core/fields");
+var Shift = (0, import_core81.list)({
   access: tenantAccess("canReadPeople", "canManagePeople", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "store", "employee"),
   ui: {
@@ -5322,10 +6129,10 @@ var Shift = (0, import_core83.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    employee: (0, import_fields86.relationship)({ ref: "Employee.shifts" }),
-    shiftNumber: (0, import_fields86.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    roleSnapshot: (0, import_fields86.text)(),
-    status: (0, import_fields86.select)({
+    employee: (0, import_fields84.relationship)({ ref: "Employee.shifts" }),
+    shiftNumber: (0, import_fields84.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    roleSnapshot: (0, import_fields84.text)(),
+    status: (0, import_fields84.select)({
       type: "enum",
       access: { create: () => false, update: () => false },
       options: [
@@ -5339,23 +6146,23 @@ var Shift = (0, import_core83.list)({
       defaultValue: "scheduled",
       validation: { isRequired: true }
     }),
-    startsAt: (0, import_fields86.timestamp)({ validation: { isRequired: true } }),
-    endsAt: (0, import_fields86.timestamp)({ validation: { isRequired: true } }),
-    clockedInAt: (0, import_fields86.timestamp)(),
-    clockedOutAt: (0, import_fields86.timestamp)(),
-    breakMinutes: (0, import_fields86.integer)({ defaultValue: 0, validation: { min: 0 } }),
+    startsAt: (0, import_fields84.timestamp)({ validation: { isRequired: true } }),
+    endsAt: (0, import_fields84.timestamp)({ validation: { isRequired: true } }),
+    clockedInAt: (0, import_fields84.timestamp)(),
+    clockedOutAt: (0, import_fields84.timestamp)(),
+    breakMinutes: (0, import_fields84.integer)({ defaultValue: 0, validation: { min: 0 } }),
     hourlyRateCents: centsField({ required: false }),
-    notes: (0, import_fields86.text)({ ui: { displayMode: "textarea" } }),
-    registerSessions: (0, import_fields86.relationship)({ ref: "RegisterSession.shift", many: true }),
+    notes: (0, import_fields84.text)({ ui: { displayMode: "textarea" } }),
+    registerSessions: (0, import_fields84.relationship)({ ref: "RegisterSession.shift", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/StockLevel.ts
-var import_core84 = require("@keystone-6/core");
-var import_fields87 = require("@keystone-6/core/fields");
-var StockLevel = (0, import_core84.list)({
+var import_core82 = require("@keystone-6/core");
+var import_fields85 = require("@keystone-6/core/fields");
+var StockLevel = (0, import_core82.list)({
   access: tenantAccess("canReadInventory", "canManageInventory", {
     create: false,
     update: false,
@@ -5369,27 +6176,27 @@ var StockLevel = (0, import_core84.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    location: (0, import_fields87.relationship)({ ref: "InventoryLocation.stockLevels" }),
-    variant: (0, import_fields87.relationship)({ ref: "ProductVariant.stockLevels" }),
-    lookupKey: (0, import_fields87.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    location: (0, import_fields85.relationship)({ ref: "InventoryLocation.stockLevels" }),
+    variant: (0, import_fields85.relationship)({ ref: "ProductVariant.stockLevels" }),
+    lookupKey: (0, import_fields85.text)({ isIndexed: "unique", validation: { isRequired: true } }),
     onHandQuantity: quantityField({ defaultValue: "0.0000" }),
     reservedQuantity: quantityField({ defaultValue: "0.0000" }),
     parQuantity: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
     reorderPoint: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
     reorderQuantity: quantityField({ defaultValue: "0.0000", min: "0.0000" }),
-    lastCountedAt: (0, import_fields87.timestamp)(),
-    ledgerEntries: (0, import_fields87.relationship)({ ref: "InventoryLedgerEntry.stockLevel", many: true }),
-    countLines: (0, import_fields87.relationship)({ ref: "InventoryCountLine.stockLevel", many: true }),
+    lastCountedAt: (0, import_fields85.timestamp)(),
+    ledgerEntries: (0, import_fields85.relationship)({ ref: "InventoryLedgerEntry.stockLevel", many: true }),
+    countLines: (0, import_fields85.relationship)({ ref: "InventoryCountLine.stockLevel", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Store.ts
-var import_core85 = require("@keystone-6/core");
-var import_fields88 = require("@keystone-6/core/fields");
+var import_core83 = require("@keystone-6/core");
+var import_fields86 = require("@keystone-6/core/fields");
 var storeRelationshipHooks = requiredRelationshipHooks("business");
-var Store = (0, import_core85.list)({
+var Store = (0, import_core83.list)({
   access: tenantAccess("canAccessDashboard", "canManageBusiness", {
     delete: false
   }),
@@ -5434,13 +6241,13 @@ var Store = (0, import_core85.list)({
     }
   },
   fields: {
-    business: (0, import_fields88.relationship)({
+    business: (0, import_fields86.relationship)({
       ref: "Business.stores",
       access: { update: () => false },
       ui: { itemView: { fieldMode: "read" } }
     }),
-    name: (0, import_fields88.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields88.text)({
+    name: (0, import_fields86.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields86.text)({
       validation: {
         isRequired: true,
         match: {
@@ -5451,7 +6258,7 @@ var Store = (0, import_core85.list)({
       isIndexed: true,
       access: { update: () => false }
     }),
-    lookupKey: (0, import_fields88.text)({
+    lookupKey: (0, import_fields86.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       access: { create: () => false, update: () => false },
@@ -5460,7 +6267,7 @@ var Store = (0, import_core85.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    status: (0, import_fields88.select)({
+    status: (0, import_fields86.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -5470,14 +6277,14 @@ var Store = (0, import_core85.list)({
       defaultValue: "active",
       validation: { isRequired: true }
     }),
-    addressLine1: (0, import_fields88.text)(),
-    addressLine2: (0, import_fields88.text)(),
-    city: (0, import_fields88.text)(),
-    stateProvince: (0, import_fields88.text)(),
-    postalCode: (0, import_fields88.text)(),
-    countryCode: (0, import_fields88.text)({ defaultValue: "US" }),
-    phone: (0, import_fields88.text)(),
-    currencyCode: (0, import_fields88.text)({
+    addressLine1: (0, import_fields86.text)(),
+    addressLine2: (0, import_fields86.text)(),
+    city: (0, import_fields86.text)(),
+    stateProvince: (0, import_fields86.text)(),
+    postalCode: (0, import_fields86.text)(),
+    countryCode: (0, import_fields86.text)({ defaultValue: "US" }),
+    phone: (0, import_fields86.text)(),
+    currencyCode: (0, import_fields86.text)({
       defaultValue: "USD",
       validation: {
         isRequired: true,
@@ -5488,44 +6295,44 @@ var Store = (0, import_core85.list)({
       },
       access: { update: () => false }
     }),
-    timezone: (0, import_fields88.text)({
+    timezone: (0, import_fields86.text)({
       defaultValue: "America/New_York",
       validation: { isRequired: true }
     }),
-    pricesIncludeTax: (0, import_fields88.checkbox)({
+    pricesIncludeTax: (0, import_fields86.checkbox)({
       defaultValue: false,
       access: { update: () => false }
     }),
-    fuelEnabled: (0, import_fields88.checkbox)({
+    fuelEnabled: (0, import_fields86.checkbox)({
       defaultValue: false,
       access: { update: () => false }
     }),
-    defaultPriceBook: (0, import_fields88.relationship)({
+    defaultPriceBook: (0, import_fields86.relationship)({
       ref: "PriceBook",
       access: { update: () => false },
       ui: { itemView: { fieldMode: "read" } }
     }),
-    primaryInventoryLocation: (0, import_fields88.relationship)({
+    primaryInventoryLocation: (0, import_fields86.relationship)({
       ref: "InventoryLocation",
       access: { update: () => false },
       ui: { itemView: { fieldMode: "read" } }
     }),
-    employees: (0, import_fields88.relationship)({
+    employees: (0, import_fields86.relationship)({
       ref: "Employee.stores",
       many: true,
       access: { create: () => false, update: () => false }
     }),
-    registers: (0, import_fields88.relationship)({
+    registers: (0, import_fields86.relationship)({
       ref: "Register.store",
       many: true,
       access: { create: () => false, update: () => false }
     }),
-    inventoryLocations: (0, import_fields88.relationship)({
+    inventoryLocations: (0, import_fields86.relationship)({
       ref: "InventoryLocation.store",
       many: true,
       access: { create: () => false, update: () => false }
     }),
-    taxRates: (0, import_fields88.relationship)({
+    taxRates: (0, import_fields86.relationship)({
       ref: "TaxRate.store",
       many: true,
       access: { create: () => false, update: () => false }
@@ -5536,9 +6343,9 @@ var Store = (0, import_core85.list)({
 });
 
 // features/keystone/models/StoreDay.ts
-var import_core86 = require("@keystone-6/core");
-var import_fields89 = require("@keystone-6/core/fields");
-var StoreDay = (0, import_core86.list)({
+var import_core84 = require("@keystone-6/core");
+var import_fields87 = require("@keystone-6/core/fields");
+var StoreDay = (0, import_core84.list)({
   access: immutableTenantAccess("canReadReporting"),
   hooks: requiredRelationshipHooks("business", "store"),
   ui: {
@@ -5550,9 +6357,9 @@ var StoreDay = (0, import_core86.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    tradingDate: (0, import_fields89.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields89.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    status: (0, import_fields89.select)({
+    tradingDate: (0, import_fields87.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields87.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    status: (0, import_fields87.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -5564,14 +6371,14 @@ var StoreDay = (0, import_core86.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    timezoneSnapshot: (0, import_fields89.text)({ validation: { isRequired: true } }),
+    timezoneSnapshot: (0, import_fields87.text)({ validation: { isRequired: true } }),
     currencyCode: currencyCodeField(),
-    periodStartedAt: (0, import_fields89.timestamp)({ validation: { isRequired: true } }),
-    periodEndedAt: (0, import_fields89.timestamp)({ validation: { isRequired: true } }),
-    generatedAt: (0, import_fields89.timestamp)({ validation: { isRequired: true } }),
-    approvedAt: (0, import_fields89.timestamp)(),
-    lockedAt: (0, import_fields89.timestamp)(),
-    approvedBy: (0, import_fields89.relationship)({ ref: "Employee" }),
+    periodStartedAt: (0, import_fields87.timestamp)({ validation: { isRequired: true } }),
+    periodEndedAt: (0, import_fields87.timestamp)({ validation: { isRequired: true } }),
+    generatedAt: (0, import_fields87.timestamp)({ validation: { isRequired: true } }),
+    approvedAt: (0, import_fields87.timestamp)(),
+    lockedAt: (0, import_fields87.timestamp)(),
+    approvedBy: (0, import_fields87.relationship)({ ref: "Employee" }),
     grossSalesCents: centsField({ defaultValue: 0 }),
     discountCents: centsField({ defaultValue: 0 }),
     taxCents: centsField({ defaultValue: 0, allowNegative: true }),
@@ -5589,23 +6396,23 @@ var StoreDay = (0, import_core86.list)({
     cashOverShortCents: centsField({ defaultValue: 0, allowNegative: true }),
     depositedCashCents: centsField({ defaultValue: 0 }),
     undepositedCashCents: centsField({ defaultValue: 0, allowNegative: true }),
-    saleCount: (0, import_fields89.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    refundCount: (0, import_fields89.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    registerSessionCount: (0, import_fields89.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    exceptionCount: (0, import_fields89.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    lines: (0, import_fields89.relationship)({ ref: "StoreDayLine.storeDay", many: true }),
-    deposits: (0, import_fields89.relationship)({ ref: "BankDeposit.storeDay", many: true }),
-    notes: (0, import_fields89.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields89.relationship)({ ref: "IdempotencyKey" }),
+    saleCount: (0, import_fields87.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    refundCount: (0, import_fields87.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    registerSessionCount: (0, import_fields87.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    exceptionCount: (0, import_fields87.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    lines: (0, import_fields87.relationship)({ ref: "StoreDayLine.storeDay", many: true }),
+    deposits: (0, import_fields87.relationship)({ ref: "BankDeposit.storeDay", many: true }),
+    notes: (0, import_fields87.text)({ ui: { displayMode: "textarea" } }),
+    idempotency: (0, import_fields87.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField("Source counts and non-authoritative generation context"),
     ...trackingFields
   }
 });
 
 // features/keystone/models/StoreDayLine.ts
-var import_core87 = require("@keystone-6/core");
-var import_fields90 = require("@keystone-6/core/fields");
-var StoreDayLine = (0, import_core87.list)({
+var import_core85 = require("@keystone-6/core");
+var import_fields88 = require("@keystone-6/core/fields");
+var StoreDayLine = (0, import_core85.list)({
   access: immutableTenantAccess("canReadReporting"),
   hooks: requiredRelationshipHooks("business", "store", "storeDay"),
   ui: {
@@ -5615,9 +6422,9 @@ var StoreDayLine = (0, import_core87.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    storeDay: (0, import_fields90.relationship)({ ref: "StoreDay.lines" }),
-    lineNumber: (0, import_fields90.integer)({ validation: { isRequired: true, min: 1 } }),
-    dimension: (0, import_fields90.select)({
+    storeDay: (0, import_fields88.relationship)({ ref: "StoreDay.lines" }),
+    lineNumber: (0, import_fields88.integer)({ validation: { isRequired: true, min: 1 } }),
+    dimension: (0, import_fields88.select)({
       type: "enum",
       options: [
         { label: "Register", value: "register" },
@@ -5632,8 +6439,8 @@ var StoreDayLine = (0, import_core87.list)({
       ],
       validation: { isRequired: true }
     }),
-    dimensionKey: (0, import_fields90.text)({ validation: { isRequired: true } }),
-    label: (0, import_fields90.text)({ validation: { isRequired: true } }),
+    dimensionKey: (0, import_fields88.text)({ validation: { isRequired: true } }),
+    label: (0, import_fields88.text)({ validation: { isRequired: true } }),
     grossCents: centsField({ defaultValue: 0, allowNegative: true }),
     discountCents: centsField({ defaultValue: 0, allowNegative: true }),
     taxCents: centsField({ defaultValue: 0, allowNegative: true }),
@@ -5642,16 +6449,16 @@ var StoreDayLine = (0, import_core87.list)({
     actualCents: centsField({ defaultValue: 0, allowNegative: true }),
     varianceCents: centsField({ defaultValue: 0, allowNegative: true }),
     quantity: quantityField({ defaultValue: "0.0000" }),
-    sourceCount: (0, import_fields90.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    sourceCount: (0, import_fields88.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/TaxCategory.ts
-var import_core88 = require("@keystone-6/core");
-var import_fields91 = require("@keystone-6/core/fields");
-var TaxCategory = (0, import_core88.list)({
+var import_core86 = require("@keystone-6/core");
+var import_fields89 = require("@keystone-6/core/fields");
+var TaxCategory = (0, import_core86.list)({
   access: tenantAccess("canReadPricing", "canManagePricing", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business"),
   ui: {
@@ -5660,21 +6467,21 @@ var TaxCategory = (0, import_core88.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields91.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields91.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields91.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    description: (0, import_fields91.text)({ ui: { displayMode: "textarea" } }),
-    products: (0, import_fields91.relationship)({ ref: "Product.taxCategory", many: true }),
-    rates: (0, import_fields91.relationship)({ ref: "TaxRate.taxCategory", many: true }),
+    name: (0, import_fields89.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields89.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields89.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    description: (0, import_fields89.text)({ ui: { displayMode: "textarea" } }),
+    products: (0, import_fields89.relationship)({ ref: "Product.taxCategory", many: true }),
+    rates: (0, import_fields89.relationship)({ ref: "TaxRate.taxCategory", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/TaxRate.ts
-var import_core89 = require("@keystone-6/core");
-var import_fields92 = require("@keystone-6/core/fields");
-var TaxRate = (0, import_core89.list)({
+var import_core87 = require("@keystone-6/core");
+var import_fields90 = require("@keystone-6/core/fields");
+var TaxRate = (0, import_core87.list)({
   access: tenantAccess("canReadPricing", "canManagePricing", { create: false, update: false, delete: false }),
   hooks: {
     validateInput(args) {
@@ -5693,18 +6500,18 @@ var TaxRate = (0, import_core89.list)({
   },
   fields: {
     business: businessField(),
-    store: (0, import_fields92.relationship)({ ref: "Store.taxRates" }),
-    taxCategory: (0, import_fields92.relationship)({ ref: "TaxCategory.rates" }),
-    name: (0, import_fields92.text)({ validation: { isRequired: true } }),
-    jurisdiction: (0, import_fields92.text)(),
+    store: (0, import_fields90.relationship)({ ref: "Store.taxRates" }),
+    taxCategory: (0, import_fields90.relationship)({ ref: "TaxCategory.rates" }),
+    name: (0, import_fields90.text)({ validation: { isRequired: true } }),
+    jurisdiction: (0, import_fields90.text)(),
     // A fraction, as in E-commerce (0.08875 = 8.875%). Money math converts it to
     // exact parts per million (lib/money.ts), so tax stays exact to the cent.
-    rate: (0, import_fields92.float)({
+    rate: (0, import_fields90.float)({
       validation: { isRequired: true, min: 0, max: 1 },
       ui: { description: "Fraction: 0.08875 is 8.875%" }
     }),
-    inclusive: (0, import_fields92.checkbox)({ defaultValue: false }),
-    status: (0, import_fields92.select)({
+    inclusive: (0, import_fields90.checkbox)({ defaultValue: false }),
+    status: (0, import_fields90.select)({
       type: "enum",
       options: [
         { label: "Draft", value: "draft" },
@@ -5714,20 +6521,21 @@ var TaxRate = (0, import_core89.list)({
       defaultValue: "draft",
       validation: { isRequired: true }
     }),
-    startsAt: (0, import_fields92.timestamp)(),
-    endsAt: (0, import_fields92.timestamp)(),
+    startsAt: (0, import_fields90.timestamp)(),
+    endsAt: (0, import_fields90.timestamp)(),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Tender.ts
-var import_core90 = require("@keystone-6/core");
-var import_fields93 = require("@keystone-6/core/fields");
-var Tender = (0, import_core90.list)({
+var import_core88 = require("@keystone-6/core");
+var import_fields91 = require("@keystone-6/core/fields");
+var Tender = (0, import_core88.list)({
   access: immutableTenantAccess("canReadPayments"),
   hooks: {
     validateInput(args) {
+      transitionGuard(TENDER_TRANSITIONS, "Tender").validateInput(args);
       requiredRelationshipHooks("business", "store", "sale").validateInput(args);
       if (args.resolvedData?.providerData !== void 0) {
         try {
@@ -5745,9 +6553,9 @@ var Tender = (0, import_core90.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    sale: (0, import_fields93.relationship)({ ref: "Sale.tenders" }),
-    paymentProvider: (0, import_fields93.relationship)({ ref: "PaymentProvider.tenders" }),
-    method: (0, import_fields93.select)({
+    sale: (0, import_fields91.relationship)({ ref: "Sale.tenders" }),
+    paymentProvider: (0, import_fields91.relationship)({ ref: "PaymentProvider.tenders" }),
+    method: (0, import_fields91.select)({
       type: "enum",
       options: [
         { label: "Cash", value: "cash" },
@@ -5763,7 +6571,7 @@ var Tender = (0, import_core90.list)({
       ],
       validation: { isRequired: true }
     }),
-    status: (0, import_fields93.select)({
+    status: (0, import_fields91.select)({
       type: "enum",
       options: [
         { label: "Pending", value: "pending" },
@@ -5782,33 +6590,33 @@ var Tender = (0, import_core90.list)({
     changeCents: centsField({ defaultValue: 0 }),
     refundedCents: centsField({ defaultValue: 0 }),
     currencyCode: currencyCodeField(),
-    providerPaymentId: (0, import_fields93.text)({ isIndexed: true }),
-    providerLookupKey: (0, import_fields93.text)({ isIndexed: "unique", db: { isNullable: true } }),
-    providerReference: (0, import_fields93.text)(),
-    cardBrand: (0, import_fields93.text)(),
-    cardLast4: (0, import_fields93.text)({
+    providerPaymentId: (0, import_fields91.text)({ isIndexed: true }),
+    providerLookupKey: (0, import_fields91.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    providerReference: (0, import_fields91.text)(),
+    cardBrand: (0, import_fields91.text)(),
+    cardLast4: (0, import_fields91.text)({
       validation: {
         match: { regex: /^\d{4}$/, explanation: "Card last four must be exactly four digits" }
       }
     }),
-    failureCode: (0, import_fields93.text)(),
-    failureMessage: (0, import_fields93.text)(),
-    providerData: (0, import_fields93.json)({ defaultValue: {}, ui: { description: "Normalized non-secret provider response" } }),
-    processedAt: (0, import_fields93.timestamp)(),
-    processedBy: (0, import_fields93.relationship)({ ref: "Employee" }),
-    cashMovement: (0, import_fields93.relationship)({ ref: "CashMovement.tender" }),
-    refunds: (0, import_fields93.relationship)({ ref: "Refund.originalTender", many: true }),
-    refundAllocations: (0, import_fields93.relationship)({ ref: "RefundTenderAllocation.tender", many: true }),
-    idempotency: (0, import_fields93.relationship)({ ref: "IdempotencyKey" }),
+    failureCode: (0, import_fields91.text)(),
+    failureMessage: (0, import_fields91.text)(),
+    providerData: (0, import_fields91.json)({ defaultValue: {}, ui: { description: "Normalized non-secret provider response" } }),
+    processedAt: (0, import_fields91.timestamp)(),
+    processedBy: (0, import_fields91.relationship)({ ref: "Employee" }),
+    cashMovement: (0, import_fields91.relationship)({ ref: "CashMovement.tender" }),
+    refunds: (0, import_fields91.relationship)({ ref: "Refund.originalTender", many: true }),
+    refundAllocations: (0, import_fields91.relationship)({ ref: "RefundTenderAllocation.tender", many: true }),
+    idempotency: (0, import_fields91.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/User.ts
-var import_core91 = require("@keystone-6/core");
-var import_access99 = require("@keystone-6/core/access");
-var import_fields94 = require("@keystone-6/core/fields");
+var import_core89 = require("@keystone-6/core");
+var import_access97 = require("@keystone-6/core/access");
+var import_fields92 = require("@keystone-6/core/fields");
 function userQueryFilter(session) {
   if (isHumanPlatformAdmin(session)) return true;
   if (!session) return false;
@@ -5846,7 +6654,7 @@ function userUpdateFilter(session) {
   if (!session || session.apiKeyId) return false;
   return { id: { equals: session.itemId } };
 }
-var User = (0, import_core91.list)({
+var User = (0, import_core89.list)({
   access: {
     operation: {
       query: isSignedIn,
@@ -5878,8 +6686,8 @@ var User = (0, import_core91.list)({
     listView: { initialColumns: ["name", "email", "onboardingStatus", "employees"] }
   },
   fields: {
-    name: (0, import_fields94.text)({ validation: { isRequired: true } }),
-    email: (0, import_fields94.text)({
+    name: (0, import_fields92.text)({ validation: { isRequired: true } }),
+    email: (0, import_fields92.text)({
       isFilterable: false,
       isOrderable: false,
       isIndexed: "unique",
@@ -5891,9 +6699,9 @@ var User = (0, import_core91.list)({
         }
       }
     }),
-    password: (0, import_fields94.password)({
+    password: (0, import_fields92.password)({
       access: {
-        read: import_access99.denyAll,
+        read: import_access97.denyAll,
         update: ({ session, item }) => Boolean(!session?.apiKeyId && (isPlatformAdmin({ session }) || session?.itemId === item.id))
       },
       validation: {
@@ -5902,7 +6710,7 @@ var User = (0, import_core91.list)({
         rejectCommon: true
       }
     }),
-    isPlatformAdmin: (0, import_fields94.checkbox)({
+    isPlatformAdmin: (0, import_fields92.checkbox)({
       defaultValue: false,
       access: {
         read: isPlatformAdmin,
@@ -5914,7 +6722,7 @@ var User = (0, import_core91.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    platformAdminApprovedAt: (0, import_fields94.timestamp)({
+    platformAdminApprovedAt: (0, import_fields92.timestamp)({
       access: {
         create: () => false,
         update: () => false
@@ -5924,7 +6732,7 @@ var User = (0, import_core91.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    sessionVersion: (0, import_fields94.integer)({
+    sessionVersion: (0, import_fields92.integer)({
       defaultValue: 0,
       validation: { isRequired: true, min: 0 },
       access: { read: isSignedIn, create: () => false, update: () => false },
@@ -5934,7 +6742,7 @@ var User = (0, import_core91.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    onboardingStatus: (0, import_fields94.select)({
+    onboardingStatus: (0, import_fields92.select)({
       type: "enum",
       access: {
         update: (args) => isPlatformAdmin(args) || hasPermission(args, "canManageOnboarding")
@@ -5948,28 +6756,28 @@ var User = (0, import_core91.list)({
       defaultValue: "not_started",
       validation: { isRequired: true }
     }),
-    phone: (0, import_fields94.text)(),
-    employees: (0, import_fields94.relationship)({
+    phone: (0, import_fields92.text)(),
+    employees: (0, import_fields92.relationship)({
       ref: "Employee.user",
       many: true,
       access: { create: () => false, update: () => false }
     }),
-    carts: (0, import_fields94.relationship)({ ref: "Cart.customer", many: true, access: { create: () => false, update: () => false } }),
-    sales: (0, import_fields94.relationship)({ ref: "Sale.customer", many: true, access: { create: () => false, update: () => false } }),
-    loyaltyAccounts: (0, import_fields94.relationship)({ ref: "LoyaltyAccount.user", many: true, access: { create: () => false, update: () => false } }),
-    apiKeys: (0, import_fields94.relationship)({ ref: "ApiKey.createdBy", many: true, access: { create: () => false, update: () => false } }),
+    carts: (0, import_fields92.relationship)({ ref: "Cart.customer", many: true, access: { create: () => false, update: () => false } }),
+    sales: (0, import_fields92.relationship)({ ref: "Sale.customer", many: true, access: { create: () => false, update: () => false } }),
+    loyaltyAccounts: (0, import_fields92.relationship)({ ref: "LoyaltyAccount.user", many: true, access: { create: () => false, update: () => false } }),
+    apiKeys: (0, import_fields92.relationship)({ ref: "ApiKey.createdBy", many: true, access: { create: () => false, update: () => false } }),
     // The family dashboard core admits users through `authenticatedItem { role { canAccessDashboard
     // canManageOnboarding } }`. Convenience grants come from approved platform admins and active
     // employee roles, so this projects the signed-in human's own grants (the same hasPermission
     // checks as ui.isAccessAllowed and List access) into that shape. Other users read null.
-    role: (0, import_fields94.virtual)({
+    role: (0, import_fields92.virtual)({
       access: { read: ({ session, item }) => Boolean(session && !session.apiKeyId && session.itemId === item.id) },
-      field: import_core91.graphql.field({
-        type: import_core91.graphql.object()({
+      field: import_core89.graphql.field({
+        type: import_core89.graphql.object()({
           name: "UserDashboardRole",
           fields: {
-            canAccessDashboard: import_core91.graphql.field({ type: import_core91.graphql.nonNull(import_core91.graphql.Boolean) }),
-            canManageOnboarding: import_core91.graphql.field({ type: import_core91.graphql.nonNull(import_core91.graphql.Boolean) })
+            canAccessDashboard: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.Boolean) }),
+            canManageOnboarding: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.Boolean) })
           }
         }),
         resolve(item, _args, context) {
@@ -5994,42 +6802,8 @@ var User = (0, import_core91.list)({
 });
 
 // features/keystone/models/Vendor.ts
-var import_core92 = require("@keystone-6/core");
-var import_fields95 = require("@keystone-6/core/fields");
-
-// features/keystone/models/vendorHooks.ts
-var import_node_crypto2 = require("node:crypto");
-
-// features/keystone/lib/idempotency.ts
-var import_node_crypto = require("node:crypto");
-function stableSerialize(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableSerialize).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "undefined";
-}
-function normalizeIdempotencyKey(value) {
-  const key = value?.trim() ?? "";
-  if (key.length < 16) {
-    throw new Error("Idempotency key must be at least 16 characters");
-  }
-  if (key.length > 128) {
-    throw new Error("Idempotency key must be at most 128 characters");
-  }
-  if (!/^[A-Za-z0-9._:-]+$/.test(key)) {
-    throw new Error("Idempotency key contains unsupported characters");
-  }
-  return key;
-}
-function buildScopedIdempotencyKey(scope, key) {
-  return (0, import_node_crypto.createHash)("sha256").update(`${scope}:${key}`).digest("hex");
-}
-function fingerprintInput(input) {
-  return (0, import_node_crypto.createHash)("sha256").update(stableSerialize(input)).digest("hex");
-}
+var import_core90 = require("@keystone-6/core");
+var import_fields93 = require("@keystone-6/core/fields");
 
 // features/keystone/models/vendorHooks.ts
 function normalizeVendorData(resolvedData, businessId) {
@@ -6042,43 +6816,6 @@ function normalizeVendorData(resolvedData, businessId) {
     next.lookupKey = `${effectiveBusinessId}:${next.vendorNumber}`;
   }
   return next;
-}
-async function emitVendorEvent(operation, item, originalItem, context) {
-  const aggregate = item ?? originalItem;
-  if (!aggregate?.id || !aggregate.businessId) return;
-  const aggregateId = aggregate.id.toString();
-  const payload = {
-    operation,
-    vendor: {
-      id: aggregateId,
-      name: aggregate.name ?? "",
-      vendorNumber: aggregate.vendorNumber ?? "",
-      status: aggregate.status ?? ""
-    },
-    previous: operation === "update" ? originalItem ?? null : null
-  };
-  const topic = `convenience.vendor.${operation}.v1`;
-  await context.prisma.outboxEvent.create({
-    data: {
-      businessId: aggregate.businessId,
-      eventKey: `hook:vendor:${aggregateId}:${operation}:${(0, import_node_crypto2.randomUUID)()}`,
-      topic,
-      schemaVersion: 1,
-      aggregateType: "Vendor",
-      aggregateId,
-      action: `vendor.${operation}`,
-      payload,
-      payloadHash: fingerprintInput(payload),
-      status: "pending",
-      attempts: 0,
-      totalAttempts: 0,
-      replayCount: 0,
-      maxAttempts: 8,
-      availableAt: /* @__PURE__ */ new Date(),
-      occurredAt: /* @__PURE__ */ new Date()
-    },
-    select: { id: true, topic: true }
-  });
 }
 var vendorHooks = {
   resolveInput: {
@@ -6101,19 +6838,11 @@ var vendorHooks = {
       });
       if (purchaseOrders) throw new Error("Vendor with purchase orders cannot be deleted");
     }
-  },
-  afterOperation: async ({ operation, item, originalItem, context }) => {
-    await emitVendorEvent(
-      operation,
-      item,
-      originalItem,
-      context
-    );
   }
 };
 
 // features/keystone/models/Vendor.ts
-var Vendor = (0, import_core92.list)({
+var Vendor = (0, import_core90.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
   hooks: vendorHooks,
   ui: {
@@ -6122,10 +6851,10 @@ var Vendor = (0, import_core92.list)({
   },
   fields: {
     business: businessField(),
-    name: (0, import_fields95.text)({ validation: { isRequired: true } }),
-    vendorNumber: (0, import_fields95.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields95.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields95.select)({
+    name: (0, import_fields93.text)({ validation: { isRequired: true } }),
+    vendorNumber: (0, import_fields93.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields93.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields93.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -6135,11 +6864,11 @@ var Vendor = (0, import_core92.list)({
       defaultValue: "active",
       validation: { isRequired: true }
     }),
-    contactName: (0, import_fields95.text)(),
-    email: (0, import_fields95.text)(),
-    phone: (0, import_fields95.text)(),
-    website: (0, import_fields95.text)(),
-    paymentTerms: (0, import_fields95.select)({
+    contactName: (0, import_fields93.text)(),
+    email: (0, import_fields93.text)(),
+    phone: (0, import_fields93.text)(),
+    website: (0, import_fields93.text)(),
+    paymentTerms: (0, import_fields93.select)({
       type: "enum",
       options: [
         { label: "COD", value: "cod" },
@@ -6152,20 +6881,20 @@ var Vendor = (0, import_core92.list)({
       defaultValue: "net_30",
       validation: { isRequired: true }
     }),
-    leadTimeDays: (0, import_fields95.integer)({ defaultValue: 0, validation: { min: 0 } }),
+    leadTimeDays: (0, import_fields93.integer)({ defaultValue: 0, validation: { min: 0 } }),
     minimumOrderCents: centsField({ defaultValue: 0 }),
-    notes: (0, import_fields95.text)({ ui: { displayMode: "textarea" } }),
-    items: (0, import_fields95.relationship)({ ref: "VendorItem.vendor", many: true }),
-    purchaseOrders: (0, import_fields95.relationship)({ ref: "PurchaseOrder.vendor", many: true }),
+    notes: (0, import_fields93.text)({ ui: { displayMode: "textarea" } }),
+    items: (0, import_fields93.relationship)({ ref: "VendorItem.vendor", many: true }),
+    purchaseOrders: (0, import_fields93.relationship)({ ref: "PurchaseOrder.vendor", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/VendorItem.ts
-var import_core93 = require("@keystone-6/core");
-var import_fields96 = require("@keystone-6/core/fields");
-var VendorItem = (0, import_core93.list)({
+var import_core91 = require("@keystone-6/core");
+var import_fields94 = require("@keystone-6/core/fields");
+var VendorItem = (0, import_core91.list)({
   access: tenantAccess("canReadPurchasing", "canManagePurchasing", { create: false, update: false, delete: false }),
   hooks: requiredRelationshipHooks("business", "vendor", "variant"),
   ui: {
@@ -6174,11 +6903,11 @@ var VendorItem = (0, import_core93.list)({
   },
   fields: {
     business: businessField(),
-    vendor: (0, import_fields96.relationship)({ ref: "Vendor.items" }),
-    variant: (0, import_fields96.relationship)({ ref: "ProductVariant.vendorItems" }),
-    vendorSku: (0, import_fields96.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields96.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    status: (0, import_fields96.select)({
+    vendor: (0, import_fields94.relationship)({ ref: "Vendor.items" }),
+    variant: (0, import_fields94.relationship)({ ref: "ProductVariant.vendorItems" }),
+    vendorSku: (0, import_fields94.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields94.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    status: (0, import_fields94.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -6189,19 +6918,19 @@ var VendorItem = (0, import_core93.list)({
       validation: { isRequired: true }
     }),
     casePackQuantity: quantityField({ defaultValue: "1.0000", min: "0.0001" }),
-    unitsPerCase: (0, import_fields96.integer)({ defaultValue: 1, validation: { min: 1 } }),
+    unitsPerCase: (0, import_fields94.integer)({ defaultValue: 1, validation: { min: 1 } }),
     unitCostCents: centsField({ defaultValue: 0 }),
-    leadTimeDays: (0, import_fields96.integer)({ defaultValue: 0, validation: { min: 0 } }),
-    purchaseOrderLines: (0, import_fields96.relationship)({ ref: "PurchaseOrderLine.vendorItem", many: true }),
+    leadTimeDays: (0, import_fields94.integer)({ defaultValue: 0, validation: { min: 0 } }),
+    purchaseOrderLines: (0, import_fields94.relationship)({ ref: "PurchaseOrderLine.vendorItem", many: true }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/WasteEvent.ts
-var import_core94 = require("@keystone-6/core");
-var import_fields97 = require("@keystone-6/core/fields");
-var WasteEvent = (0, import_core94.list)({
+var import_core92 = require("@keystone-6/core");
+var import_fields95 = require("@keystone-6/core/fields");
+var WasteEvent = (0, import_core92.list)({
   access: immutableTenantAccess("canReadPreparedFood"),
   hooks: requiredRelationshipHooks("business", "store", "variant", "loggedBy"),
   ui: {
@@ -6220,14 +6949,14 @@ var WasteEvent = (0, import_core94.list)({
   fields: {
     business: businessField(),
     store: storeField(),
-    eventNumber: (0, import_fields97.text)({
+    eventNumber: (0, import_fields95.text)({
       isIndexed: "unique",
       validation: { isRequired: true }
     }),
-    variant: (0, import_fields97.relationship)({ ref: "ProductVariant" }),
-    lot: (0, import_fields97.relationship)({ ref: "InventoryLot" }),
-    prepBatch: (0, import_fields97.relationship)({ ref: "PrepBatch.wasteEvents" }),
-    reason: (0, import_fields97.select)({
+    variant: (0, import_fields95.relationship)({ ref: "ProductVariant" }),
+    lot: (0, import_fields95.relationship)({ ref: "InventoryLot" }),
+    prepBatch: (0, import_fields95.relationship)({ ref: "PrepBatch.wasteEvents" }),
+    reason: (0, import_fields95.select)({
       type: "enum",
       options: [
         { label: "Expired", value: "expired" },
@@ -6242,26 +6971,26 @@ var WasteEvent = (0, import_core94.list)({
     }),
     quantity: quantityField({ min: "0.0001" }),
     costCents: centsField({ defaultValue: 0 }),
-    loggedBy: (0, import_fields97.relationship)({ ref: "Employee" }),
-    occurredAt: (0, import_fields97.timestamp)({
+    loggedBy: (0, import_fields95.relationship)({ ref: "Employee" }),
+    occurredAt: (0, import_fields95.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    notes: (0, import_fields97.text)({ ui: { displayMode: "textarea" } }),
-    ledgerEntries: (0, import_fields97.relationship)({
+    notes: (0, import_fields95.text)({ ui: { displayMode: "textarea" } }),
+    ledgerEntries: (0, import_fields95.relationship)({
       ref: "InventoryLedgerEntry.wasteEvent",
       many: true
     }),
-    idempotency: (0, import_fields97.relationship)({ ref: "IdempotencyKey" }),
+    idempotency: (0, import_fields95.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField(),
     ...trackingFields
   }
 });
 
 // features/keystone/models/WebhookEvent.ts
-var import_core95 = require("@keystone-6/core");
-var import_fields98 = require("@keystone-6/core/fields");
-var WebhookEvent = (0, import_core95.list)({
+var import_core93 = require("@keystone-6/core");
+var import_fields96 = require("@keystone-6/core/fields");
+var WebhookEvent = (0, import_core93.list)({
   access: immutableTenantAccess("canReadIntegrations"),
   hooks: requiredRelationshipHooks("business", "paymentProvider"),
   ui: {
@@ -6270,12 +6999,12 @@ var WebhookEvent = (0, import_core95.list)({
   },
   fields: {
     business: businessField(),
-    paymentProvider: (0, import_fields98.relationship)({ ref: "PaymentProvider" }),
-    externalEventId: (0, import_fields98.text)({ validation: { isRequired: true }, isIndexed: true }),
-    lookupKey: (0, import_fields98.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    eventType: (0, import_fields98.text)({ validation: { isRequired: true }, isIndexed: true }),
-    payloadDigest: (0, import_fields98.text)({ validation: { isRequired: true } }),
-    status: (0, import_fields98.select)({
+    paymentProvider: (0, import_fields96.relationship)({ ref: "PaymentProvider" }),
+    externalEventId: (0, import_fields96.text)({ validation: { isRequired: true }, isIndexed: true }),
+    lookupKey: (0, import_fields96.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    eventType: (0, import_fields96.text)({ validation: { isRequired: true }, isIndexed: true }),
+    payloadDigest: (0, import_fields96.text)({ validation: { isRequired: true } }),
+    status: (0, import_fields96.select)({
       type: "enum",
       options: [
         { label: "Received", value: "received" },
@@ -6287,11 +7016,11 @@ var WebhookEvent = (0, import_core95.list)({
       defaultValue: "received",
       validation: { isRequired: true }
     }),
-    attemptCount: (0, import_fields98.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    receivedAt: (0, import_fields98.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    processedAt: (0, import_fields98.timestamp)(),
-    lastError: (0, import_fields98.text)({ ui: { displayMode: "textarea" } }),
-    idempotency: (0, import_fields98.relationship)({ ref: "IdempotencyKey" }),
+    attemptCount: (0, import_fields96.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    receivedAt: (0, import_fields96.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    processedAt: (0, import_fields96.timestamp)(),
+    lastError: (0, import_fields96.text)({ ui: { displayMode: "textarea" } }),
+    idempotency: (0, import_fields96.relationship)({ ref: "IdempotencyKey" }),
     metadata: metadataField("No raw webhook payloads or credentials"),
     ...trackingFields
   }
@@ -6387,8 +7116,6 @@ var models = {
   ExportDestination,
   ExportBatch,
   ExportLine,
-  OutboxEvent,
-  OutboxAttempt,
   ApiKey,
   AuthenticationThrottle,
   IdempotencyKey,
@@ -6400,7 +7127,38 @@ var models = {
 var import_schema = require("@graphql-tools/schema");
 
 // features/keystone/mutations/alertOperations.ts
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
+
+// features/keystone/lib/idempotency.ts
+var import_node_crypto = require("node:crypto");
+function stableSerialize(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+function normalizeIdempotencyKey(value) {
+  const key = value?.trim() ?? "";
+  if (key.length < 16) {
+    throw new Error("Idempotency key must be at least 16 characters");
+  }
+  if (key.length > 128) {
+    throw new Error("Idempotency key must be at most 128 characters");
+  }
+  if (!/^[A-Za-z0-9._:-]+$/.test(key)) {
+    throw new Error("Idempotency key contains unsupported characters");
+  }
+  return key;
+}
+function buildScopedIdempotencyKey(scope, key) {
+  return (0, import_node_crypto.createHash)("sha256").update(`${scope}:${key}`).digest("hex");
+}
+function fingerprintInput(input) {
+  return (0, import_node_crypto.createHash)("sha256").update(stableSerialize(input)).digest("hex");
+}
 
 // features/keystone/lib/quantity.ts
 var SCALE = 4;
@@ -6449,63 +7207,8 @@ function scaledIntegerToQuantity(value) {
 var QUANTITY_SCALE_FACTOR = SCALE_FACTOR;
 
 // features/keystone/mutations/operationRunner.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 var import_client2 = require("@prisma/client");
-
-// features/keystone/lib/outbox.ts
-function resolveOutboxOutcome(requested, totalAttempts, maxAttempts) {
-  return requested === "retry" && totalAttempts >= maxAttempts ? "dead_letter" : requested;
-}
-function operationOutboxSnapshot(input) {
-  return {
-    eventKey: `operation:${input.idempotencyId}:${input.action}:v1`,
-    topic: `convenience.${input.action}.v1`,
-    schemaVersion: 1,
-    aggregateType: input.resourceType,
-    aggregateId: input.resourceId,
-    action: input.action,
-    payload: {
-      businessId: input.businessId,
-      storeId: input.storeId ?? null,
-      action: input.action,
-      resource: { type: input.resourceType, id: input.resourceId },
-      result: input.result
-    }
-  };
-}
-async function enqueueOperationOutbox(transaction, input) {
-  const snapshot = operationOutboxSnapshot(input);
-  const payloadHash = fingerprintInput(snapshot.payload);
-  const existing = await transaction.outboxEvent.findUnique({
-    where: { eventKey: snapshot.eventKey },
-    select: { id: true, payloadHash: true }
-  });
-  if (existing) {
-    if (existing.payloadHash !== payloadHash) {
-      throw new Error("Outbox event key was reused with different evidence");
-    }
-    return { id: existing.id, created: false };
-  }
-  const event = await transaction.outboxEvent.create({
-    data: {
-      businessId: input.businessId,
-      storeId: input.storeId ?? null,
-      idempotencyId: input.idempotencyId,
-      ...snapshot,
-      payload: snapshot.payload,
-      payloadHash,
-      status: "pending",
-      attempts: 0,
-      totalAttempts: 0,
-      replayCount: 0,
-      maxAttempts: 8,
-      availableAt: /* @__PURE__ */ new Date(),
-      occurredAt: /* @__PURE__ */ new Date()
-    },
-    select: { id: true }
-  });
-  return { id: event.id, created: true };
-}
 
 // features/keystone/lib/operationActor.ts
 async function assertOperationActor({
@@ -6645,8 +7348,18 @@ async function currentRetailSession(prisma, session, businessId, storeId, permis
       }
     });
     if (!key || key.expiresAt !== null && key.expiresAt !== void 0 && key.expiresAt <= /* @__PURE__ */ new Date()) throw new Error("Retail API key is no longer active");
-    fresh.apiKeyScopes = Array.isArray(key.scopes) ? key.scopes.filter((scope) => typeof scope === "string") : [];
-    fresh.apiKeyAllStores = key.allStores;
+    const keyScopes = Array.isArray(key.scopes) ? key.scopes.filter((scope) => typeof scope === "string") : [];
+    const creatorEmployees = await prisma.employee.findMany({
+      where: { userId: session.itemId, businessId, status: "active" },
+      select: { id: true, status: true, business: { select: { id: true, status: true } }, role: true, stores: { select: { id: true, businessId: true } } }
+    });
+    fresh.apiKeyScopes = scopesStillHeldByCreator(keyScopes, businessId, {
+      id: user.id,
+      isPlatformAdmin: user.isPlatformAdmin,
+      platformAdminApprovedAt: user.platformAdminApprovedAt,
+      employees: creatorEmployees
+    });
+    fresh.apiKeyAllStores = key.allStores && Boolean(user.isPlatformAdmin && user.platformAdminApprovedAt);
     fresh.apiKeyStoreIds = key.stores.map((store2) => store2.id);
   } else {
     fresh.data.employees = await prisma.employee.findMany({
@@ -7220,7 +7933,6 @@ async function runIdempotentOperation({
   input,
   resourceType,
   action,
-  emitOutbox = true,
   execute
 }) {
   let session = requireSession(context);
@@ -7433,7 +8145,7 @@ async function runIdempotentOperation({
           data: {
             businessId,
             storeId: storeId ?? null,
-            eventNumber: (0, import_node_crypto3.randomUUID)(),
+            eventNumber: (0, import_node_crypto2.randomUUID)(),
             action,
             resourceType,
             resourceId,
@@ -7451,17 +8163,6 @@ async function runIdempotentOperation({
             }
           }
         });
-        if (emitOutbox) {
-          await enqueueOperationOutbox(transaction, {
-            businessId,
-            storeId,
-            idempotencyId: record.id,
-            action,
-            resourceType,
-            resourceId,
-            result: redactSensitiveValues(snapshot)
-          });
-        }
         return snapshot;
       },
       {
@@ -7585,8 +8286,7 @@ async function evaluateOperationalAlerts(_root, args, context) {
         lots,
         lotterySettlements,
         moneySettlements,
-        paymentReconciliations,
-        deadLetters
+        paymentReconciliations
       ] = await Promise.all([
         boundedPages(
           "Store-day alert source",
@@ -7676,23 +8376,6 @@ async function evaluateOperationalAlerts(_root, args, context) {
               storeId: true,
               reconciliationNumber: true,
               varianceCents: true
-            },
-            ...page(cursor)
-          })
-        ),
-        boundedPages(
-          "Outbox dead-letter alert source",
-          (cursor) => transaction.outboxEvent.findMany({
-            where: {
-              businessId: args.input.businessId,
-              ...args.input.storeId ? { OR: [{ storeId: args.input.storeId }, { storeId: null }] } : {},
-              status: "dead_letter"
-            },
-            select: {
-              id: true,
-              storeId: true,
-              eventKey: true,
-              lastError: true
             },
             ...page(cursor)
           })
@@ -7806,19 +8489,6 @@ async function evaluateOperationalAlerts(_root, args, context) {
           thresholdValue: "0"
         });
       }
-      for (const event of deadLetters) {
-        candidates.push({
-          storeId: event.storeId,
-          type: "integration_failure",
-          severity: "critical",
-          title: `Outbox dead letter \xB7 ${event.eventKey}`,
-          message: event.lastError || "Durable event delivery exhausted its retry policy.",
-          resourceType: "OutboxEvent",
-          resourceId: event.id,
-          observedValue: "dead_letter",
-          thresholdValue: "delivered"
-        });
-      }
       if (candidates.length > 1e4) {
         throw new Error(
           "Operational alert candidates exceed the 10,000-record evaluation write bound"
@@ -7828,7 +8498,7 @@ async function evaluateOperationalAlerts(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId ?? null,
-          evaluationNumber: `ALEV-${(0, import_node_crypto4.randomUUID)()}`,
+          evaluationNumber: `ALEV-${(0, import_node_crypto3.randomUUID)()}`,
           status: "completed",
           evaluatedAt: /* @__PURE__ */ new Date(),
           createdCount: 0,
@@ -7868,7 +8538,7 @@ async function evaluateOperationalAlerts(_root, args, context) {
           data: {
             businessId: args.input.businessId,
             storeId: candidate.storeId,
-            alertNumber: `ALRT-${(0, import_node_crypto4.randomUUID)()}`,
+            alertNumber: `ALRT-${(0, import_node_crypto3.randomUUID)()}`,
             fingerprint,
             type: candidate.type,
             severity: candidate.severity,
@@ -7968,7 +8638,7 @@ async function transitionOperationalAlert(_root, args, context) {
 }
 
 // features/keystone/mutations/apiKeyOperations.ts
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 var import_bcryptjs = __toESM(require("bcryptjs"));
 async function createBusinessApiKey(_root, args, context) {
   const input = args.input;
@@ -8067,8 +8737,8 @@ async function createBusinessApiKey(_root, args, context) {
           }
         }
       }
-      const prefix = (0, import_node_crypto5.randomBytes)(6).toString("hex");
-      plaintextToken = `ofc_${prefix}_${(0, import_node_crypto5.randomBytes)(32).toString("base64url")}`;
+      const prefix = (0, import_node_crypto4.randomBytes)(6).toString("hex");
+      plaintextToken = `ofc_${prefix}_${(0, import_node_crypto4.randomBytes)(32).toString("base64url")}`;
       const secretHash = await import_bcryptjs.default.hash(plaintextToken, 12);
       const apiKey = await transaction.apiKey.create({
         data: {
@@ -8401,61 +9071,7 @@ async function configureBusinessBrand(_root, args, context) {
 }
 
 // features/keystone/mutations/cashOperations.ts
-var import_node_crypto6 = require("node:crypto");
-
-// features/keystone/lib/transitionPolicy.ts
-var REGISTER_SESSION_TRANSITIONS = {
-  open: ["closing", "suspended"],
-  closing: ["closed", "open"],
-  suspended: ["open", "closed"],
-  closed: []
-};
-var PURCHASE_ORDER_TRANSITIONS = {
-  draft: ["submitted", "cancelled"],
-  submitted: ["approved", "cancelled"],
-  approved: ["partially_received", "received", "cancelled"],
-  partially_received: ["received", "cancelled"],
-  received: [],
-  cancelled: []
-};
-var INVENTORY_COUNT_TRANSITIONS = {
-  draft: ["counting", "cancelled"],
-  counting: ["submitted", "cancelled"],
-  submitted: ["approved", "counting", "cancelled"],
-  approved: [],
-  cancelled: []
-};
-var STORE_DAY_TRANSITIONS = {
-  draft: ["in_review"],
-  in_review: ["reconciled", "locked"],
-  reconciled: ["locked", "reopened"],
-  locked: [],
-  reopened: ["in_review", "reconciled", "locked"]
-};
-var FUEL_RECONCILIATION_TRANSITIONS = {
-  draft: ["in_review"],
-  in_review: ["approved", "locked", "disputed"],
-  approved: ["locked", "disputed"],
-  locked: [],
-  disputed: ["in_review"]
-};
-var BANK_DEPOSIT_TRANSITIONS = {
-  prepared: ["in_transit", "deposited", "voided"],
-  in_transit: ["deposited", "voided"],
-  deposited: ["verified"],
-  verified: [],
-  voided: []
-};
-function evaluateTransition(transitions2, currentStatus, nextStatus) {
-  if (currentStatus === nextStatus) return { replay: true };
-  const allowed = transitions2[currentStatus];
-  if (!allowed?.includes(nextStatus)) {
-    throw new Error(`Cannot transition from ${currentStatus} to ${nextStatus}`);
-  }
-  return { replay: false };
-}
-
-// features/keystone/mutations/cashOperations.ts
+var import_node_crypto5 = require("node:crypto");
 function assertCents(value, label) {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${label} must be a non-negative integer number of cents`);
@@ -8503,7 +9119,7 @@ async function openEmployeeShift(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           employeeId: employee.id,
-          shiftNumber: `SHIFT-${(0, import_node_crypto6.randomUUID)()}`,
+          shiftNumber: `SHIFT-${(0, import_node_crypto5.randomUUID)()}`,
           roleSnapshot: args.input.roleSnapshot?.trim() || employee.role?.name || "Employee",
           status: "clocked_in",
           startsAt,
@@ -8631,7 +9247,7 @@ async function openRegisterSession(_root, args, context) {
           registerId: register.id,
           employeeId: employee.id,
           shiftId: args.input.shiftId ?? null,
-          sessionNumber: `REG-${(0, import_node_crypto6.randomUUID)()}`,
+          sessionNumber: `REG-${(0, import_node_crypto5.randomUUID)()}`,
           status: "open",
           openingCashCents: args.input.openingCashCents,
           expectedCashCents: args.input.openingCashCents,
@@ -8834,7 +9450,7 @@ async function closeRegisterSession(_root, args, context) {
 }
 
 // features/keystone/mutations/catalogOperations.ts
-var import_node_crypto7 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 var import_client3 = require("@prisma/client");
 
 // features/keystone/lib/money.ts
@@ -8870,7 +9486,7 @@ function calculateBasisPoints(amountCents, basisPoints) {
   assertBasisPoints(basisPoints);
   return Number(divideAndRound(BigInt(amountCents) * BigInt(basisPoints), 10000n));
 }
-function rateToPpm2(rate, label = "Tax rate") {
+function rateToPpm(rate, label = "Tax rate") {
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
     throw new Error(`${label} must be a fraction from 0 to 1 (0.08875 is 8.875%)`);
   }
@@ -8884,7 +9500,7 @@ function calculateLineAmounts({
   taxInclusive = false
 }) {
   assertCents2(discountCents, "Discount");
-  const taxPpm = rateToPpm2(taxRate);
+  const taxPpm = rateToPpm(taxRate);
   const subtotalCents = multiplyCentsByQuantity(unitPriceCents, quantity);
   if (discountCents > subtotalCents) {
     throw new Error("Discount cannot exceed line subtotal");
@@ -9116,8 +9732,10 @@ async function configureCatalogItem(_root, args, context) {
         unitOfMeasure: args.input.unitOfMeasure,
         defaultPriceCents: args.input.defaultPriceCents,
         costCents: args.input.costCents ?? null,
-        trackInventory: args.input.trackInventory ?? true,
-        allowNegativeInventory: args.input.allowNegativeInventory ?? false
+        // Made-to-order items are not shelf stock (Square/Toast): never tracked, so
+        // they never go negative and never sell out online.
+        trackInventory: args.input.preparedFood ? false : args.input.trackInventory ?? true,
+        allowNegativeInventory: args.input.preparedFood ? false : args.input.allowNegativeInventory ?? false
       };
       const variant = existingVariant ? await transaction.productVariant.update({
         where: { id: existingVariant.id },
@@ -9198,7 +9816,7 @@ async function configureStoreTaxRate(_root, args, context) {
   const jurisdiction = args.input.jurisdiction.trim();
   if (!categoryName || !rateName || !jurisdiction)
     throw new Error("Tax category, rate name, and jurisdiction are required");
-  rateToPpm2(args.input.rate, "Tax rate");
+  rateToPpm(args.input.rate, "Tax rate");
   return runIdempotentOperation({
     context,
     businessId: args.input.businessId,
@@ -9271,7 +9889,8 @@ async function configureStoreTaxRate(_root, args, context) {
       const data = {
         name: rateName,
         jurisdiction,
-        rate: args.input.rate,
+        // Stored on the same parts-per-million grid the money math charges.
+        rate: rateToPpm(args.input.rate) / 1e6,
         inclusive,
         status: "active"
       };
@@ -9412,7 +10031,7 @@ async function configurePromotion(_root, args, context) {
           import_client3.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`promotion:${existing.id}`}))::text AS "locked"`
         );
       }
-      const revision = (0, import_node_crypto7.randomUUID)();
+      const revision = (0, import_node_crypto6.randomUUID)();
       const existingMetadata = existing?.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata) ? existing.metadata : {};
       const promotionData = {
         name,
@@ -9468,24 +10087,24 @@ async function configurePromotion(_root, args, context) {
 }
 
 // features/keystone/mutations/complianceOperations.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto8 = require("node:crypto");
 var import_client5 = require("@prisma/client");
 
 // features/keystone/lib/managerAuthority.ts
-var import_node_crypto8 = require("node:crypto");
+var import_node_crypto7 = require("node:crypto");
 var import_client4 = require("@prisma/client");
 var import_bcryptjs2 = __toESM(require("bcryptjs"));
 var MANAGER_PIN_WINDOW_MS = 10 * 60 * 1e3;
 var MANAGER_TARGET_ATTEMPT_LIMIT = 5;
 var MANAGER_PRINCIPAL_ATTEMPT_LIMIT = 10;
 function digest(value) {
-  return (0, import_node_crypto8.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto7.createHash)("sha256").update(value).digest("hex");
 }
 async function consumeManagerPinAttempt(prisma, keyHash, limit, now) {
   const resetsAt = new Date(now.getTime() + MANAGER_PIN_WINDOW_MS);
   const rows = await prisma.$queryRaw(import_client4.Prisma.sql`
     INSERT INTO "AuthenticationThrottle" ("id", "keyHash", "count", "resetsAt", "createdAt", "updatedAt")
-    VALUES (${(0, import_node_crypto8.randomUUID)()}, ${keyHash}, 1, ${resetsAt}, ${now}, ${now})
+    VALUES (${(0, import_node_crypto7.randomUUID)()}, ${keyHash}, 1, ${resetsAt}, ${now}, ${now})
     ON CONFLICT ("keyHash") DO UPDATE SET
       "count" = CASE
         WHEN "AuthenticationThrottle"."resetsAt" <= ${now} THEN 1
@@ -9513,7 +10132,7 @@ async function recordDeniedManagerPinAttempt(prisma, session, input, actionLabel
     data: {
       businessId: input.businessId,
       storeId: input.storeId,
-      eventNumber: (0, import_node_crypto8.randomUUID)(),
+      eventNumber: (0, import_node_crypto7.randomUUID)(),
       action: "manager_pin.denied",
       resourceType: "Employee",
       resourceId: input.employeeId,
@@ -9944,7 +10563,7 @@ async function verifyRestrictedSaleAge(_root, args, context) {
         data: {
           businessId: input.businessId,
           storeId: input.storeId,
-          verificationNumber: `AGE-${(0, import_node_crypto9.randomUUID)()}`,
+          verificationNumber: `AGE-${(0, import_node_crypto8.randomUUID)()}`,
           policyId: policy.id,
           cartId: input.cartId ?? null,
           saleId: input.saleId ?? null,
@@ -9969,7 +10588,7 @@ async function verifyRestrictedSaleAge(_root, args, context) {
           data: {
             businessId: input.businessId,
             storeId: input.storeId,
-            incidentNumber: `INC-${(0, import_node_crypto9.randomUUID)()}`,
+            incidentNumber: `INC-${(0, import_node_crypto8.randomUUID)()}`,
             incidentType: input.outcome === "overridden" ? "override" : "failed_verification",
             severity: input.outcome === "overridden" ? "medium" : "low",
             status: "open",
@@ -9993,11 +10612,11 @@ async function verifyRestrictedSaleAge(_root, args, context) {
 }
 
 // features/keystone/mutations/exportOperations.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto9 = require("node:crypto");
 function csvCell(value) {
   const source = typeof value === "string" && /^[\t ]*[=+\-@]/.test(value) ? `'${value}` : value;
-  const text97 = String(source);
-  return /[",\r\n]/.test(text97) ? `"${text97.replaceAll('"', '""')}"` : text97;
+  const text95 = String(source);
+  return /[",\r\n]/.test(text95) ? `"${text95.replaceAll('"', '""')}"` : text95;
 }
 function parseTimestamp(value, label) {
   const parsed = new Date(value);
@@ -10047,7 +10666,7 @@ function exportStoreDaySourceDigest(days) {
       cogsCents: line.metadata && typeof line.metadata === "object" && !Array.isArray(line.metadata) && typeof line.metadata.cogsCents === "number" ? line.metadata.cogsCents : 0
     }))
   }));
-  return (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return (0, import_node_crypto9.createHash)("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function metadataStoreDaySourceDigest(metadata) {
   const digest3 = metadata.storeDaySourceDigest;
@@ -10406,14 +11025,14 @@ async function generateDailyAccountingExport(_root, args, context) {
       const artifactSizeBytes = Buffer.byteLength(artifactContent, "utf8");
       if (artifactSizeBytes > 5 * 1024 * 1024)
         throw new Error("Accounting export artifact exceeds 5 MiB");
-      const checksum = (0, import_node_crypto10.createHash)("sha256").update(artifactContent).digest("hex");
+      const checksum = (0, import_node_crypto9.createHash)("sha256").update(artifactContent).digest("hex");
       const artifactFilename = `daily-sales-${periodStartedAt.toISOString().slice(0, 10)}-${checksum.slice(0, 12)}.csv`;
       const batch = await transaction.exportBatch.create({
         data: {
           businessId: args.input.businessId,
           storeId: storeIds.length === 1 ? storeIds[0] : null,
           destinationId: destination.id,
-          batchNumber: `EXPB-${(0, import_node_crypto10.randomUUID)()}`,
+          batchNumber: `EXPB-${(0, import_node_crypto9.randomUUID)()}`,
           type: "daily_sales",
           status: "ready",
           periodStartedAt,
@@ -10518,7 +11137,7 @@ async function downloadExportArtifact(_root, args, context) {
   if (Buffer.byteLength(batch.artifactContent, "utf8") !== batch.artifactSizeBytes) {
     throw new Error("Export artifact size verification failed");
   }
-  const checksum = (0, import_node_crypto10.createHash)("sha256").update(batch.artifactContent).digest("hex");
+  const checksum = (0, import_node_crypto9.createHash)("sha256").update(batch.artifactContent).digest("hex");
   if (checksum !== batch.checksum)
     throw new Error("Export artifact checksum verification failed");
   return {
@@ -10609,7 +11228,7 @@ async function transitionExportBatch(_root, args, context) {
         }
         if (!batch.artifactContent || !batch.artifactFilename)
           throw new Error("Export artifact is missing");
-        const checksum = (0, import_node_crypto10.createHash)("sha256").update(batch.artifactContent).digest("hex");
+        const checksum = (0, import_node_crypto9.createHash)("sha256").update(batch.artifactContent).digest("hex");
         if (checksum !== batch.checksum || Buffer.byteLength(batch.artifactContent, "utf8") !== batch.artifactSizeBytes) {
           throw new Error("Export artifact integrity check failed");
         }
@@ -10660,7 +11279,6 @@ async function setOwnPosPin(_root, args, context) {
     input: args.input,
     resourceType: "Employee",
     action: "employee.pos_pin.set",
-    emitOutbox: false,
     execute: async (transaction) => {
       const employee = await transaction.employee.findFirst({
         where: {
@@ -10689,7 +11307,7 @@ async function setOwnPosPin(_root, args, context) {
 }
 
 // features/keystone/mutations/foodserviceOperations.ts
-var import_node_crypto11 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 var import_client7 = require("@prisma/client");
 
 // features/keystone/lib/recipeUnitPolicy.ts
@@ -11013,7 +11631,7 @@ async function startPrepBatch(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
-          batchNumber: `PREP-${(0, import_node_crypto11.randomUUID)()}`,
+          batchNumber: `PREP-${(0, import_node_crypto10.randomUUID)()}`,
           recipeId: recipe.id,
           status: "in_progress",
           quantityPlanned,
@@ -11224,7 +11842,7 @@ async function completePrepBatch(_root, args, context) {
       if (!Number.isSafeInteger(outputUnitCostCents))
         throw new Error("Prep unit cost exceeds safe integer range");
       const effectiveExpiresAt = args.input.expiresAt ? new Date(args.input.expiresAt) : batch.expiresAt;
-      const lotNumber = args.input.lotNumber?.trim() || `PREP-${(0, import_node_crypto11.randomUUID)()}`;
+      const lotNumber = args.input.lotNumber?.trim() || `PREP-${(0, import_node_crypto10.randomUUID)()}`;
       const lot = await transaction.inventoryLot.create({
         data: {
           businessId: args.input.businessId,
@@ -11262,10 +11880,10 @@ async function completePrepBatch(_root, args, context) {
           occurredAt: now
         }
       });
+      await moveStatus(transaction.prepBatch, PREP_BATCH_TRANSITIONS, { id: batch.id }, batch.status, "completed", {}, "Prep batch");
       const updated = await transaction.prepBatch.update({
         where: { id: batch.id },
         data: {
-          status: "completed",
           quantityMade,
           actualCostCents,
           outputLotId: lot.id,
@@ -11400,7 +12018,7 @@ async function recordWasteEvent(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
-          eventNumber: `WASTE-${(0, import_node_crypto11.randomUUID)()}`,
+          eventNumber: `WASTE-${(0, import_node_crypto10.randomUUID)()}`,
           variantId: variant.id,
           lotId: lotSegments.length === 1 ? lotSegments[0].lotId : null,
           prepBatchId: args.input.prepBatchId ?? null,
@@ -11454,7 +12072,7 @@ async function recordWasteEvent(_root, args, context) {
 }
 
 // features/keystone/mutations/fuelControlOperations.ts
-var import_node_crypto13 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 var import_client8 = require("@prisma/client");
 
 // features/keystone/lib/reconciliation.ts
@@ -11883,7 +12501,7 @@ async function assertStoreDayRegulatedSourcesSettled(transaction, input) {
 }
 
 // features/keystone/lib/sourceSetDigest.ts
-var import_node_crypto12 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 function sourceSetDigest(groups) {
   const normalized = Object.fromEntries(
     Object.entries(groups).sort(([left], [right]) => left.localeCompare(right)).map(([name, values]) => [
@@ -11893,7 +12511,7 @@ function sourceSetDigest(groups) {
       ].sort()
     ])
   );
-  return (0, import_node_crypto12.createHash)("sha256").update(JSON.stringify(normalized)).digest("hex");
+  return (0, import_node_crypto11.createHash)("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
 function metadataSourceSetDigest(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -12158,7 +12776,7 @@ async function setFuelPrice(_root, args, context) {
           storeId: args.input.storeId,
           siteId: site.id,
           gradeId: grade.id,
-          lookupKey: `${site.id}:${grade.id}:${args.input.priceTier}:${effectiveAt.toISOString()}:${(0, import_node_crypto13.randomUUID)()}`,
+          lookupKey: `${site.id}:${grade.id}:${args.input.priceTier}:${effectiveAt.toISOString()}:${(0, import_node_crypto12.randomUUID)()}`,
           priceTier: args.input.priceTier,
           priceMillsPerGallon: args.input.priceMillsPerGallon,
           status: effectiveAt <= /* @__PURE__ */ new Date() ? "active" : "scheduled",
@@ -12244,7 +12862,7 @@ async function recordFuelTankReading(_root, args, context) {
           storeId: args.input.storeId,
           siteId: site.id,
           tankId: tank.id,
-          readingNumber: `FREAD-${(0, import_node_crypto13.randomUUID)()}`,
+          readingNumber: `FREAD-${(0, import_node_crypto12.randomUUID)()}`,
           source: args.input.source,
           volumeGallons: volume,
           waterVolumeGallons: water,
@@ -12451,7 +13069,7 @@ async function generateFuelReconciliation(_root, args, context) {
           storeId: args.input.storeId,
           siteId: args.input.siteId,
           tankId: args.input.tankId,
-          reconciliationNumber: `FREC-${(0, import_node_crypto13.randomUUID)()}`,
+          reconciliationNumber: `FREC-${(0, import_node_crypto12.randomUUID)()}`,
           lookupKey,
           ...data
         }
@@ -12647,14 +13265,14 @@ async function approveFuelReconciliation(_root, args, context) {
 }
 
 // features/keystone/mutations/fuelOperations.ts
-var import_node_crypto16 = require("node:crypto");
+var import_node_crypto15 = require("node:crypto");
 var import_client9 = require("@prisma/client");
 
 // features/integrations/payment/hmac-json-v1.ts
-var import_node_crypto15 = require("node:crypto");
+var import_node_crypto14 = require("node:crypto");
 
 // features/integrations/payment/authority.ts
-var import_node_crypto14 = require("node:crypto");
+var import_node_crypto13 = require("node:crypto");
 function retailPaymentContext(input) {
   return {
     version: 2,
@@ -12679,13 +13297,13 @@ function retailPaymentContext(input) {
     originalTenderEvidenceDigest: input.originalTenderEvidenceDigest ?? null
   };
 }
-function paymentAuthorityMessage(input, timestamp66) {
+function paymentAuthorityMessage(input, timestamp64) {
   const base = [
     input.purpose,
     input.providerPaymentId,
     String(input.amountCents),
     input.currencyCode,
-    timestamp66
+    timestamp64
   ];
   if (!input.context) return base.join("\n");
   const c = input.context;
@@ -12757,12 +13375,12 @@ function verifySignedPaymentAuthority(input, now = /* @__PURE__ */ new Date()) {
     );
   }
   const message = paymentAuthorityMessage(input, match[2]);
-  const expected = (0, import_node_crypto14.createHmac)(
+  const expected = (0, import_node_crypto13.createHmac)(
     "sha256",
     environmentValue(input.credentialReference)
   ).update(message).digest();
   const received = Buffer.from(match[3], "hex");
-  if (received.length !== expected.length || !(0, import_node_crypto14.timingSafeEqual)(received, expected)) {
+  if (received.length !== expected.length || !(0, import_node_crypto13.timingSafeEqual)(received, expected)) {
     throw new Error("Payment authority proof is invalid");
   }
 }
@@ -12856,9 +13474,9 @@ var hmacJsonV1PaymentAdapter = {
     if (Math.abs(now.getTime() - timestampMs) > 5 * 60 * 1e3) {
       throw new Error("Webhook timestamp is outside the five-minute acceptance window");
     }
-    const expected = (0, import_node_crypto15.createHmac)("sha256", environmentValue2(credentialReference)).update(`${timestampText}.${rawBody}`).digest();
+    const expected = (0, import_node_crypto14.createHmac)("sha256", environmentValue2(credentialReference)).update(`${timestampText}.${rawBody}`).digest();
     const received = Buffer.from(signatureText.slice(3), "hex");
-    if (received.length !== expected.length || !(0, import_node_crypto15.timingSafeEqual)(received, expected)) {
+    if (received.length !== expected.length || !(0, import_node_crypto14.timingSafeEqual)(received, expected)) {
       throw new Error("Webhook signature is invalid");
     }
     return parseVerifiedEvent(rawBody);
@@ -12892,16 +13510,175 @@ var manualExternalPaymentAdapter = {
   }
 };
 
+// features/integrations/payment/shared-registry.ts
+var import_stripe = __toESM(require("stripe"));
+
+// features/integrations/payment/stripe-events.ts
+function mapStripeEvent(event) {
+  if (!event || typeof event.id !== "string" || !event.id || typeof event.type !== "string") {
+    throw new Error("Unsupported webhook event");
+  }
+  const object2 = event.data?.object ?? {};
+  const occurredAt = new Date(Number(event.created) * 1e3);
+  const base = { externalEventId: event.id, occurredAt: Number.isFinite(occurredAt.getTime()) ? occurredAt : /* @__PURE__ */ new Date(), failureCode: null };
+  const currency = typeof object2.currency === "string" ? object2.currency.toUpperCase() : null;
+  if (event.type === "payment_intent.succeeded") {
+    return { ...base, eventType: "payment.captured", providerPaymentId: String(object2.id), providerRefundId: null, amountCents: Number.isSafeInteger(object2.amount_received) ? object2.amount_received : null, currencyCode: currency };
+  }
+  if (event.type === "payment_intent.payment_failed") {
+    return { ...base, eventType: "payment.failed", providerPaymentId: String(object2.id), providerRefundId: null, amountCents: null, currencyCode: currency, failureCode: String(object2.last_payment_error?.code ?? "").slice(0, 100) || null };
+  }
+  if (event.type === "charge.refunded") {
+    const refunds = Array.isArray(object2.refunds?.data) ? object2.refunds.data : [];
+    const latest = refunds[0];
+    return {
+      ...base,
+      eventType: "refund.completed",
+      providerPaymentId: typeof object2.payment_intent === "string" ? object2.payment_intent : null,
+      providerRefundId: typeof latest?.id === "string" ? latest.id : null,
+      amountCents: latest && Number.isSafeInteger(latest.amount) ? latest.amount : null,
+      currencyCode: currency
+    };
+  }
+  return null;
+}
+
+// features/integrations/payment/shared-registry.ts
+function noTerminalConfirmation() {
+  throw new Error("This provider settles online and cannot confirm a terminal payment");
+}
+function sharedAdapter(key, supportsWebhooks) {
+  return {
+    key,
+    supportsWebhooks,
+    validateExternalConfirmation: noTerminalConfirmation,
+    validateExternalRefund: noTerminalConfirmation,
+    verifyWebhook({ rawBody, headers }) {
+      if (key !== "stripe") throw new Error("This provider does not accept webhooks");
+      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const secretKey = process.env.STRIPE_SECRET_KEY;
+      const signature = headers.get("stripe-signature");
+      if (!secret || !secretKey) throw new Error("Stripe webhook signature verification is not configured");
+      if (!signature) throw new Error("Webhook signature headers are invalid");
+      let event;
+      try {
+        event = new import_stripe.default(secretKey).webhooks.constructEvent(rawBody, signature, secret);
+      } catch {
+        throw new Error("Webhook signature is invalid");
+      }
+      const mapped = mapStripeEvent(event);
+      if (!mapped) throw new Error("Unsupported webhook event type");
+      return mapped;
+    }
+  };
+}
+var sharedRegistryPaymentAdapters = [
+  sharedAdapter("stripe", true),
+  sharedAdapter("paypal", false),
+  sharedAdapter("manual", false)
+];
+
 // features/integrations/payment/index.ts
-var adapters = /* @__PURE__ */ new Map([
+var paymentProviderAdapters = {
+  stripe: () => Promise.resolve().then(() => (init_stripe(), stripe_exports)),
+  paypal: () => Promise.resolve().then(() => (init_paypal(), paypal_exports)),
+  manual: () => Promise.resolve().then(() => (init_manual(), manual_exports))
+};
+var adapters = new Map([
   [manualExternalPaymentAdapter.key, manualExternalPaymentAdapter],
-  [hmacJsonV1PaymentAdapter.key, hmacJsonV1PaymentAdapter]
+  [hmacJsonV1PaymentAdapter.key, hmacJsonV1PaymentAdapter],
+  ...sharedRegistryPaymentAdapters.map((adapter) => [adapter.key, adapter])
 ]);
 var paymentAdapterKeys = Array.from(adapters.keys()).sort();
 function getPaymentProviderAdapter(key) {
   const adapter = adapters.get(key.trim());
   if (!adapter) throw new Error("Payment provider adapter is not registered");
   return adapter;
+}
+
+// features/keystone/utils/paymentProviderAdapter.ts
+var ADAPTERS = new Set(Object.keys(paymentProviderAdapters));
+var ADAPTER_OPERATIONS = /* @__PURE__ */ new Set(["createPaymentFunction", "capturePaymentFunction", "refundPaymentFunction", "getPaymentStatusFunction", "generatePaymentLinkFunction", "handleWebhookFunction", "cancelPaymentFunction"]);
+function paymentAdapterPayload(provider, args) {
+  const projectedProvider = { id: provider.id, code: provider.code, credentials: provider.credentials || {} };
+  const input = {};
+  for (const key of ["cart", "order", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody"]) {
+    if (args?.[key] !== void 0) input[key] = args[key];
+  }
+  for (const key of ["cart", "order"]) {
+    const record = input[key];
+    if (record && typeof record === "object") {
+      input[key] = Object.fromEntries(["id", "orderNumber", "currencyCode", "subtotalCents", "taxCents", "totalCents", "customerName", "customerEmail", "email"].filter((field) => record[field] !== void 0).map((field) => [field, record[field]]));
+    }
+  }
+  if (input.headers && typeof input.headers === "object") {
+    input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase() === "stripe-signature" || key.toLowerCase().startsWith("paypal-")));
+  }
+  return { ...input, provider: projectedProvider };
+}
+async function executeAdapterFunction({ provider, functionName, args }) {
+  if (!ADAPTER_OPERATIONS.has(functionName)) throw new Error("Unknown payment adapter operation");
+  const functionPath = provider?.[functionName];
+  if (typeof functionPath !== "string") throw new Error("Payment adapter is not configured");
+  const payload = paymentAdapterPayload(provider, args);
+  if (/^https:\/\//i.test(functionPath)) {
+    const endpoint2 = functionPath;
+    try {
+      const response = await fetch(endpoint2, {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(3e4),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error("Payment adapter rejected request");
+      return await response.json();
+    } catch {
+      throw new Error("External payment adapter request failed; reconcile the original attempt before retrying");
+    }
+  }
+  if (!ADAPTERS.has(functionPath)) throw new Error("Unknown registered payment adapter");
+  const adapter = await paymentProviderAdapters[functionPath]();
+  const fn = adapter[functionName];
+  if (typeof fn !== "function") throw new Error("Payment adapter operation is unavailable");
+  try {
+    return await fn(payload);
+  } catch {
+    throw new Error(`Payment adapter ${functionName} failed; reconcile the original attempt before retrying`);
+  }
+}
+async function createPayment({ provider, cart, order, amount, currency, idempotencyKey }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "createPaymentFunction",
+    args: { cart, order, amount, currency, idempotencyKey }
+  });
+}
+async function capturePayment({ provider, paymentId, amount, idempotencyKey }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "capturePaymentFunction",
+    args: { paymentId, amount, idempotencyKey }
+  });
+}
+async function refundPayment({ provider, paymentId, amount, currency, idempotencyKey, refundId }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "refundPaymentFunction",
+    args: { paymentId, amount, currency, idempotencyKey, refundId }
+  });
+}
+async function getPaymentStatus({ provider, paymentId }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "getPaymentStatusFunction",
+    args: { paymentId }
+  });
+}
+async function cancelPayment({ provider, paymentId, idempotencyKey }) {
+  const selector = provider.getPaymentStatusFunction;
+  if (!["stripe", "paypal", "manual"].includes(selector)) throw new Error("External payment adapter cancellation contract is not configured");
+  return executeAdapterFunction({ provider: { ...provider, cancelPaymentFunction: selector }, functionName: "cancelPaymentFunction", args: { paymentId, idempotencyKey } });
 }
 
 // features/keystone/mutations/fuelOperations.ts
@@ -12990,7 +13767,7 @@ async function recordFuelDelivery(_root, args, context) {
           siteId: site.id,
           tankId: tank.id,
           vendorId: args.input.vendorId ?? null,
-          deliveryNumber: `FDEL-${(0, import_node_crypto16.randomUUID)()}`,
+          deliveryNumber: `FDEL-${(0, import_node_crypto15.randomUUID)()}`,
           billOfLadingNumber: args.input.billOfLadingNumber?.trim() || "",
           status: "reconciled",
           grossVolumeGallons: grossVolume,
@@ -13016,7 +13793,7 @@ async function recordFuelDelivery(_root, args, context) {
           storeId: args.input.storeId,
           siteId: site.id,
           tankId: tank.id,
-          readingNumber: `FREAD-${(0, import_node_crypto16.randomUUID)()}`,
+          readingNumber: `FREAD-${(0, import_node_crypto15.randomUUID)()}`,
           source: "delivery",
           volumeGallons: measuredAfter,
           waterVolumeGallons: tank.waterVolumeGallons,
@@ -13154,7 +13931,7 @@ async function authorizeFuelPayment(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
-          receiptNumber: `FSALE-${(0, import_node_crypto16.randomUUID)()}`,
+          receiptNumber: `FSALE-${(0, import_node_crypto15.randomUUID)()}`,
           source: "api",
           status: "completed",
           currencyCode: site.store.currencyCode,
@@ -13331,7 +14108,7 @@ async function cancelFuelPaymentAuthorization(_root, args, context) {
           storeId: args.input.storeId,
           saleId: sale.id,
           originalTenderId: tender.id,
-          refundNumber: `FREF-${(0, import_node_crypto16.randomUUID)()}`,
+          refundNumber: `FREF-${(0, import_node_crypto15.randomUUID)()}`,
           status: "completed",
           reason: "service_recovery",
           amountCents: tender.amountCents,
@@ -13387,14 +14164,17 @@ async function cancelFuelPaymentAuthorization(_root, args, context) {
           }
         });
       }
-      await transaction.tender.update({
-        where: { id: tender.id },
+      evaluateTransition(TENDER_TRANSITIONS, tender.status, "refunded");
+      evaluateTransition(SALE_TRANSITIONS, sale.status, "refunded");
+      const tenderMoved = await transaction.tender.updateMany({
+        where: { id: tender.id, status: tender.status },
         data: { status: "refunded", refundedCents: tender.amountCents }
       });
-      await transaction.sale.update({
-        where: { id: sale.id },
+      const saleMoved = await transaction.sale.updateMany({
+        where: { id: sale.id, status: sale.status },
         data: { status: "refunded", refundedCents: sale.totalCents }
       });
+      if (tenderMoved.count !== 1 || saleMoved.count !== 1) throw new Error("Fuel payment changed during cancellation; refresh and retry");
       return {
         id: refund.id,
         status: refund.status,
@@ -13618,7 +14398,7 @@ async function completeFuelTransaction(_root, args, context) {
           pumpId: nozzle.pump.id,
           nozzleId: nozzle.id,
           gradeId: args.input.gradeId,
-          transactionNumber: `FTXN-${(0, import_node_crypto16.randomUUID)()}`,
+          transactionNumber: `FTXN-${(0, import_node_crypto15.randomUUID)()}`,
           controllerTransactionId,
           status: "completed",
           volumeGallons: volume,
@@ -13645,7 +14425,7 @@ async function completeFuelTransaction(_root, args, context) {
             storeId: args.input.storeId,
             saleId: sale.id,
             originalTenderId: tender.id,
-            refundNumber: `FREF-${(0, import_node_crypto16.randomUUID)()}`,
+            refundNumber: `FREF-${(0, import_node_crypto15.randomUUID)()}`,
             status: "completed",
             reason: "service_recovery",
             amountCents: unusedAuthorizationCents,
@@ -13707,20 +14487,23 @@ async function completeFuelTransaction(_root, args, context) {
             }
           });
         }
-        await transaction.tender.update({
-          where: { id: tender.id },
+        evaluateTransition(TENDER_TRANSITIONS, tender.status, "partially_refunded");
+        evaluateTransition(SALE_TRANSITIONS, sale.status, "partially_refunded");
+        const tenderMoved = await transaction.tender.updateMany({
+          where: { id: tender.id, status: tender.status },
           data: {
             status: "partially_refunded",
             refundedCents: unusedAuthorizationCents
           }
         });
-        await transaction.sale.update({
-          where: { id: sale.id },
+        const saleMoved = await transaction.sale.updateMany({
+          where: { id: sale.id, status: sale.status },
           data: {
             status: "partially_refunded",
             refundedCents: unusedAuthorizationCents
           }
         });
+        if (tenderMoved.count !== 1 || saleMoved.count !== 1) throw new Error("Fuel payment changed during the dispense; refresh and retry");
       }
       await transaction.fuelTank.update({
         where: { id: nozzle.tank.id },
@@ -13753,7 +14536,7 @@ async function completeFuelTransaction(_root, args, context) {
 
 // features/keystone/mutations/heartbeatOperations.ts
 async function recordOperationalHeartbeat(_root, args, context) {
-  if (!["outbox", "alerts", "backup"].includes(args.input.kind))
+  if (!["alerts", "backup"].includes(args.input.kind))
     throw new Error("Heartbeat kind is invalid");
   if (!["healthy", "failed"].includes(args.input.status))
     throw new Error("Heartbeat status is invalid");
@@ -13809,7 +14592,7 @@ async function recordOperationalHeartbeat(_root, args, context) {
 }
 
 // features/keystone/mutations/inventoryOperations.ts
-var import_node_crypto17 = require("node:crypto");
+var import_node_crypto16 = require("node:crypto");
 async function startInventoryCount(_root, args, context) {
   const variantIds = [
     ...new Set(args.input.variantIds?.filter(Boolean) ?? [])
@@ -13871,7 +14654,7 @@ async function startInventoryCount(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           locationId: location.id,
-          countNumber: `COUNT-${(0, import_node_crypto17.randomUUID)()}`,
+          countNumber: `COUNT-${(0, import_node_crypto16.randomUUID)()}`,
           type: args.input.type,
           status: "counting",
           startedAt: now,
@@ -14062,7 +14845,7 @@ async function receivePurchaseOrder(_root, args, context) {
           storeId: args.input.storeId,
           purchaseOrderId: purchaseOrder.id,
           vendorId: purchaseOrder.vendorId,
-          receivingNumber: `RCV-${(0, import_node_crypto17.randomUUID)()}`,
+          receivingNumber: `RCV-${(0, import_node_crypto16.randomUUID)()}`,
           vendorDocumentNumber: args.input.vendorDocumentNumber?.trim() || "",
           status: "posted",
           receivedAt: now,
@@ -14115,7 +14898,7 @@ async function receivePurchaseOrder(_root, args, context) {
           }
         });
         if (compareQuantities(lineInput.quantityAccepted, "0") > 0) {
-          const lotNumber = lineInput.lotNumber?.trim() || `LOT-${(0, import_node_crypto17.randomUUID)()}`;
+          const lotNumber = lineInput.lotNumber?.trim() || `LOT-${(0, import_node_crypto16.randomUUID)()}`;
           const lot = await transaction.inventoryLot.create({
             data: {
               businessId: args.input.businessId,
@@ -14309,7 +15092,7 @@ async function postInventoryAdjustment(_root, args, context) {
       const positive = compareQuantities(quantityDelta, "0") > 0;
       const segments = [];
       if (positive) {
-        const lotNumber = args.input.lotNumber?.trim() || `ADJ-${(0, import_node_crypto17.randomUUID)()}`;
+        const lotNumber = args.input.lotNumber?.trim() || `ADJ-${(0, import_node_crypto16.randomUUID)()}`;
         const lot = await transaction.inventoryLot.create({
           data: {
             businessId: args.input.businessId,
@@ -14534,7 +15317,7 @@ async function approveInventoryCount(_root, args, context) {
         if (compareQuantities(variance, "0") > 0) {
           if (line.unitCostCents == null)
             throw new Error("Count increase is missing its accepted unit cost");
-          const lotNumber = line.lotNumber?.trim() || `COUNT-${(0, import_node_crypto17.randomUUID)()}`;
+          const lotNumber = line.lotNumber?.trim() || `COUNT-${(0, import_node_crypto16.randomUUID)()}`;
           const lot = await transaction.inventoryLot.create({
             data: {
               businessId: args.input.businessId,
@@ -14638,7 +15421,7 @@ async function approveInventoryCount(_root, args, context) {
 }
 
 // features/keystone/mutations/lotteryOperations.ts
-var import_node_crypto18 = require("node:crypto");
+var import_node_crypto17 = require("node:crypto");
 function assertCents3(value, label) {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${label} must be a non-negative integer number of cents`);
@@ -14797,7 +15580,7 @@ async function receiveLotteryPack(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           packId: pack.id,
-          eventNumber: `LEVT-${(0, import_node_crypto18.randomUUID)()}`,
+          eventNumber: `LEVT-${(0, import_node_crypto17.randomUUID)()}`,
           type: "received",
           firstTicketNumber: args.input.firstTicketNumber,
           lastTicketNumber: args.input.lastTicketNumber,
@@ -14864,7 +15647,7 @@ async function activateLotteryPack(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           packId: pack.id,
-          eventNumber: `LEVT-${(0, import_node_crypto18.randomUUID)()}`,
+          eventNumber: `LEVT-${(0, import_node_crypto17.randomUUID)()}`,
           type: "activated",
           quantity: 0,
           amountCents: 0,
@@ -14975,7 +15758,7 @@ async function recordLotteryPackSale(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           packId: pack.id,
-          eventNumber: `LEVT-${(0, import_node_crypto18.randomUUID)()}`,
+          eventNumber: `LEVT-${(0, import_node_crypto17.randomUUID)()}`,
           type: "sale_range",
           firstTicketNumber: args.input.firstTicketNumber,
           lastTicketNumber: args.input.lastTicketNumber,
@@ -15072,7 +15855,7 @@ async function closeLotteryPack(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           packId: pack.id,
-          eventNumber: `LEVT-${(0, import_node_crypto18.randomUUID)()}`,
+          eventNumber: `LEVT-${(0, import_node_crypto17.randomUUID)()}`,
           type: returned ? "returned" : "void_range",
           firstTicketNumber: pack.currentTicketNumber,
           lastTicketNumber: pack.lastTicketNumber,
@@ -15221,7 +16004,7 @@ async function generateLotterySettlement(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
-          settlementNumber: `LSET-${(0, import_node_crypto18.randomUUID)()}`,
+          settlementNumber: `LSET-${(0, import_node_crypto17.randomUUID)()}`,
           lookupKey,
           tradingDate,
           ...data
@@ -15388,7 +16171,7 @@ async function approveLotterySettlement(_root, args, context) {
             businessId: args.input.businessId,
             storeId: args.input.storeId,
             packId: pack.id,
-            eventNumber: `LEVT-${(0, import_node_crypto18.randomUUID)()}`,
+            eventNumber: `LEVT-${(0, import_node_crypto17.randomUUID)()}`,
             type: "settled",
             quantity: 0,
             amountCents: 0,
@@ -15418,7 +16201,7 @@ async function approveLotterySettlement(_root, args, context) {
 }
 
 // features/keystone/mutations/loyaltyOperations.ts
-var import_node_crypto19 = require("node:crypto");
+var import_node_crypto18 = require("node:crypto");
 var import_client10 = require("@prisma/client");
 function remainingPointBuckets(entries, asOf) {
   const buckets = [];
@@ -15594,7 +16377,7 @@ async function enrollLoyaltyAccount(_root, args, context) {
           businessId: args.input.businessId,
           programId: program.id,
           userId: args.input.userId ?? null,
-          accountNumber: `LOY-${(0, import_node_crypto19.randomUUID)()}`,
+          accountNumber: `LOY-${(0, import_node_crypto18.randomUUID)()}`,
           lookupKey,
           email,
           phone,
@@ -15849,7 +16632,7 @@ async function adjustLoyaltyPoints(_root, args, context) {
 }
 
 // features/keystone/mutations/moneyServiceOperations.ts
-var import_node_crypto20 = require("node:crypto");
+var import_node_crypto19 = require("node:crypto");
 var serviceTypes = [
   "money_order",
   "money_transfer",
@@ -15865,7 +16648,7 @@ function assertCents4(value, label, allowNegative = false) {
     );
   }
 }
-function timestamp65(value, label) {
+function timestamp63(value, label) {
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.getTime()))
     throw new Error(`${label} must be a valid ISO timestamp`);
@@ -15982,7 +16765,7 @@ async function recordExternalMoneyServiceTransaction(_root, args, context) {
       "A cash-direction transaction requires a positive cash amount"
     );
   }
-  const occurredAt = timestamp65(
+  const occurredAt = timestamp63(
     args.input.occurredAt,
     "Money-service transaction time"
   );
@@ -16052,7 +16835,7 @@ async function recordExternalMoneyServiceTransaction(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           providerId: provider.id,
-          transactionNumber: `MSTX-${(0, import_node_crypto20.randomUUID)()}`,
+          transactionNumber: `MSTX-${(0, import_node_crypto19.randomUUID)()}`,
           externalTransactionReference: externalReference2,
           lookupKey,
           serviceType: args.input.serviceType,
@@ -16224,11 +17007,11 @@ async function voidExternalMoneyServiceTransaction(_root, args, context) {
 }
 async function generateMoneyServiceSettlement(_root, args, context) {
   const tradingDate = normalizeTradingDate(args.input.tradingDate);
-  const periodStartedAt = timestamp65(
+  const periodStartedAt = timestamp63(
     args.input.periodStartedAt,
     "Settlement period start"
   );
-  const periodEndedAt = timestamp65(
+  const periodEndedAt = timestamp63(
     args.input.periodEndedAt,
     "Settlement period end"
   );
@@ -16366,7 +17149,7 @@ async function generateMoneyServiceSettlement(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           providerId: provider.id,
-          settlementNumber: `MSST-${(0, import_node_crypto20.randomUUID)()}`,
+          settlementNumber: `MSST-${(0, import_node_crypto19.randomUUID)()}`,
           lookupKey,
           tradingDate,
           ...data
@@ -16524,7 +17307,7 @@ async function approveMoneyServiceSettlement(_root, args, context) {
 }
 
 // features/keystone/mutations/onboardConvenienceBusiness.ts
-var import_node_crypto21 = require("node:crypto");
+var import_node_crypto20 = require("node:crypto");
 var import_client11 = require("@prisma/client");
 
 // features/platform/onboarding/lib/seed.json
@@ -16556,14 +17339,35 @@ var seed_default = {
     }
   },
   inventoryLocations: [
-    { name: "Sales Floor", code: "sales-floor", type: "sales_floor" },
-    { name: "Back Room", code: "back-room", type: "back_room" }
+    {
+      name: "Sales Floor",
+      code: "sales-floor",
+      type: "sales_floor"
+    },
+    {
+      name: "Back Room",
+      code: "back-room",
+      type: "back_room"
+    }
   ],
-  register: { name: "Register 1", code: "register-1" },
-  priceBook: { name: "Default Retail", code: "default-retail", priority: 100 },
+  register: {
+    name: "Register 1",
+    code: "register-1"
+  },
+  priceBook: {
+    name: "Default Retail",
+    code: "default-retail",
+    priority: 100
+  },
   taxCategories: [
-    { name: "Standard", code: "standard" },
-    { name: "Exempt", code: "exempt" }
+    {
+      name: "Standard",
+      code: "standard"
+    },
+    {
+      name: "Exempt",
+      code: "exempt"
+    }
   ],
   demoCategories: [
     {
@@ -16658,6 +17462,138 @@ var seed_default = {
       barcode: "2000000000068",
       defaultPriceCents: 329,
       preparedFood: false
+    },
+    {
+      title: "Cold Brew Coffee",
+      summary: "Smooth, slow-steeped black cold brew.",
+      handle: "cold-brew-coffee",
+      categoryCode: "cold-drinks",
+      variantTitle: "11 fl oz bottle",
+      sku: "BEV-COLDBREW-11",
+      barcode: "2000000001012",
+      defaultPriceCents: 349,
+      preparedFood: false
+    },
+    {
+      title: "Orange Juice",
+      summary: "Not-from-concentrate orange juice.",
+      handle: "orange-juice",
+      categoryCode: "cold-drinks",
+      variantTitle: "12 fl oz bottle",
+      sku: "BEV-OJ-12",
+      barcode: "2000000001029",
+      defaultPriceCents: 299,
+      preparedFood: false
+    },
+    {
+      title: "Spring Water",
+      summary: "Still spring water.",
+      handle: "spring-water",
+      categoryCode: "cold-drinks",
+      variantTitle: "1 L bottle",
+      sku: "BEV-WATER-1L",
+      barcode: "2000000001036",
+      defaultPriceCents: 159,
+      preparedFood: false
+    },
+    {
+      title: "Trail Mix",
+      summary: "Peanuts, raisins, almonds and chocolate pieces.",
+      handle: "trail-mix",
+      categoryCode: "snacks-pantry",
+      variantTitle: "6 oz bag",
+      sku: "SNK-TRAIL-6",
+      barcode: "2000000001043",
+      defaultPriceCents: 449,
+      preparedFood: false
+    },
+    {
+      title: "Dark Chocolate Bar",
+      summary: "70% cacao dark chocolate.",
+      handle: "dark-chocolate-bar",
+      categoryCode: "snacks-pantry",
+      variantTitle: "3.5 oz bar",
+      sku: "SNK-CHOC-DARK",
+      barcode: "2000000001050",
+      defaultPriceCents: 299,
+      preparedFood: false
+    },
+    {
+      title: "Instant Oatmeal Cup",
+      summary: "Maple and brown sugar oats; just add hot water.",
+      handle: "instant-oatmeal-cup",
+      categoryCode: "snacks-pantry",
+      variantTitle: "1.9 oz cup",
+      sku: "PAN-OATS-CUP",
+      barcode: "2000000001067",
+      defaultPriceCents: 199,
+      preparedFood: false
+    },
+    {
+      title: "Cafe Latte",
+      summary: "Espresso with steamed milk.",
+      handle: "cafe-latte",
+      categoryCode: "coffee-bar",
+      variantTitle: "16 oz cup",
+      sku: "CAF-LATTE-16",
+      barcode: "2000000001074",
+      defaultPriceCents: 399,
+      preparedFood: true
+    },
+    {
+      title: "Blueberry Muffin",
+      summary: "Baked fresh each morning.",
+      handle: "blueberry-muffin",
+      categoryCode: "coffee-bar",
+      variantTitle: "Each",
+      sku: "BAK-MUFFIN-BLU",
+      barcode: "2000000001081",
+      defaultPriceCents: 279,
+      preparedFood: true
+    },
+    {
+      title: "Chicken Caesar Salad",
+      summary: "Romaine, grilled chicken, parmesan and croutons.",
+      handle: "chicken-caesar-salad",
+      categoryCode: "prepared-food",
+      variantTitle: "Each",
+      sku: "FOOD-CAESAR",
+      barcode: "2000000001098",
+      defaultPriceCents: 749,
+      preparedFood: true
+    },
+    {
+      title: "Paper Towels",
+      summary: "Two-ply select-a-size rolls.",
+      handle: "paper-towels",
+      categoryCode: "everyday-essentials",
+      variantTitle: "2 rolls",
+      sku: "HH-TOWEL-2",
+      barcode: "2000000001104",
+      defaultPriceCents: 549,
+      preparedFood: false
+    },
+    {
+      title: "AA Batteries",
+      summary: "Alkaline batteries.",
+      handle: "aa-batteries",
+      categoryCode: "everyday-essentials",
+      variantTitle: "4 pack",
+      sku: "HH-BATT-AA4",
+      barcode: "2000000001111",
+      defaultPriceCents: 699,
+      preparedFood: false
+    },
+    {
+      title: "Large Eggs",
+      summary: "Grade A large eggs.",
+      handle: "large-eggs",
+      categoryCode: "everyday-essentials",
+      variantTitle: "Dozen",
+      sku: "DAIRY-EGGS-12",
+      barcode: "2000000001128",
+      defaultPriceCents: 449,
+      preparedFood: false
     }
   ],
   paymentProvider: {
@@ -16683,6 +17619,22 @@ var seed_default = {
     tankCapacityGallons: "10000.0000",
     pumpNumber: "1",
     nozzleNumber: "1"
+  },
+  sampleForm: {
+    businessName: "Cedar & Main Market",
+    businessCode: "cedar-main-market",
+    storeName: "Cedar & Main Market",
+    storeCode: "main",
+    timezone: "America/New_York",
+    currencyCode: "USD",
+    standardTaxPercent: "8.875",
+    addressLine1: "1847 Cedar Avenue",
+    city: "Brookfield",
+    stateProvince: "NY",
+    postalCode: "10000",
+    phone: "(212) 555-0184",
+    storefrontStatus: "published",
+    includeDemoCatalog: "on"
   }
 };
 
@@ -16694,7 +17646,7 @@ function validateInput(input) {
   const storeCode = input.storeCode.trim().toLowerCase();
   const timezone = input.timezone?.trim() || "America/New_York";
   const currencyCode = (input.currencyCode?.trim() || "USD").toUpperCase();
-  const standardTaxRate = input.standardTaxRate ?? 0;
+  const rawStandardTaxRate = input.standardTaxRate ?? 0;
   if (!businessName || !storeName) throw new Error("Business and store names are required");
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: timezone });
@@ -16704,9 +17656,10 @@ function validateInput(input) {
   if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(businessCode)) throw new Error("Business code must be a lowercase slug between 2 and 63 characters");
   if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(storeCode)) throw new Error("Store code must be a lowercase slug");
   if (!/^[A-Z]{3}$/.test(currencyCode)) throw new Error("Currency code must be a three-letter ISO 4217 code");
-  if (!Number.isFinite(standardTaxRate) || standardTaxRate < 0 || standardTaxRate > 1) {
+  if (!Number.isFinite(rawStandardTaxRate) || rawStandardTaxRate < 0 || rawStandardTaxRate > 1) {
     throw new Error("Standard tax must be between 0 and 100 percent");
   }
+  const standardTaxRate = rateToPpm(rawStandardTaxRate) / 1e6;
   const seedTheme = getStorefrontThemePreset(seed_default.storefront.themePreset);
   if (!seedTheme) throw new Error("Onboarding storefront theme is invalid");
   const brandName = input.brandName?.trim() || businessName;
@@ -16767,6 +17720,12 @@ function validateInput(input) {
     storefrontStatus
   };
 }
+function resolveLogo(input) {
+  const rawIcon = input.logoIcon?.trim();
+  const logoIcon = rawIcon ? sanitizeStoreLogoSvg(rawIcon) : DEFAULT_STORE_LOGO_ICON;
+  if (rawIcon && !logoIcon) throw new Error("Invalid SVG format");
+  return { logoIcon, logoColor: normalizeStoreLogoColor(input.logoColor ?? DEFAULT_STORE_LOGO_COLOR) };
+}
 function metadataObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
@@ -16774,6 +17733,7 @@ async function onboardConvenienceBusiness(_root, args, context) {
   const session = requireSession(context);
   if (session.apiKeyId) throw new Error("Machine sessions cannot run onboarding");
   const input = validateInput(args.input);
+  const logo = resolveLogo(args.input);
   const normalizedKey = normalizeIdempotencyKey(args.input.idempotencyKey);
   const legacyRequestDigest = fingerprintInput({
     businessName: input.businessName,
@@ -16874,9 +17834,9 @@ async function onboardConvenienceBusiness(_root, args, context) {
         brandMark: input.brandMark,
         brandPrimaryColor: input.brandPrimaryColor,
         brandAccentColor: input.brandAccentColor,
-        // As E-commerce onboarding: a fresh store starts with the default logo and hue.
-        logoIcon: DEFAULT_STORE_LOGO_ICON,
-        logoColor: DEFAULT_STORE_LOGO_COLOR,
+        // As E-commerce onboarding: the template's logo, or the default logo and hue.
+        logoIcon: logo.logoIcon,
+        logoColor: logo.logoColor,
         storefrontMode: input.storefrontMode,
         storefrontStatus: input.storefrontStatus,
         status: "active",
@@ -17070,9 +18030,10 @@ async function onboardConvenienceBusiness(_root, args, context) {
             title: productSeed.variantTitle,
             status: "active",
             defaultPriceCents: productSeed.defaultPriceCents,
-            // Demo items track stock but may go negative until real stock is received.
-            trackInventory: true,
-            allowNegativeInventory: true,
+            // Shelf goods are counted and stop selling online at zero; made-to-order coffee and
+            // food are not shelf stock, so they are untracked (as Square/Toast treat prepared items).
+            trackInventory: !productSeed.preparedFood,
+            allowNegativeInventory: false,
             metadata: { demo: true }
           },
           create: {
@@ -17085,8 +18046,8 @@ async function onboardConvenienceBusiness(_root, args, context) {
             sellBy: "unit",
             unitOfMeasure: "each",
             defaultPriceCents: productSeed.defaultPriceCents,
-            trackInventory: true,
-            allowNegativeInventory: true,
+            trackInventory: !productSeed.preparedFood,
+            allowNegativeInventory: false,
             metadata: { demo: true }
           }
         });
@@ -17273,7 +18234,7 @@ async function onboardConvenienceBusiness(_root, args, context) {
         data: {
           businessId: business.id,
           storeId: store.id,
-          eventNumber: (0, import_node_crypto21.randomUUID)(),
+          eventNumber: (0, import_node_crypto20.randomUUID)(),
           action: "business.onboard",
           resourceType: "Business",
           resourceId: business.id,
@@ -17286,18 +18247,9 @@ async function onboardConvenienceBusiness(_root, args, context) {
           occurredAt: /* @__PURE__ */ new Date()
         }
       });
-      await enqueueOperationOutbox(transaction, {
-        businessId: business.id,
-        storeId: store.id,
-        idempotencyId: idempotency.id,
-        action: "business.onboard",
-        resourceType: "Business",
-        resourceId: business.id,
-        result: snapshot
-      });
     }
     return { ...snapshot, replayed: Boolean(priorIdempotency) };
-  }, { isolationLevel: import_client11.Prisma.TransactionIsolationLevel.Serializable }).catch((error) => {
+  }, { isolationLevel: import_client11.Prisma.TransactionIsolationLevel.Serializable, maxWait: 1e4, timeout: 6e4 }).catch((error) => {
     const code2 = error?.code;
     if (input.storefrontStatus === "published" && (code2 === "P2002" || code2 === "P2034")) {
       throw new Error(
@@ -17309,7 +18261,7 @@ async function onboardConvenienceBusiness(_root, args, context) {
 }
 
 // features/keystone/mutations/offlineOperations.ts
-var import_node_crypto23 = require("node:crypto");
+var import_node_crypto22 = require("node:crypto");
 
 // features/keystone/lib/offlineReplay.ts
 function offlineOperationRequestDigest(input) {
@@ -17369,7 +18321,8 @@ function createOfflineReplayTransactionContext(context, transaction) {
 }
 
 // features/keystone/mutations/posOperations.ts
-var import_node_crypto22 = require("node:crypto");
+var import_node_crypto21 = require("node:crypto");
+var import_graphql2 = require("graphql");
 var import_client12 = require("@prisma/client");
 
 // features/keystone/lib/retailPricing.ts
@@ -17565,7 +18518,7 @@ async function createPosCart(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: store.id,
-          cartNumber: `CART-${(0, import_node_crypto22.randomUUID)()}`,
+          cartNumber: `CART-${(0, import_node_crypto21.randomUUID)()}`,
           source: "pos",
           status: "open",
           currencyCode: store.currencyCode,
@@ -17897,22 +18850,11 @@ async function transitionPosCart(_root, args, context) {
       if (cart.status === args.input.nextStatus) {
         return { id: cart.id, status: cart.status, reference: cart.cartNumber };
       }
-      const allowed = {
-        open: ["held", "voided", "abandoned"],
-        held: ["open", "voided", "abandoned"],
-        converted: [],
-        voided: [],
-        abandoned: []
-      };
-      if (!allowed[cart.status]?.includes(args.input.nextStatus)) {
-        throw new Error(
-          `Cannot transition cart from ${cart.status} to ${args.input.nextStatus}`
-        );
-      }
+      if (args.input.nextStatus === "converted") throw new import_graphql2.GraphQLError("A cart converts only by completing its sale", { extensions: { code: "TRANSITION_REFUSED" } });
+      await moveStatus(transaction.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, args.input.nextStatus, {}, "Cart");
       const updated = await transaction.cart.update({
         where: { id: cart.id },
         data: {
-          status: args.input.nextStatus,
           metadata: {
             ...cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {},
             transitionReason: args.input.reason?.trim() || null
@@ -18447,7 +19389,7 @@ async function completePosSale(_root, args, context) {
         data: {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
-          receiptNumber: `SALE-${(0, import_node_crypto22.randomUUID)()}`,
+          receiptNumber: `SALE-${(0, import_node_crypto21.randomUUID)()}`,
           source: cart.source,
           status: "completed",
           currencyCode: cart.currencyCode,
@@ -18771,10 +19713,10 @@ async function completePosSale(_root, args, context) {
           });
         }
       }
+      await moveStatus(transaction.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", {}, "Cart");
       await transaction.cart.update({
         where: { id: cart.id },
         data: {
-          status: "converted",
           subtotalCents,
           discountCents,
           taxCents,
@@ -19618,7 +20560,7 @@ async function recordOfflineReplayBatch(_root, args, context) {
           data: {
             businessId: args.input.businessId,
             storeId: args.input.storeId,
-            alertNumber: `ALT-${(0, import_node_crypto23.randomUUID)()}`,
+            alertNumber: `ALT-${(0, import_node_crypto22.randomUUID)()}`,
             fingerprint: `offline:${device.id}:${batch.id}`,
             type: "offline_conflict",
             severity: "critical",
@@ -19655,7 +20597,24 @@ async function recordOfflineReplayBatch(_root, args, context) {
 }
 
 // features/keystone/mutations/paymentOperations.ts
-var import_node_crypto24 = require("node:crypto");
+var import_node_crypto23 = require("node:crypto");
+
+// features/keystone/utils/paymentProviderConfig.ts
+var stripePublishableKey = () => process.env.NEXT_PUBLIC_STRIPE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || "";
+function isPaymentProviderConfigured(selector) {
+  if (selector === "stripe") return Boolean(stripePublishableKey() && process.env.STRIPE_SECRET_KEY);
+  if (selector === "paypal") return Boolean(process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+  return selector === "manual";
+}
+function getPublicPaymentProviderConfig(selector) {
+  if (selector === "stripe" && isPaymentProviderConfigured("stripe")) {
+    return { provider: "stripe", publishableKey: stripePublishableKey() };
+  }
+  return null;
+}
+
+// features/keystone/mutations/paymentOperations.ts
+var SHARED_PROVIDER_KEYS = ["stripe", "paypal", "manual"];
 function dateTime(value, label) {
   const result = new Date(value);
   if (!value.trim() || !Number.isFinite(result.getTime()))
@@ -19675,6 +20634,10 @@ async function configurePaymentProvider(_root, args, context) {
   const adapter = getPaymentProviderAdapter(args.input.adapterKey);
   assertOpaqueSecretReference(args.input.credentialReference ?? null);
   assertNoInlineSecrets(args.input.configuration ?? {});
+  const shared = SHARED_PROVIDER_KEYS.includes(adapter.key);
+  if (shared && args.input.activate && !isPaymentProviderConfigured(adapter.key)) {
+    throw new Error(`${adapter.key} credentials are not configured on the server; save the provider as configured only`);
+  }
   return runIdempotentOperation({
     context,
     businessId: args.input.businessId,
@@ -19694,11 +20657,14 @@ async function configurePaymentProvider(_root, args, context) {
         code: code2,
         adapterKey: adapter.key,
         status: args.input.activate ? "active" : "configured",
-        createPaymentFunction: "external_confirmation",
-        capturePaymentFunction: "external_confirmation",
-        refundPaymentFunction: "external_confirmation",
-        getPaymentStatusFunction: "external_confirmation",
-        handleWebhookFunction: adapter.supportsWebhooks ? "signed_webhook" : "manual",
+        // Shared providers dispatch every operation through the shared registry by key;
+        // terminal providers keep the domain external-confirmation selectors.
+        createPaymentFunction: shared ? adapter.key : "external_confirmation",
+        capturePaymentFunction: shared ? adapter.key : "external_confirmation",
+        refundPaymentFunction: shared ? adapter.key : "external_confirmation",
+        getPaymentStatusFunction: shared ? adapter.key : "external_confirmation",
+        generatePaymentLinkFunction: shared ? adapter.key : "",
+        handleWebhookFunction: shared ? adapter.key : adapter.supportsWebhooks ? "signed_webhook" : "manual",
         credentialReference: args.input.credentialReference?.trim() || "",
         configuration: args.input.configuration ?? {}
       };
@@ -19912,7 +20878,7 @@ async function generatePaymentReconciliation(_root, args, context) {
         data: {
           ...data,
           lookupKey,
-          reconciliationNumber: `PAYREC-${(0, import_node_crypto24.randomUUID)()}`
+          reconciliationNumber: `PAYREC-${(0, import_node_crypto23.randomUUID)()}`
         }
       });
       if (existing) {
@@ -20149,289 +21115,6 @@ async function approvePaymentReconciliation(_root, args, context) {
         id: updated.id,
         status: updated.status,
         reference: updated.reconciliationNumber
-      };
-    }
-  });
-}
-
-// features/keystone/mutations/outboxOperations.ts
-var import_node_crypto25 = require("node:crypto");
-var import_client14 = require("@prisma/client");
-function normalizeWorkerId(value) {
-  const workerId = value.trim();
-  if (!/^[A-Za-z0-9._:-]{3,100}$/.test(workerId)) {
-    throw new Error(
-      "Outbox worker ID must be 3-100 safe identifier characters"
-    );
-  }
-  return workerId;
-}
-function normalizeLeaseToken(value) {
-  const token = value.trim();
-  if (!/^[A-Za-z0-9_-]{43}$/.test(token))
-    throw new Error("Outbox lease token is invalid");
-  return token;
-}
-function outboxLeaseOwner(session, leaseToken) {
-  const principal = session.apiKeyId ? `api-key:${session.apiKeyId}` : `user:${session.itemId}`;
-  return `v1:${(0, import_node_crypto25.createHash)("sha256").update(`${principal}:${leaseToken}`).digest("hex")}`;
-}
-async function claimOutboxEvents(_root, args, context) {
-  const session = requireSession(context);
-  assertBusinessPermission(
-    session,
-    args.input.businessId,
-    "canManageIntegrations"
-  );
-  const workerId = normalizeWorkerId(args.input.workerId);
-  const leaseToken = (0, import_node_crypto25.randomBytes)(32).toString("base64url");
-  const leaseOwner = outboxLeaseOwner(session, leaseToken);
-  const unrestrictedStores = hasUnrestrictedStoreAccess(session);
-  const allowedStoreIds = unrestrictedStores ? [] : storeIdsForPermission(
-    session,
-    "canManageIntegrations",
-    args.input.businessId
-  );
-  if (!unrestrictedStores && !allowedStoreIds.length)
-    return { workerId, leaseToken, events: [] };
-  const storePredicate = unrestrictedStores ? import_client14.Prisma.empty : import_client14.Prisma.sql`AND "store" IN (${import_client14.Prisma.join(allowedStoreIds)})`;
-  const limit = Math.max(1, Math.min(100, Math.floor(args.input.limit ?? 25)));
-  const now = /* @__PURE__ */ new Date();
-  const staleBefore = new Date(now.getTime() - 5 * 60 * 1e3);
-  const ids = await context.prisma.$transaction(
-    async (transaction) => {
-      const rows = await transaction.$queryRaw(import_client14.Prisma.sql`
-      SELECT "id", "status", "totalAttempts"
-      FROM "OutboxEvent"
-      WHERE "business" = ${args.input.businessId}
-        ${storePredicate}
-        AND (
-          ("status" IN ('pending', 'retry') AND "availableAt" <= ${now})
-          OR ("status" = 'processing' AND "lockedAt" < ${staleBefore})
-        )
-      ORDER BY "createdAt" ASC, "id" ASC
-      LIMIT ${limit}
-      FOR UPDATE SKIP LOCKED
-    `);
-      for (const row of rows) {
-        if (row.status === "processing") {
-          await transaction.outboxAttempt.updateMany({
-            where: {
-              eventId: row.id,
-              attemptNumber: row.totalAttempts,
-              outcome: "processing"
-            },
-            data: {
-              outcome: "abandoned",
-              finishedAt: now,
-              error: "Outbox lease expired before completion"
-            }
-          });
-        }
-        const attemptNumber = row.totalAttempts + 1;
-        const claimed = await transaction.outboxEvent.updateMany({
-          where: { id: row.id, businessId: args.input.businessId },
-          data: {
-            status: "processing",
-            attempts: { increment: 1 },
-            totalAttempts: { increment: 1 },
-            lockedAt: now,
-            lockOwner: leaseOwner
-          }
-        });
-        if (claimed.count !== 1) throw new Error("Outbox claim was lost");
-        await transaction.outboxAttempt.create({
-          data: {
-            businessId: args.input.businessId,
-            eventId: row.id,
-            attemptKey: `${row.id}:${attemptNumber}`,
-            attemptNumber,
-            workerId,
-            outcome: "processing",
-            startedAt: now
-          }
-        });
-      }
-      return rows.map((row) => row.id);
-    },
-    { isolationLevel: import_client14.Prisma.TransactionIsolationLevel.ReadCommitted }
-  );
-  if (!ids.length) return { workerId, leaseToken, events: [] };
-  const events = await context.prisma.outboxEvent.findMany({
-    where: {
-      id: { in: ids },
-      businessId: args.input.businessId,
-      status: "processing",
-      lockOwner: leaseOwner
-    },
-    select: {
-      id: true,
-      eventKey: true,
-      topic: true,
-      schemaVersion: true,
-      aggregateType: true,
-      aggregateId: true,
-      action: true,
-      payload: true,
-      payloadHash: true,
-      totalAttempts: true
-    },
-    orderBy: { createdAt: "asc" }
-  });
-  return { workerId, leaseToken, events };
-}
-async function assertOutboxAccess(context, businessId, eventId, session) {
-  const event = await context.prisma.outboxEvent.findFirst({
-    where: { id: eventId, businessId },
-    select: { storeId: true }
-  });
-  if (!event) throw new Error("Outbox event not found");
-  if (event.storeId) {
-    assertStorePermission(
-      session,
-      businessId,
-      event.storeId,
-      "canManageIntegrations"
-    );
-  } else if (!hasUnrestrictedStoreAccess(session)) {
-    throw new Error(
-      "Store-scoped principals cannot process business-wide events"
-    );
-  }
-}
-async function completeOutboxEvent(_root, args, context) {
-  const workerId = normalizeWorkerId(args.input.workerId);
-  const leaseToken = normalizeLeaseToken(args.input.leaseToken);
-  const session = requireSession(context);
-  const leaseOwner = outboxLeaseOwner(session, leaseToken);
-  await assertOutboxAccess(
-    context,
-    args.input.businessId,
-    args.input.eventId,
-    session
-  );
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.min(86400, Math.floor(args.input.retryAfterSeconds ?? 60))
-  );
-  return runIdempotentOperation({
-    context,
-    businessId: args.input.businessId,
-    permission: "canManageIntegrations",
-    scope: "completeOutboxEvent",
-    idempotencyKey: args.input.idempotencyKey,
-    input: { ...args.input, workerId, retryAfterSeconds },
-    resourceType: "OutboxEvent",
-    action: "outbox.complete",
-    emitOutbox: false,
-    execute: async (transaction) => {
-      const event = await transaction.outboxEvent.findFirst({
-        where: { id: args.input.eventId, businessId: args.input.businessId }
-      });
-      if (!event) throw new Error("Outbox event not found");
-      if (event.status === args.input.outcome) {
-        return {
-          id: event.id,
-          status: event.status,
-          reference: event.eventKey
-        };
-      }
-      if (event.status !== "processing" || event.lockOwner !== leaseOwner) {
-        throw new Error("Outbox event is not leased by this worker");
-      }
-      const now = /* @__PURE__ */ new Date();
-      const outcome = resolveOutboxOutcome(
-        args.input.outcome,
-        event.totalAttempts,
-        event.maxAttempts
-      );
-      const attempt = await transaction.outboxAttempt.updateMany({
-        where: {
-          eventId: event.id,
-          attemptNumber: event.totalAttempts,
-          workerId,
-          outcome: "processing"
-        },
-        data: {
-          outcome,
-          finishedAt: now,
-          error: args.input.error?.trim() || ""
-        }
-      });
-      if (attempt.count !== 1)
-        throw new Error("Outbox attempt evidence is missing");
-      const updated = await transaction.outboxEvent.update({
-        where: { id: event.id },
-        data: {
-          status: outcome,
-          availableAt: outcome === "retry" ? new Date(now.getTime() + retryAfterSeconds * 1e3) : event.availableAt,
-          deliveredAt: outcome === "delivered" ? now : event.deliveredAt,
-          deadLetteredAt: outcome === "dead_letter" ? now : null,
-          lastError: args.input.error?.trim() || "",
-          lockedAt: null,
-          lockOwner: ""
-        }
-      });
-      return {
-        id: updated.id,
-        status: updated.status,
-        reference: updated.eventKey
-      };
-    }
-  });
-}
-async function replayOutboxEvent(_root, args, context) {
-  const session = requireSession(context);
-  await assertOutboxAccess(
-    context,
-    args.input.businessId,
-    args.input.eventId,
-    session
-  );
-  return runIdempotentOperation({
-    context,
-    businessId: args.input.businessId,
-    permission: "canManageIntegrations",
-    scope: "replayOutboxEvent",
-    idempotencyKey: args.input.idempotencyKey,
-    input: args.input,
-    resourceType: "OutboxEvent",
-    action: "outbox.replay",
-    emitOutbox: false,
-    execute: async (transaction) => {
-      const event = await transaction.outboxEvent.findFirst({
-        where: { id: args.input.eventId, businessId: args.input.businessId }
-      });
-      if (!event) throw new Error("Outbox event not found");
-      if (event.status === "pending") {
-        return {
-          id: event.id,
-          status: event.status,
-          reference: event.eventKey
-        };
-      }
-      if (!(event.status === "retry" || event.status === "dead_letter")) {
-        throw new Error(
-          "Only retry or dead-letter outbox events can be replayed"
-        );
-      }
-      const updated = await transaction.outboxEvent.update({
-        where: { id: event.id },
-        data: {
-          status: "pending",
-          attempts: 0,
-          replayCount: { increment: 1 },
-          availableAt: /* @__PURE__ */ new Date(),
-          lockedAt: null,
-          lockOwner: "",
-          deadLetteredAt: null,
-          lastError: ""
-        }
-      });
-      return {
-        id: updated.id,
-        status: updated.status,
-        reference: updated.eventKey
       };
     }
   });
@@ -20935,8 +21618,8 @@ function shortRef(code2) {
   return `${REFERENCE_WORDS[match[1].toUpperCase()] ?? match[1]} ${match[2].toUpperCase()}`;
 }
 function quantityText(value) {
-  const text97 = String(value ?? "");
-  return /^-?\d+\.\d+$/.test(text97) ? text97.replace(/\.?0+$/, "") : text97;
+  const text95 = String(value ?? "");
+  return /^-?\d+\.\d+$/.test(text95) ? text95.replace(/\.?0+$/, "") : text95;
 }
 
 // features/platform/lib/form-values.ts
@@ -21059,8 +21742,8 @@ function formatCents(cents, currency) {
   }
 }
 function humanStatus(status) {
-  const text97 = (status ?? "").replaceAll("_", " ").trim();
-  return text97 ? text97[0].toUpperCase() + text97.slice(1) : "";
+  const text95 = (status ?? "").replaceAll("_", " ").trim();
+  return text95 ? text95[0].toUpperCase() + text95.slice(1) : "";
 }
 async function lateActivityByStoreDay(context, scope, days) {
   const late = /* @__PURE__ */ new Map();
@@ -23752,7 +24435,7 @@ async function conveniencePlatformProjection(_root, args, context) {
     }));
   }
   if (surface === "recovery") {
-    const [devices, batches, outbox, apiKeys] = await Promise.all([
+    const [devices, batches, apiKeys] = await Promise.all([
       context.prisma.offlineDevice.findMany({
         where: scope,
         select: {
@@ -23778,21 +24461,6 @@ async function conveniencePlatformProjection(_root, args, context) {
         },
         orderBy: { receivedAt: "desc" },
         take: limit
-      }),
-      context.prisma.outboxEvent.findMany({
-        where: {
-          businessId,
-          ...unrestrictedStores ? { OR: [{ storeId }, { storeId: null }] } : { storeId }
-        },
-        select: {
-          id: true,
-          eventKey: true,
-          topic: true,
-          status: true,
-          lastError: true
-        },
-        orderBy: { occurredAt: "desc" },
-        take: 500
       }),
       context.prisma.apiKey.findMany({
         where: {
@@ -23821,11 +24489,6 @@ async function conveniencePlatformProjection(_root, args, context) {
       label: entry.name,
       detail: entry.keyPrefix
     }));
-    controls.outboxEvents = outbox.filter((entry) => entry.status === "dead_letter").map((entry) => ({
-      id: entry.id,
-      label: entry.eventKey,
-      detail: `${entry.topic} \xB7 ${entry.lastError || "delivery failed"}`
-    }));
     metrics = [
       metric(
         "Active devices",
@@ -23838,12 +24501,6 @@ async function conveniencePlatformProjection(_root, args, context) {
         batches.reduce((sum, entry) => sum + entry.conflictCount, 0),
         "Server-evidence mismatches",
         "critical"
-      ),
-      metric(
-        "Outbox dead letters",
-        outbox.filter((entry) => entry.status === "dead_letter").length,
-        "Eligible for controlled replay",
-        "attention"
       )
     ];
     rows = batches.map((entry) => ({
@@ -24333,8 +24990,8 @@ async function configureInventoryLocation(_root, args, context) {
 }
 
 // features/keystone/mutations/pricingOperations.ts
-var import_node_crypto26 = require("node:crypto");
-var import_client15 = require("@prisma/client");
+var import_node_crypto24 = require("node:crypto");
+var import_client14 = require("@prisma/client");
 async function setRetailPrice(_root, args, context) {
   if (!Number.isSafeInteger(args.input.amountCents) || args.input.amountCents < 0) {
     throw new Error("Retail price must be non-negative integer cents");
@@ -24361,7 +25018,7 @@ async function setRetailPrice(_root, args, context) {
     action: "pricing.entry.set",
     execute: async (transaction, idempotencyId) => {
       await transaction.$queryRaw(
-        import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`retail-price:${args.input.priceBookId}:${args.input.variantId}:${minQuantity}`}))::text AS "locked"`
+        import_client14.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`retail-price:${args.input.priceBookId}:${args.input.variantId}:${minQuantity}`}))::text AS "locked"`
       );
       const [priceBook, variant] = await Promise.all([
         transaction.priceBook.findFirst({
@@ -24422,7 +25079,7 @@ async function setRetailPrice(_root, args, context) {
             businessId: args.input.businessId,
             priceBookId: priceBook.id,
             variantId: variant.id,
-            lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${endsAt.toISOString()}:${(0, import_node_crypto26.randomUUID)()}`,
+            lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${endsAt.toISOString()}:${(0, import_node_crypto24.randomUUID)()}`,
             amountCents: continuationSource.amountCents,
             minQuantity: continuationSource.minQuantity,
             maxQuantity: continuationSource.maxQuantity,
@@ -24442,7 +25099,7 @@ async function setRetailPrice(_root, args, context) {
           businessId: args.input.businessId,
           priceBookId: priceBook.id,
           variantId: variant.id,
-          lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${startsAt.toISOString()}:${(0, import_node_crypto26.randomUUID)()}`,
+          lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${startsAt.toISOString()}:${(0, import_node_crypto24.randomUUID)()}`,
           amountCents: args.input.amountCents,
           minQuantity,
           status: "active",
@@ -24457,7 +25114,7 @@ async function setRetailPrice(_root, args, context) {
 }
 
 // features/keystone/mutations/purchasingOperations.ts
-var import_node_crypto27 = require("node:crypto");
+var import_node_crypto25 = require("node:crypto");
 function lineTotalCents(unitCostCents, quantity) {
   if (!Number.isSafeInteger(unitCostCents) || unitCostCents < 0) {
     throw new Error("Purchase-order unit cost must be non-negative integer cents");
@@ -24642,7 +25299,7 @@ async function draftPurchaseOrder(_root, args, context) {
           businessId: args.input.businessId,
           storeId: store.id,
           vendorId: vendor.id,
-          poNumber: `PO-${(0, import_node_crypto27.randomUUID)()}`,
+          poNumber: `PO-${(0, import_node_crypto25.randomUUID)()}`,
           status: "draft",
           currencyCode: store.currencyCode,
           subtotalCents,
@@ -24745,7 +25402,7 @@ async function transitionPurchaseOrder(_root, args, context) {
 }
 
 // features/keystone/mutations/reconciliationOperations.ts
-var import_node_crypto28 = require("node:crypto");
+var import_node_crypto26 = require("node:crypto");
 function parseTimestamp3(value, label) {
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.getTime()))
@@ -25691,7 +26348,7 @@ async function prepareBankDeposit(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           storeDayId: storeDay.id,
-          depositNumber: `DEP-${(0, import_node_crypto28.randomUUID)()}`,
+          depositNumber: `DEP-${(0, import_node_crypto26.randomUUID)()}`,
           status: "prepared",
           currencyCode: storeDay.currencyCode,
           expectedAmountCents: expectedAvailable,
@@ -25998,14 +26655,15 @@ async function convenienceReportingSummary(_root, args, context) {
 }
 
 // features/keystone/mutations/refundOperations.ts
-var import_node_crypto29 = require("node:crypto");
-var import_client17 = require("@prisma/client");
+var import_node_crypto27 = require("node:crypto");
+var import_graphql3 = require("graphql");
+var import_client16 = require("@prisma/client");
 
 // features/keystone/lib/saleRefundVoidLock.ts
-var import_client16 = require("@prisma/client");
+var import_client15 = require("@prisma/client");
 async function lockSaleRefundOrVoid(transaction, input) {
   await transaction.$queryRaw(
-    import_client16.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${input.businessId}:${input.storeId}:${input.saleId}`}))::text AS "locked"`
+    import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${input.businessId}:${input.storeId}:${input.saleId}`}))::text AS "locked"`
   );
 }
 
@@ -26196,7 +26854,19 @@ async function refundPosSale(_root, args, context) {
           loyaltyEntries: { where: { type: "earned" } }
         }
       });
-      if (!sale || !sale.store) throw new Error("Refundable sale not found");
+      if (!sale || !sale.store) {
+        const existing = await transaction.sale.findFirst({
+          where: { id: args.input.saleId, businessId: args.input.businessId, storeId: args.input.storeId },
+          select: { status: true }
+        });
+        if (existing) {
+          throw new import_graphql3.GraphQLError(
+            existing.status === "refunded" ? "This sale has already been fully refunded" : `A sale that is ${existing.status.replace(/_/g, " ")} cannot be refunded`,
+            { extensions: { code: "TRANSITION_REFUSED" } }
+          );
+        }
+        throw new import_graphql3.GraphQLError("Refundable sale not found", { extensions: { code: "NOT_FOUND" } });
+      }
       const ownershipScope = {
         businessId: args.input.businessId,
         storeId: args.input.storeId,
@@ -26216,7 +26886,7 @@ async function refundPosSale(_root, args, context) {
       }
       if (sale.loyaltyAccountId) {
         await transaction.$queryRaw(
-          import_client17.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
+          import_client16.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
         );
       }
       const loyaltyAccount = sale.loyaltyAccountId ? await transaction.loyaltyAccount.findFirst({
@@ -26330,7 +27000,7 @@ async function refundPosSale(_root, args, context) {
         0
       );
       if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > sale.totalCents - sale.refundedCents)
-        throw new Error("Calculated refund must be positive and within the remaining sale total");
+        throw new import_graphql3.GraphQLError("Calculated refund must be positive and within the remaining sale total", { extensions: { code: "REFUND_EXCEEDS_SALE" } });
       const allocationInputs = requestedAllocations.length ? requestedAllocations : [
         {
           tenderId: args.input.originalTenderId,
@@ -26377,7 +27047,7 @@ async function refundPosSale(_root, args, context) {
           )
         );
       }
-      const plannedAllocations = allocationInputs.map((allocation) => {
+      const plannedAllocations = await Promise.all(allocationInputs.map(async (allocation) => {
         const tender = tenders.find(
           (candidate) => candidate.id === allocation.tenderId
         );
@@ -26402,6 +27072,25 @@ async function refundPosSale(_root, args, context) {
             allocation,
             refundedBeforeCents,
             providerLookupKey: null,
+            confirmationContext: null
+          };
+        }
+        if (tender.paymentProvider && tender.paymentProvider.businessId === args.input.businessId && tender.paymentProvider.status === "active" && tender.paymentProvider.refundPaymentFunction === "stripe" && /^(pi|ch)_/.test(tender.providerPaymentId) && !allocation.providerAuthority) {
+          const result = await refundPayment({
+            provider: tender.paymentProvider,
+            paymentId: tender.providerPaymentId,
+            amount: allocation.amountCents,
+            currency: sale.currencyCode,
+            idempotencyKey: `convenience-refund:${args.input.businessId}:${args.input.idempotencyKey}:${tender.id}`
+          });
+          if (!result?.refundId || !["succeeded", "pending"].includes(result.status) || result.amount !== allocation.amountCents) {
+            throw new Error("Stripe did not accept the card refund; nothing was recorded");
+          }
+          return {
+            tender,
+            allocation: { ...allocation, providerRefundId: String(result.refundId) },
+            refundedBeforeCents,
+            providerLookupKey: `${tender.paymentProvider.id}:${result.refundId}`,
             confirmationContext: null
           };
         }
@@ -26452,7 +27141,7 @@ async function refundPosSale(_root, args, context) {
           providerLookupKey: `${tender.paymentProvider.id}:${reference.providerPaymentId}`,
           confirmationContext
         };
-      });
+      }));
       const refundReferences = /* @__PURE__ */ new Set();
       for (const planned of plannedAllocations) {
         if (!planned.providerLookupKey) continue;
@@ -26476,7 +27165,7 @@ async function refundPosSale(_root, args, context) {
           storeId: args.input.storeId,
           saleId: sale.id,
           originalTenderId: plannedAllocations[0].tender.id,
-          refundNumber: `REF-${(0, import_node_crypto29.randomUUID)()}`,
+          refundNumber: `REF-${(0, import_node_crypto27.randomUUID)()}`,
           status: "completed",
           reason: args.input.reason,
           amountCents,
@@ -26520,7 +27209,7 @@ async function refundPosSale(_root, args, context) {
           storeId: args.input.storeId,
           saleId: sale.id,
           refundId: refund.id,
-          returnNumber: `RET-${(0, import_node_crypto29.randomUUID)()}`,
+          returnNumber: `RET-${(0, import_node_crypto27.randomUUID)()}`,
           status: "completed",
           reason: args.input.returnReason ?? "unwanted",
           requestedById: employee.id,
@@ -26794,9 +27483,31 @@ async function refundPosSale(_root, args, context) {
       }
       const saleRefundedCents = sale.refundedCents + amountCents;
       const saleStatus = saleRefundedCents >= sale.totalCents ? "refunded" : "partially_refunded";
+      evaluateTransition(SALE_TRANSITIONS, sale.status, saleStatus);
+      for (const planned of plannedAllocations) {
+        const tender = planned.tender;
+        const already = refundedByTender.get(tender.id) ?? 0;
+        const after = already + planned.allocation.amountCents;
+        const tenderNext = after >= tender.amountCents ? "refunded" : "partially_refunded";
+        if (tender.status !== tenderNext) evaluateTransition(TENDER_TRANSITIONS, tender.status, tenderNext);
+        const moved = await transaction.tender.updateMany({
+          where: { id: tender.id, status: tender.status },
+          data: { status: tenderNext, refundedCents: after }
+        });
+        if (moved.count !== 1) throw new Error("Tender changed during the refund; refresh and retry");
+        refundedByTender.set(tender.id, after);
+        tender.status = tenderNext;
+      }
+      const saleMoved = await transaction.sale.updateMany({ where: { id: sale.id, status: sale.status }, data: { refundedCents: saleRefundedCents } });
+      if (saleMoved.count !== 1) throw new Error("Sale changed during the refund; refresh and retry");
       await transaction.sale.update({
         where: { id: sale.id },
-        data: { refundedCents: saleRefundedCents, status: saleStatus }
+        // A fully refunded online order is no longer collectable, so it leaves the pickup queue.
+        data: {
+          refundedCents: saleRefundedCents,
+          status: saleStatus,
+          ...saleStatus === "refunded" && sale.pickupStatus === "ready_for_pickup" ? { pickupStatus: "none" } : {}
+        }
       });
       if (loyaltyAccount && sale.totalCents > 0) {
         const earnedPoints = sale.loyaltyEntries.reduce(
@@ -26857,7 +27568,7 @@ async function refundPosSale(_root, args, context) {
 }
 
 // features/keystone/mutations/sessionOperations.ts
-var import_node_crypto30 = require("node:crypto");
+var import_node_crypto28 = require("node:crypto");
 async function revokeCurrentUserSessions(_root, _args, context) {
   const session = requireSession(context);
   if (session.apiKeyId) throw new Error("Machine sessions cannot revoke human sessions");
@@ -26873,7 +27584,7 @@ async function revokeCurrentUserSessions(_root, _args, context) {
         data: {
           businessId: employee.businessId,
           storeId: employee.stores[0]?.id ?? null,
-          eventNumber: (0, import_node_crypto30.randomUUID)(),
+          eventNumber: (0, import_node_crypto28.randomUUID)(),
           action: "session.revoke_current_user",
           resourceType: "User",
           resourceId: user.id,
@@ -26891,7 +27602,7 @@ async function revokeCurrentUserSessions(_root, _args, context) {
 }
 
 // features/keystone/mutations/saleLifecycleOperations.ts
-var import_client18 = require("@prisma/client");
+var import_client17 = require("@prisma/client");
 var MAX_RECEIPT_LINES = 250;
 var MAX_RECEIPT_TENDERS = 50;
 var MAX_RECEIPT_REFUNDS = 100;
@@ -27068,7 +27779,7 @@ async function voidCompletedPosSale(_root, args, context) {
       if (!sale) throw new Error("Sale not found for this register session");
       if (sale.loyaltyAccountId) {
         await transaction.$queryRaw(
-          import_client18.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
+          import_client17.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
         );
       }
       const loyaltyAccount = sale.loyaltyAccountId ? await transaction.loyaltyAccount.findFirst({
@@ -27258,10 +27969,12 @@ async function voidCompletedPosSale(_root, args, context) {
         where: { id: sale.registerSessionId },
         data: { expectedCashCents: { decrement: cashTotalCents } }
       });
-      await transaction.tender.updateMany({
-        where: { saleId: sale.id },
-        data: { status: "cancelled" }
-      });
+      for (const tender of sale.tenders) {
+        await moveStatus(transaction.tender, TENDER_TRANSITIONS, { id: tender.id }, tender.status, "cancelled", {}, "Tender");
+      }
+      evaluateTransition(SALE_TRANSITIONS, sale.status, "voided");
+      const saleVoided = await transaction.sale.updateMany({ where: { id: sale.id, status: "completed" }, data: { voidedAt: now } });
+      if (saleVoided.count !== 1) throw new Error("Sale changed during the void; refresh and retry");
       const updated = await transaction.sale.update({
         where: { id: sale.id },
         data: {
@@ -27284,7 +27997,7 @@ async function voidCompletedPosSale(_root, args, context) {
 }
 
 // features/keystone/mutations/transferOperations.ts
-var import_node_crypto31 = require("node:crypto");
+var import_node_crypto29 = require("node:crypto");
 var transitions = {
   draft: ["approved", "cancelled"],
   approved: ["shipped", "cancelled"],
@@ -27403,7 +28116,7 @@ async function draftInventoryTransfer(_root, args, context) {
       const transfer = await transaction.inventoryTransfer.create({
         data: {
           businessId: args.input.businessId,
-          transferNumber: `XFER-${(0, import_node_crypto31.randomUUID)()}`,
+          transferNumber: `XFER-${(0, import_node_crypto29.randomUUID)()}`,
           status: "draft",
           sourceStoreId: sourceStore.id,
           destinationStoreId: destinationStore.id,
@@ -27740,9 +28453,44 @@ async function redirectToInit(_root, _args, context) {
 }
 var redirectToInit_default = redirectToInit;
 
-// features/keystone/mutations/storefrontOperations.ts
-var import_node_crypto32 = require("node:crypto");
+// features/keystone/mutations/pickupOperations.ts
+var import_node_crypto31 = require("node:crypto");
 var import_client19 = require("@prisma/client");
+var import_graphql5 = require("graphql");
+
+// features/keystone/lib/pickupPolicy.ts
+function assertPickupEligible(lines) {
+  if (!lines.length) throw new Error("Your basket is empty");
+  for (const line of lines) {
+    const product = line.variant?.product;
+    if (!line.variant || !product || line.variant.status !== "active" || product.status !== "active") {
+      throw new Error("An item in your basket is no longer available");
+    }
+    if (product.regulatedSaleType !== "none" || line.ageRestricted || (product.minimumAge ?? 0) > 0) {
+      throw new Error("Age-restricted items can only be bought in store");
+    }
+  }
+}
+function pickupRevision(lines, totalCents) {
+  return fingerprintInput({
+    totalCents,
+    lines: [...lines].sort((a, b) => a.id.localeCompare(b.id)).map((line) => [line.id, line.variantId, line.quantity.toString(), line.totalCents])
+  });
+}
+function assertPaymentMatches(expected, actual) {
+  if (!Number.isSafeInteger(expected.amountCents) || expected.amountCents <= 0) throw new Error("Order total is invalid");
+  if (!Number.isSafeInteger(actual.amountCents) || actual.amountCents !== expected.amountCents) {
+    throw new Error("Payment amount does not match the order total");
+  }
+  if (typeof actual.currencyCode !== "string" || actual.currencyCode.toUpperCase() !== expected.currencyCode.toUpperCase()) {
+    throw new Error("Payment currency does not match the order currency");
+  }
+}
+
+// features/keystone/mutations/storefrontOperations.ts
+var import_graphql4 = require("graphql");
+var import_node_crypto30 = require("node:crypto");
+var import_client18 = require("@prisma/client");
 async function publishedStore(db) {
   const businesses = await db.business.findMany({ where: { status: "active", storefrontStatus: "published" }, include: { storefrontStore: true }, take: 2 });
   const business = businesses.length === 1 ? businesses[0] : null;
@@ -27785,7 +28533,7 @@ async function storefrontCatalog(_root, args, context) {
   const [products, total, categories] = await Promise.all([
     context.prisma.product.findMany({
       where,
-      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
+      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, allowNegativeInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
       take: CATALOG_PAGE_SIZE,
       skip: (page - 1) * CATALOG_PAGE_SIZE,
       orderBy: { title: "asc" }
@@ -27800,22 +28548,23 @@ async function storefrontCatalog(_root, args, context) {
   ]);
   const now = /* @__PURE__ */ new Date();
   const images = await mainImages(context, products.map((product) => product.id));
-  return { currency: store.currencyCode, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map((entry) => entry.name), products: await Promise.all(products.map(async (product) => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2e3), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async (variant) => {
+  const onlinePickup = Boolean(await context.prisma.paymentProvider.findFirst({ where: { businessId: business.id, status: "active", createPaymentFunction: "stripe" }, select: { id: true } })) && isPaymentProviderConfigured("stripe");
+  return { currency: store.currencyCode, onlinePickup, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map((entry) => entry.name), products: await Promise.all(products.map(async (product) => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2e3), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async (variant) => {
     const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
     const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
-    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : "ask";
+    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : variant.allowNegativeInventory ? "ask" : "sold_out";
     return { id: variant.id, title: variant.title, unitOfMeasure: variant.unitOfMeasure, priceCents: price?.amountCents ?? variant.defaultPriceCents, availability };
   })) }))) };
 }
 async function currentCustomerId(db, context, lock = false) {
   const session = context.session;
   if (!session?.itemId || session.apiKeyId) return void 0;
-  if (lock) await db.$queryRaw(import_client19.Prisma.sql`SELECT id FROM "User" WHERE id = ${session.itemId} FOR SHARE`);
+  if (lock) await db.$queryRaw(import_client18.Prisma.sql`SELECT id FROM "User" WHERE id = ${session.itemId} FOR SHARE`);
   const live = await db.user.findUnique({ where: { id: session.itemId }, select: { sessionVersion: true } });
   if (!live || !Number.isSafeInteger(session.data.sessionVersion) || live.sessionVersion !== session.data.sessionVersion) throw new Error("Customer session expired");
   return session.itemId;
 }
-var digest2 = (token) => (0, import_node_crypto32.createHash)("sha256").update(token).digest("hex");
+var digest2 = (token) => (0, import_node_crypto30.createHash)("sha256").update(token).digest("hex");
 function assertProof(cart, token, userId) {
   if (cart.source !== "storefront" || !cart.expiresAt || cart.expiresAt <= /* @__PURE__ */ new Date()) throw new Error("Basket unavailable");
   if (cart.customerId) {
@@ -27824,9 +28573,9 @@ function assertProof(cart, token, userId) {
   }
   const expected = Buffer.from(cart.guestTokenDigest, "hex");
   const actual = Buffer.from(digest2(token), "hex");
-  if (!/^[a-f0-9]{64}$/.test(token) || expected.length !== actual.length || !(0, import_node_crypto32.timingSafeEqual)(expected, actual)) throw new Error("Basket unavailable");
+  if (!/^[a-f0-9]{64}$/.test(token) || expected.length !== actual.length || !(0, import_node_crypto30.timingSafeEqual)(expected, actual)) throw new Error("Basket unavailable");
 }
-var basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, orderBy: { createdAt: "asc" }, take: 50 } };
+var basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, orderBy: { createdAt: "asc" }, take: 50 } };
 function basketDto(cart) {
   return { ...cart, lines: cart.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
 }
@@ -27845,9 +28594,10 @@ async function updateStorefrontBasket(_root, args, context) {
   const input = args.input;
   if (!/^[a-f0-9]{64}$/.test(input.token) || !/^[a-zA-Z0-9-]{10,64}$/.test(input.cartId)) throw new Error("Basket unavailable");
   if (!Number.isSafeInteger(input.quantity) || input.quantity < 0 || input.quantity > 99) throw new Error("Quantity must be between 0 and 99");
+  await releasePickupPaymentForEdit(context, input.cartId, input.token);
   return context.prisma.$transaction(async (db) => {
     const userId = await currentCustomerId(db, context, true);
-    await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
+    await db.$queryRaw(import_client18.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
     const { business, store } = await publishedStore(db);
     let cart = await db.cart.findUnique({ where: { id: input.cartId } });
     if (cart) {
@@ -27855,9 +28605,13 @@ async function updateStorefrontBasket(_root, args, context) {
       if (cart.businessId !== business.id || cart.storeId !== store.id || cart.status !== "open") throw new Error("Basket unavailable");
     } else {
       if (!input.variantId || input.quantity === 0) throw new Error("Basket unavailable");
-      cart = await db.cart.create({ data: { id: input.cartId, businessId: business.id, storeId: store.id, cartNumber: `WEB-${(0, import_node_crypto32.randomUUID)()}`, source: "storefront", currencyCode: store.currencyCode, priceBookId: store.defaultPriceBookId, customerId: userId, guestTokenDigest: digest2(input.token), expiresAt: new Date(Date.now() + 864e5) } });
+      cart = await db.cart.create({ data: { id: input.cartId, businessId: business.id, storeId: store.id, cartNumber: `WEB-${(0, import_node_crypto30.randomUUID)()}`, source: "storefront", currencyCode: store.currencyCode, priceBookId: store.defaultPriceBookId, customerId: userId, guestTokenDigest: digest2(input.token), expiresAt: new Date(Date.now() + 864e5) } });
     }
     if (input.claim && userId && !cart.customerId) await db.cart.update({ where: { id: cart.id }, data: { customerId: userId } });
+    if (!input.lineId && input.variantId) {
+      const same = await db.cartLine.findFirst({ where: { cartId: cart.id, variantId: input.variantId }, select: { id: true } });
+      if (same) input.lineId = same.id;
+    }
     if (input.lineId) {
       const line = await db.cartLine.findFirst({ where: { id: input.lineId, cartId: cart.id } });
       if (!line) throw new Error("Basket item unavailable");
@@ -27868,6 +28622,12 @@ async function updateStorefrontBasket(_root, args, context) {
       const variant = await db.productVariant.findFirst({ where: { id: input.variantId, businessId: business.id, status: "active", sellBy: "unit", product: { status: "active", regulatedSaleType: "none", businessId: business.id } }, include: { product: true } });
       if (!variant?.product) throw new Error("Item unavailable");
       if (await db.cartLine.count({ where: { cartId: cart.id } }) >= 50 && !input.lineId) throw new Error("Basket limit reached");
+      if (variant.trackInventory && !variant.allowNegativeInventory) {
+        const stock = store.primaryInventoryLocationId ? await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` }, select: { onHandQuantity: true } }) : null;
+        const onHand = Math.floor(Number(stock?.onHandQuantity ?? 0));
+        const current = input.lineId ? Number((await db.cartLine.findUnique({ where: { id: input.lineId }, select: { quantity: true } }))?.quantity ?? 0) : 0;
+        if (input.quantity > current && input.quantity > onHand) throw new import_graphql4.GraphQLError(onHand > 0 ? "No more in stock" : "Sold out", { extensions: { code: "KS_USER_INPUT_ERROR" } });
+      }
       const quantity = `${input.quantity}.0000`;
       const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: business.id, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at: /* @__PURE__ */ new Date() }) : null;
       const tax = await findEffectiveTaxRate(db, { businessId: business.id, storeId: store.id, taxCategoryId: variant.product.taxCategoryId, at: /* @__PURE__ */ new Date() });
@@ -27912,7 +28672,404 @@ async function storefrontRewards(_root, _args, context) {
 async function storefrontHistory(_root, args, context) {
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];
-  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, status: true, completedAt: true, currencyCode: true, totalCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
+  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, source: true, status: true, completedAt: true, currencyCode: true, totalCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
+}
+
+// features/keystone/mutations/pickupOperations.ts
+var PROOF = /^[a-f0-9]{64}$/;
+var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function normalizeReceiptEmail(value) {
+  if (value == null) return null;
+  const invalid = () => new import_graphql5.GraphQLError("Enter a valid email address", { extensions: { code: "BAD_USER_INPUT" } });
+  if (typeof value !== "string") throw invalid();
+  const email = value.trim().toLowerCase();
+  if (!email) return null;
+  if (email.length > 254 || !EMAIL.test(email)) throw invalid();
+  return email;
+}
+var CART_ID = /^[a-zA-Z0-9-]{10,64}$/;
+function readPickupPayment(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const value = metadata.pickupPayment;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const p2 = value;
+  if (typeof p2.providerId !== "string" || typeof p2.paymentId !== "string" || typeof p2.currencyCode !== "string" || typeof p2.revision !== "string" || !Number.isSafeInteger(p2.amountCents)) return null;
+  return { providerId: p2.providerId, paymentId: p2.paymentId, amountCents: p2.amountCents, currencyCode: p2.currencyCode, revision: p2.revision };
+}
+var cartLineInclude = {
+  orderBy: { createdAt: "asc" },
+  take: 51,
+  include: { variant: { include: { product: { include: { taxCategory: true } } } } }
+};
+async function onlineProvider(db, businessId) {
+  const providers = await db.paymentProvider.findMany({
+    where: { businessId, status: "active", createPaymentFunction: "stripe" },
+    take: 2
+  });
+  if (providers.length !== 1) throw new Error("Online pickup payment is not available");
+  const provider = providers[0];
+  if (!isPaymentProviderConfigured(provider.createPaymentFunction) || provider.getPaymentStatusFunction !== "stripe" || provider.capturePaymentFunction !== "stripe") {
+    throw new Error("Online pickup payment is not available");
+  }
+  return provider;
+}
+async function repriceCart(db, cart, store) {
+  const lines = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
+  if (lines.length > 50) throw new Error("Basket limit reached");
+  assertPickupEligible(lines);
+  const at = /* @__PURE__ */ new Date();
+  for (const line of lines) {
+    const variant = line.variant;
+    const product = variant.product;
+    if (variant.sellBy !== "unit") throw new Error("An item in your basket is not sold online");
+    const quantity = line.quantity.toString();
+    const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: cart.businessId, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at }) : null;
+    const tax = await findEffectiveTaxRate(db, { businessId: cart.businessId, storeId: store.id, taxCategoryId: product.taxCategoryId, at });
+    if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
+    const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
+    const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
+    await db.cartLine.update({
+      where: { id: line.id },
+      data: {
+        unitPriceCents,
+        subtotalCents: amounts.subtotalCents,
+        discountCents: amounts.discountCents,
+        taxRate: tax?.rate ?? 0,
+        taxInclusive: tax?.inclusive ?? false,
+        taxCents: amounts.taxCents,
+        totalCents: amounts.totalCents,
+        priceBookEntryId: price?.id ?? null,
+        priceSource: price ? "price_book" : "variant_default"
+      }
+    });
+  }
+  const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
+  const totals = { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0 };
+  await db.cart.update({ where: { id: cart.id }, data: totals });
+  const fresh = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
+  return { lines: fresh, ...totals };
+}
+async function assertStock(db, store, lines) {
+  for (const line of lines) {
+    const variant = line.variant;
+    if (!variant.trackInventory || variant.allowNegativeInventory) continue;
+    if (!store.primaryInventoryLocationId) throw new Error("Store has no primary inventory location");
+    const stock = await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` } });
+    const onHand = stock?.onHandQuantity.toString() ?? "0.0000";
+    if (compareQuantities(onHand, line.quantity.toString()) < 0) throw new Error(`${line.titleSnapshot} is out of stock`);
+  }
+}
+async function startStorefrontPickupPayment(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const prepared = await context.prisma.$transaction(async (db) => {
+    const userId = await currentCustomerId(db, context, true);
+    await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${cartId}`}))::text`);
+    const { business, store } = await publishedStore(db);
+    const cart2 = await db.cart.findUnique({ where: { id: cartId } });
+    if (!cart2) throw new Error("Basket unavailable");
+    assertProof(cart2, token, userId);
+    if (cart2.businessId !== business.id || cart2.storeId !== store.id || cart2.status !== "open") throw new Error("Basket unavailable");
+    const existing2 = readPickupPayment(cart2.metadata);
+    const priced = await repriceCart(db, cart2, store);
+    await assertStock(db, store, priced.lines);
+    if (priced.totalCents < 50) throw new Error("Order total is too small to pay online");
+    const provider2 = await onlineProvider(db, business.id);
+    const revision2 = pickupRevision(priced.lines, priced.totalCents);
+    return { cart: cart2, store, provider: provider2, existing: existing2, revision: revision2, totalCents: priced.totalCents, currencyCode: cart2.currencyCode };
+  });
+  const { cart, provider, existing, revision, totalCents, currencyCode } = prepared;
+  if (existing && existing.revision !== revision) {
+    await retirePickupPayment(context, cart.id, provider, existing);
+  }
+  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}`;
+  const created = await createPayment({
+    provider,
+    order: { id: cart.id, orderNumber: cart.cartNumber },
+    amount: totalCents,
+    currency: currencyCode,
+    idempotencyKey
+  });
+  const paymentId = created?.paymentIntentId;
+  const clientSecret = created?.clientSecret;
+  if (typeof paymentId !== "string" || !paymentId.startsWith("pi_") || typeof clientSecret !== "string") {
+    throw new Error("Payment could not be started");
+  }
+  const config2 = getPublicPaymentProviderConfig("stripe");
+  if (!config2) throw new Error("Online pickup payment is not available");
+  const pickupPayment = { providerId: provider.id, paymentId, amountCents: totalCents, currencyCode, revision };
+  await context.prisma.cart.update({
+    where: { id: cart.id },
+    data: { metadata: { ...cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}, pickupPayment } }
+  });
+  return { clientSecret, publishableKey: config2.publishableKey, paymentId, amountCents: totalCents, currencyCode };
+}
+async function retirePickupPayment(context, cartId, provider, payment) {
+  const status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  if (status?.status === "succeeded" || status?.status === "processing") {
+    throw new Error("This basket has already been paid; it cannot be changed");
+  }
+  if (status?.status !== "canceled") await cancelPayment({ provider, paymentId: payment.paymentId, idempotencyKey: `cancel-${cartId}-${payment.paymentId}` });
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
+  const { pickupPayment: _removed, ...rest } = cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: rest } });
+}
+async function setStorefrontReceiptEmail(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const email = normalizeReceiptEmail(args.input.email);
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  if (!cart || cart.status !== "open") throw new Error("Basket unavailable");
+  assertProof(cart, token, userId);
+  const meta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? { ...cart.metadata } : {};
+  if (email) meta.receiptEmail = email;
+  else delete meta.receiptEmail;
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: meta } });
+  return { ok: true };
+}
+async function releasePickupPaymentForEdit(context, cartId, token) {
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  const payment = readPickupPayment(cart?.metadata);
+  if (!cart || !payment || cart.status !== "open") return;
+  assertProof(cart, token, await currentCustomerId(context.prisma, context));
+  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0 } });
+  if (!provider) throw new Error("Basket unavailable");
+  await retirePickupPayment(context, cartId, provider, payment);
+}
+async function postPickupSale(db, input) {
+  await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pickup-post:${input.providerId}:${input.paymentId}`}))::text`);
+  await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
+  const lookupKey = `${input.providerId}:${input.paymentId}`;
+  const existing = await db.tender.findUnique({ where: { providerLookupKey: lookupKey }, include: { sale: true } });
+  if (existing?.sale) return { sale: existing.sale, created: false };
+  const cart = await db.cart.findUnique({ where: { id: input.cartId }, include: { store: true, lines: cartLineInclude } });
+  if (!cart || !cart.store || !cart.businessId || !cart.storeId) throw new Error("Order not found");
+  const pickup = readPickupPayment(cart.metadata);
+  if (!pickup || pickup.providerId !== input.providerId || pickup.paymentId !== input.paymentId) {
+    throw new Error("Payment does not belong to this order");
+  }
+  if (cart.status !== "open") throw new Error("Order is no longer open");
+  assertPickupEligible(cart.lines);
+  assertPaymentMatches({ amountCents: pickup.amountCents, currencyCode: pickup.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
+  assertPaymentMatches({ amountCents: cart.totalCents, currencyCode: cart.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
+  if (pickupRevision(cart.lines, cart.totalCents) !== pickup.revision) throw new Error("Basket changed after payment began");
+  const postingAt = /* @__PURE__ */ new Date();
+  if (await db.storeDay.findFirst({ where: { businessId: cart.businessId, storeId: cart.storeId, status: "locked", periodStartedAt: { lte: postingAt }, periodEndedAt: { gt: postingAt } }, select: { id: true } })) {
+    throw new Error("Current retail posting period is locked");
+  }
+  const subtotalCents = cart.lines.reduce((t, l) => t + l.subtotalCents, 0);
+  const discountCents = cart.lines.reduce((t, l) => t + l.discountCents, 0);
+  const taxCents = cart.lines.reduce((t, l) => t + l.taxCents, 0);
+  const sale = await db.sale.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      receiptNumber: `WEB-${(0, import_node_crypto31.randomUUID)()}`,
+      source: "storefront",
+      status: "completed",
+      pickupStatus: "ready_for_pickup",
+      currencyCode: cart.currencyCode,
+      subtotalCents,
+      discountCents,
+      taxCents,
+      roundingCents: 0,
+      totalCents: cart.totalCents,
+      refundedCents: 0,
+      customerId: cart.customerId,
+      startedAt: cart.createdAt,
+      completedAt: postingAt,
+      metadata: { onlinePickup: true, cartId: cart.id }
+    }
+  });
+  const locationId = cart.store.primaryInventoryLocationId;
+  for (const [index, line] of cart.lines.entries()) {
+    const variant = line.variant;
+    const product = variant.product;
+    const saleLine = await db.saleLine.create({
+      data: {
+        businessId: cart.businessId,
+        storeId: cart.storeId,
+        saleId: sale.id,
+        lineNumber: index + 1,
+        titleSnapshot: line.titleSnapshot,
+        variantTitleSnapshot: line.variantTitleSnapshot,
+        skuSnapshot: line.skuSnapshot,
+        barcodeSnapshot: line.barcodeSnapshot,
+        productSnapshot: { productId: product.id, productTitle: product.title, variantId: variant.id, returnable: product.returnable, discountable: product.discountable },
+        quantity: line.quantity,
+        unitOfMeasure: line.unitOfMeasure,
+        unitPriceCents: line.unitPriceCents,
+        subtotalCents: line.subtotalCents,
+        discountCents: line.discountCents,
+        taxCategorySnapshot: product.taxCategory?.name ?? "",
+        taxRate: line.taxRate,
+        taxInclusive: line.taxInclusive,
+        taxCents: line.taxCents,
+        totalCents: line.totalCents,
+        promotionSnapshot: [],
+        regulatedSaleType: "none",
+        minimumAge: null,
+        ageVerified: false,
+        productId: product.id,
+        variantId: variant.id
+      }
+    });
+    if (!variant.trackInventory || !locationId) continue;
+    const stockKey = `${locationId}:${variant.id}`;
+    const stock = await db.stockLevel.findUnique({ where: { lookupKey: stockKey } });
+    const previous = stock?.onHandQuantity.toString() ?? "0.0000";
+    const balanceAfter = addQuantities(previous, `-${line.quantity.toString()}`);
+    const updated = stock ? await db.stockLevel.update({ where: { id: stock.id }, data: { onHandQuantity: balanceAfter } }) : await db.stockLevel.create({ data: { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, lookupKey: stockKey, onHandQuantity: balanceAfter, reservedQuantity: "0.0000", parQuantity: "0.0000", reorderPoint: "0.0000", reorderQuantity: "0.0000" } });
+    if (compareQuantities(balanceAfter, "0") < 0 && !variant.allowNegativeInventory) {
+      await db.operationalAlert.upsert({
+        where: { fingerprint: `pickup-oversold:${sale.id}:${variant.id}` },
+        update: {},
+        create: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          alertNumber: `ALT-${(0, import_node_crypto31.randomUUID)()}`,
+          fingerprint: `pickup-oversold:${sale.id}:${variant.id}`,
+          type: "low_inventory",
+          severity: "critical",
+          status: "open",
+          title: "Online pickup order exceeded stock",
+          message: "A paid online pickup order needed more stock than was on hand; fulfil or refund it.",
+          resourceType: "Sale",
+          resourceId: sale.id,
+          detectedAt: postingAt
+        }
+      });
+    }
+    const segments = await consumeInventoryLots(db, { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, quantity: line.quantity.toString() });
+    let running = previous;
+    for (const segment of segments) {
+      running = addQuantities(running, `-${segment.quantity}`);
+      await db.inventoryLedgerEntry.create({
+        data: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          stockLevelId: updated.id,
+          locationId,
+          variantId: variant.id,
+          lotId: segment.lotId,
+          type: "sale",
+          quantityDelta: `-${segment.quantity}`,
+          balanceAfter: running,
+          unitCostCents: segment.unitCostCents ?? variant.costCents,
+          reason: `Online pickup ${sale.receiptNumber}`,
+          sourceType: "Sale",
+          sourceId: sale.id,
+          saleLineId: saleLine.id,
+          occurredAt: postingAt
+        }
+      });
+    }
+  }
+  const tender = await db.tender.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      saleId: sale.id,
+      paymentProviderId: input.providerId,
+      method: "credit_card",
+      status: "captured",
+      amountCents: input.amountCents,
+      changeCents: 0,
+      refundedCents: 0,
+      currencyCode: cart.currencyCode.toUpperCase(),
+      providerPaymentId: input.paymentId,
+      providerLookupKey: lookupKey,
+      processedAt: postingAt,
+      metadata: { onlinePickup: true, cartId: cart.id }
+    }
+  });
+  await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
+  await db.auditEvent.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      eventNumber: (0, import_node_crypto31.randomUUID)(),
+      action: "pickup.order.paid",
+      resourceType: "Sale",
+      resourceId: sale.id,
+      result: "succeeded",
+      actorType: "integration",
+      occurredAt: postingAt,
+      metadata: { tenderId: tender.id, providerId: input.providerId }
+    }
+  });
+  return { sale, created: true };
+}
+async function settleStorefrontPickup(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  if (!cart) throw new Error("Basket unavailable");
+  assertProofAllowingConverted(cart, token, userId);
+  if (cart.status === "converted" && cart.saleId) {
+    const sale = await context.prisma.sale.findUnique({ where: { id: cart.saleId }, select: { id: true, receiptNumber: true, pickupStatus: true } });
+    if (sale) return { state: "paid", saleId: sale.id, receiptNumber: sale.receiptNumber, pickupStatus: sale.pickupStatus };
+  }
+  const payment = readPickupPayment(cart.metadata);
+  if (!payment || cart.status !== "open") throw new Error("There is no payment to confirm");
+  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0, status: "active" } });
+  if (!provider) throw new Error("Online pickup payment is not available");
+  let status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  if (status?.status === "requires_capture") {
+    await capturePayment({ provider, paymentId: payment.paymentId, amount: payment.amountCents, idempotencyKey: `capture-${cart.id}-${payment.paymentId}` });
+    status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  }
+  if (status?.status === "processing") return { state: "processing" };
+  if (status?.status !== "succeeded") return { state: "unpaid", status: String(status?.status ?? "unknown") };
+  assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
+  const result = await context.prisma.$transaction(
+    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode }),
+    // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
+    { isolationLevel: import_client19.Prisma.TransactionIsolationLevel.Serializable, maxWait: 1e4, timeout: 3e4 }
+  );
+  if (result.created) {
+    const { sendConfirmationAfterCommit: sendConfirmationAfterCommit2 } = await Promise.resolve().then(() => (init_orderConfirmation(), orderConfirmation_exports));
+    await sendConfirmationAfterCommit2(context.prisma, result.sale.id, { cartId, token });
+  }
+  return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
+}
+function assertProofAllowingConverted(cart, token, userId) {
+  if (cart.status === "converted") {
+    assertProof({ ...cart, expiresAt: new Date(Date.now() + 6e4) }, token, userId);
+    return;
+  }
+  assertProof(cart, token, userId);
+}
+async function storefrontPickupOrder(_root, args, context) {
+  if (!PROOF.test(args.token) || !CART_ID.test(args.cartId)) return null;
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: args.cartId } });
+  if (!cart) return null;
+  try {
+    assertProofAllowingConverted(cart, args.token, userId);
+  } catch {
+    return null;
+  }
+  if (!cart.saleId) return null;
+  const sale = await context.prisma.sale.findUnique({
+    where: { id: cart.saleId },
+    select: { id: true, receiptNumber: true, pickupStatus: true, currencyCode: true, totalCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } }
+  });
+  if (!sale) return null;
+  return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
+}
+async function markSalePickedUp(_root, args, context) {
+  const session = requireSession(context);
+  const sale = await context.prisma.sale.findUnique({ where: { id: args.saleId }, select: { id: true, businessId: true, storeId: true, pickupStatus: true, status: true } });
+  if (!sale?.businessId || !sale.storeId) throw new import_graphql5.GraphQLError("Sale not found");
+  assertStorePermission(session, sale.businessId, sale.storeId, "canManageSales");
+  if (sale.pickupStatus === "picked_up") return { saleId: sale.id, pickupStatus: "picked_up" };
+  if (sale.pickupStatus !== "ready_for_pickup" || sale.status !== "completed") throw new import_graphql5.GraphQLError("Only a paid order waiting for pickup can be handed over");
+  const updated = await context.prisma.sale.updateMany({ where: { id: sale.id, pickupStatus: "ready_for_pickup", status: "completed" }, data: { pickupStatus: "picked_up" } });
+  if (!updated.count) throw new import_graphql5.GraphQLError("This order changed; refresh and try again");
+  return { saleId: sale.id, pickupStatus: "picked_up" };
 }
 
 // features/keystone/mutations/index.ts
@@ -27925,6 +29082,7 @@ function extendGraphqlSchema(baseSchema) {
         storefrontCatalog(search: String, category: String, page: Int, productId: ID): JSON!
         storefrontBasket(cartId: ID!, token: String!): JSON
         storefrontHistory(saleId: ID): JSON!
+        storefrontPickupOrder(cartId: ID!, token: String!): JSON
         storefrontRewards: JSON!
         redirectToInit: Boolean!
         assistantCapability: Boolean!
@@ -28200,31 +29358,6 @@ function extendGraphqlSchema(baseSchema) {
         token: String
       }
 
-      type ClaimedOutboxEvent {
-        id: ID!
-        eventKey: String!
-        topic: String!
-        schemaVersion: Int!
-        aggregateType: String!
-        aggregateId: String!
-        action: String!
-        payload: JSON
-        payloadHash: String!
-        totalAttempts: Int!
-      }
-
-      type ClaimOutboxEventsResult {
-        workerId: String!
-        leaseToken: String!
-        events: [ClaimedOutboxEvent!]!
-      }
-
-      enum OutboxCompletionOutcome {
-        delivered
-        retry
-        dead_letter
-      }
-
       type ConvenienceStoreReportingSummary {
         storeId: ID!
         storeName: String!
@@ -28308,6 +29441,8 @@ function extendGraphqlSchema(baseSchema) {
         brandAccentColor: String
         storefrontMode: BusinessStorefrontModeType
         storefrontStatus: BusinessStorefrontStatusType
+        logoIcon: String
+        logoColor: String
         idempotencyKey: String!
       }
 
@@ -29341,29 +30476,6 @@ function extendGraphqlSchema(baseSchema) {
         idempotencyKey: String!
       }
 
-      input ClaimOutboxEventsInput {
-        businessId: ID!
-        workerId: String!
-        limit: Int
-      }
-
-      input CompleteOutboxEventInput {
-        businessId: ID!
-        eventId: ID!
-        workerId: String!
-        leaseToken: String!
-        outcome: OutboxCompletionOutcome!
-        error: String
-        retryAfterSeconds: Int
-        idempotencyKey: String!
-      }
-
-      input ReplayOutboxEventInput {
-        businessId: ID!
-        eventId: ID!
-        idempotencyKey: String!
-      }
-
       input CreateBusinessApiKeyInput {
         businessId: ID!
         name: String!
@@ -29380,6 +30492,15 @@ function extendGraphqlSchema(baseSchema) {
         idempotencyKey: String!
       }
 
+      input StorefrontPickupInput {
+        cartId: ID!
+        token: String!
+      }
+      input StorefrontReceiptEmailInput {
+        cartId: ID!
+        token: String!
+        email: String
+      }
       input StorefrontBasketInput {
         cartId: ID!
         token: String!
@@ -29390,6 +30511,10 @@ function extendGraphqlSchema(baseSchema) {
       }
       type Mutation {
         updateStorefrontBasket(input: StorefrontBasketInput!): JSON!
+        startStorefrontPickupPayment(input: StorefrontPickupInput!): JSON!
+        settleStorefrontPickup(input: StorefrontPickupInput!): JSON!
+        setStorefrontReceiptEmail(input: StorefrontReceiptEmailInput!): JSON!
+        markSalePickedUp(saleId: ID!): JSON!
         revokeCurrentUserSessions: Boolean!
         recordOperationalHeartbeat(
           input: RecordOperationalHeartbeatInput!
@@ -29581,11 +30706,6 @@ function extendGraphqlSchema(baseSchema) {
         recordOfflineReplayBatch(
           input: RecordOfflineReplayBatchInput!
         ): OfflineReplayResult!
-        claimOutboxEvents(
-          input: ClaimOutboxEventsInput!
-        ): ClaimOutboxEventsResult!
-        completeOutboxEvent(input: CompleteOutboxEventInput!): OperationResult!
-        replayOutboxEvent(input: ReplayOutboxEventInput!): OperationResult!
         createBusinessApiKey(
           input: CreateBusinessApiKeyInput!
         ): ApiKeyOperationResult!
@@ -29608,6 +30728,7 @@ function extendGraphqlSchema(baseSchema) {
         storefrontCatalog,
         storefrontBasket,
         storefrontHistory,
+        storefrontPickupOrder,
         storefrontRewards,
         posSaleReceipt,
         posOperationOutcome,
@@ -29625,6 +30746,10 @@ function extendGraphqlSchema(baseSchema) {
         recordCashMovement,
         closeRegisterSession,
         updateStorefrontBasket,
+        startStorefrontPickupPayment,
+        settleStorefrontPickup,
+        setStorefrontReceiptEmail,
+        markSalePickedUp,
         createPosCart,
         addPosCartLine,
         updatePosCartLine,
@@ -29700,9 +30825,6 @@ function extendGraphqlSchema(baseSchema) {
         registerOfflineDevice,
         transitionOfflineDevice,
         recordOfflineReplayBatch,
-        claimOutboxEvents,
-        completeOutboxEvent,
-        replayOutboxEvent,
         createBusinessApiKey,
         revokeBusinessApiKey
       }
@@ -29718,6 +30840,86 @@ function s3ForcePathStyle(endpoint2) {
   } catch {
   }
   return !(hostname === "storageapi.dev" || hostname.endsWith(".storageapi.dev"));
+}
+
+// features/keystone/database-url.ts
+var POOL_SIZES = { web: 15, worker: 5 };
+var OVERRIDE_ENV = {
+  web: "DATABASE_CONNECTION_LIMIT",
+  worker: "DATABASE_CONNECTION_LIMIT_WORKER"
+};
+function pooledDatabaseUrl(url, role = "web") {
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.searchParams.has("connection_limit")) return url;
+  const override = Number(process.env[OVERRIDE_ENV[role]]);
+  parsed.searchParams.set("connection_limit", String(Number.isInteger(override) && override > 0 ? override : POOL_SIZES[role]));
+  return parsed.toString();
+}
+
+// features/keystone/lib/keystonePrismaErrors.ts
+var RAW_METHOD = /^\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe|queryRawTyped|runCommandRaw)$/;
+var clients = /* @__PURE__ */ new WeakMap();
+var delegates = /* @__PURE__ */ new WeakMap();
+function isKeystonePrismaError(value) {
+  return value instanceof Error && value.extensions?.code === "KS_PRISMA_ERROR";
+}
+function rethrowKeystonePrismaError(value) {
+  if (!isKeystonePrismaError(value)) return value;
+  const prisma = value.extensions.prisma ?? {};
+  throw Object.assign(value, { code: prisma.code, meta: prisma.meta, clientVersion: prisma.clientVersion });
+}
+function throwing(result) {
+  if (!result || typeof result.then !== "function") return rethrowKeystonePrismaError(result);
+  const settled = () => result.then(rethrowKeystonePrismaError);
+  return new Proxy(result, {
+    get(target, key) {
+      if (key === "then") return (ok, fail) => settled().then(ok, fail);
+      if (key === "catch") return (fail) => settled().catch(fail);
+      if (key === "finally") return (done) => settled().finally(done);
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
+}
+function throwingDelegate(delegate) {
+  const cached = delegates.get(delegate);
+  if (cached) return cached;
+  const wrapped = new Proxy(delegate, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? (...args) => throwing(value.apply(target, args)) : value;
+    }
+  });
+  delegates.set(delegate, wrapped);
+  return wrapped;
+}
+function throwKeystonePrismaErrors(client) {
+  const cached = clients.get(client);
+  if (cached) return cached;
+  const wrapped = new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === "$transaction" && typeof value === "function") {
+        return (work, ...options) => {
+          if (typeof work === "function") return value.call(target, (tx) => work(throwKeystonePrismaErrors(tx)), ...options);
+          return Promise.resolve(value.call(target, work, ...options)).then((results) => Array.isArray(results) ? results.map(rethrowKeystonePrismaError) : results);
+        };
+      }
+      if (key === "$extends" && typeof value === "function") return (...args) => throwKeystonePrismaErrors(value.apply(target, args));
+      if (typeof key === "string" && RAW_METHOD.test(key) && typeof value === "function") return (...args) => throwing(value.apply(target, args));
+      if (typeof value === "function") return value.bind(target);
+      if (typeof key === "string" && !key.startsWith("$") && value && typeof value === "object" && typeof value.findFirst === "function") return throwingDelegate(value);
+      return value;
+    }
+  });
+  clients.set(client, wrapped);
+  return wrapped;
 }
 
 // features/keystone/index.ts
@@ -29833,14 +31035,34 @@ var sessionStrategy = {
     const scopes = Array.isArray(key.scopes) ? key.scopes.filter(
       (scope) => typeof scope === "string" && validPermissions.has(scope)
     ) : [];
+    const creator = await args.context.prisma.user.findUnique({
+      where: { id: key.createdById },
+      select: {
+        id: true,
+        isPlatformAdmin: true,
+        platformAdminApprovedAt: true,
+        employees: {
+          where: { businessId: key.businessId, status: "active" },
+          select: {
+            id: true,
+            status: true,
+            business: { select: { id: true, status: true } },
+            stores: { select: { id: true, businessId: true } },
+            role: true
+          }
+        }
+      }
+    });
+    const heldScopes = scopesStillHeldByCreator(scopes, key.businessId, creator);
     return {
       itemId: key.createdById,
       listKey: "User",
       apiKeyId: key.id,
       apiKeyBusinessId: key.businessId,
-      apiKeyScopes: scopes,
+      apiKeyScopes: heldScopes,
       apiKeyStoreIds: key.stores.map((store) => store.id),
-      apiKeyAllStores: key.allStores
+      // An all-store key needs a still-approved platform-admin creator, as at issue.
+      apiKeyAllStores: key.allStores && Boolean(creator?.isPlatformAdmin && creator.platformAdminApprovedAt)
     };
   }
 };
@@ -29901,7 +31123,9 @@ var boundedModels = Object.fromEntries(
           ...model.graphql,
           omit: {
             ...existingOmit,
-            delete: true,
+            // Role managers may retire unassigned roles (E-commerce parity);
+            // Role access + validateDelete gate it. Every other list stays delete-free.
+            delete: key !== "Role",
             ...workflowOnly ? { create: true, update: true } : {}
           }
         }
@@ -29949,10 +31173,12 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core96.config)({
+  (0, import_core94.config)({
     db: {
       provider: "postgresql",
-      url: databaseURL,
+      url: pooledDatabaseUrl(databaseURL),
+      // Keystone returns failed queries as values; this makes them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors,
       extendPrismaSchema: addConvenienceDatabaseConstraints
     },
     lists: boundedModels,
