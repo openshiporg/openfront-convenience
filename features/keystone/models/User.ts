@@ -18,6 +18,7 @@ import {
   isHumanPlatformAdmin,
   isPlatformAdmin,
   isSignedIn,
+  permissionKeys,
   storeIdsForPermission,
   type Session,
 } from "../access";
@@ -187,11 +188,13 @@ export const User = list({
     role: virtual({
       access: { read: ({ session, item }) => Boolean(session && !session.apiKeyId && session.itemId === item.id) },
       field: graphql.field({
-        type: graphql.object<{ canAccessDashboard: boolean; canManageOnboarding: boolean }>()({
+        type: graphql.object<{ canAccessDashboard: boolean; canManageOnboarding: boolean; permissions: string[] }>()({
           name: "UserDashboardRole",
           fields: {
             canAccessDashboard: graphql.field({ type: graphql.nonNull(graphql.Boolean) }),
             canManageOnboarding: graphql.field({ type: graphql.nonNull(graphql.Boolean) }),
+            // The permission keys this person holds, so the sidebar can hide pages they cannot use.
+            permissions: graphql.field({ type: graphql.nonNull(graphql.list(graphql.nonNull(graphql.String))) }),
           },
         }),
         resolve(item, _args, context) {
@@ -202,11 +205,12 @@ export const User = list({
             // Onboarding creates a new business, which only a platform administrator
             // may do; employees of an existing business never see the setup card.
             canManageOnboarding: isHumanPlatformAdmin(session),
+            permissions: permissionKeys.filter((permission) => hasPermission({ session }, permission)),
           };
         },
       }),
       ui: {
-        query: "{ canAccessDashboard canManageOnboarding }",
+        query: "{ canAccessDashboard canManageOnboarding permissions }",
         itemView: { fieldMode: "hidden" },
         listView: { fieldMode: "hidden" },
       },

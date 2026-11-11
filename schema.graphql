@@ -682,6 +682,7 @@ enum UserOnboardingStatusType {
 type UserDashboardRole {
   canAccessDashboard: Boolean!
   canManageOnboarding: Boolean!
+  permissions: [String!]!
 }
 
 input UserWhereUniqueInput {

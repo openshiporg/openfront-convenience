@@ -167,6 +167,9 @@ test('sidebar shows only lists and platform pages the session can see', () => {
   assert.equal(access.visibleSidebarLists(lists, customer).length, 0);
   assert.equal(access.visiblePlatformItems(items, lists, customer).length, 0);
   assert.equal(access.visibleSidebarLists(lists, null).length, 1);
+  const keyHolder = { role: { canAccessDashboard: true, permissions: ['canAccessDashboard', 'canReadCatalog'] } };
+  const platform = ['pos', 'products', 'sales', 'staff', 'reports'].map(slug => ({ href: `/dashboard/platform/${slug}` }));
+  assert.deepEqual(plain(access.visiblePlatformItems(platform, [], keyHolder)).map(item => item.href), ['/dashboard/platform/products']);
 });
 
 test('formatInZone: viewer zone by default, explicit zone when given, labelled', () => {

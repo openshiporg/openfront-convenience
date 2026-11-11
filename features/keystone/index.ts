@@ -244,6 +244,17 @@ const genericIdentityAndTenantConfiguration = new Set([
   "Employee",
   "Role",
 ]);
+function hiddenWithoutQueryAccess(listKey: string, model: (typeof models)[keyof typeof models]) {
+  const query = (model.access as { operation?: { query?: unknown } } | undefined)?.operation?.query;
+  if (typeof query !== "function") return undefined;
+  return ({ session }: { session?: unknown }) => {
+    try {
+      return !(query as (args: unknown) => unknown)({ session, listKey, operation: "query" });
+    } catch {
+      return false;
+    }
+  };
+}
 const boundedModels = Object.fromEntries(
   Object.entries(models).map(([key, model]) => {
     if (genericMediaConfiguration.has(key)) return [key, model];
@@ -258,6 +269,8 @@ const boundedModels = Object.fromEntries(
         // Per-field hidden/read modes remain intact; domain commands own edits.
         ui: {
           ...model.ui,
+          // Hide a list from the sidebar when the signed-in person fails the list's own query access.
+          isHidden: model.ui?.isHidden ?? hiddenWithoutQueryAccess(key, model),
           ...(workflowOnly ? { itemView: { ...model.ui?.itemView, defaultFieldMode: "read" as const } } : {}),
         },
         graphql: {
