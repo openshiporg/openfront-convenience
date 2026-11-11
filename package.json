@@ -12,7 +12,6 @@
     "typecheck": "tsc --noEmit",
     "migrate:gen": "keystone build --no-ui && tsx features/keystone/view-order/generate-view-order.ts && keystone prisma migrate dev",
     "migrate": "prisma migrate deploy",
-    "worker:alerts": "tsx features/keystone/scripts/processOperationalAlerts.ts",
     "seed:runtime": "tsx features/keystone/scripts/seedRuntimeConvenience.ts",
     "backup": "bash scripts/backup-postgres.sh",
     "backup:verify": "bash scripts/verify-backup.sh"
