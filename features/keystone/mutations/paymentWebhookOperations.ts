@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { Context } from ".keystone/types";
 
 import { fingerprintInput } from "../lib/idempotency";
-import { getPaymentProviderAdapter } from "../utils/paymentProviderAdapter";
+import { getPaymentProviderAdapter, getPaymentStatus } from "../utils/paymentProviderAdapter";
 import { postPickupSale } from "./pickupOperations";
 
 export type PaymentWebhookResult = {
@@ -72,6 +72,11 @@ export async function ingestPaymentWebhook(
   const payloadDigest = digest(input.rawBody);
   const lookupKey = `${provider.id}:${event.externalEventId}`;
 
+  // Card detail for an online pickup order, read before the transaction; best effort, never blocks posting.
+  let pickupCard: { brand: string; last4: string } | null = null;
+  if (event.eventType === "payment.captured" && event.providerPaymentId && provider.getPaymentStatusFunction === "stripe") {
+    pickupCard = await getPaymentStatus({ provider, paymentId: event.providerPaymentId }).then((r: any) => r?.card ?? null).catch(() => null);
+  }
   let postedSaleId: string | null = null;
   const outcome = await context.prisma.$transaction(async (transaction) => {
     await transaction.$queryRaw(
@@ -122,7 +127,7 @@ export async function ingestPaymentWebhook(
           resourceId = pickupCart.id;
           try {
             if (event.amountCents == null || event.currencyCode == null) throw new Error("Signed provider event omitted amount/currency");
-            const posted = await postPickupSale(transaction, { cartId: pickupCart.id, providerId: provider.id, paymentId: event.providerPaymentId, amountCents: event.amountCents, currencyCode: event.currencyCode });
+            const posted = await postPickupSale(transaction, { cartId: pickupCart.id, providerId: provider.id, paymentId: event.providerPaymentId, amountCents: event.amountCents, currencyCode: event.currencyCode, card: pickupCard });
             resourceType = "Sale";
             resourceId = posted.sale.id;
             if (posted.created) postedSaleId = posted.sale.id;

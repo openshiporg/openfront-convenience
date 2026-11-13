@@ -214,7 +214,7 @@ export async function releasePickupPaymentForEdit(context: Context, cartId: stri
   await retirePickupPayment(context, cartId, provider, payment);
 }
 
-type PostInput = { cartId: string; providerId: string; paymentId: string; amountCents: number; currencyCode: string };
+type PostInput = { cartId: string; providerId: string; paymentId: string; amountCents: number; currencyCode: string; card?: { brand: string; last4: string } | null };
 
 /**
  * Posts the paid order as a Sale + Tender. Idempotent on (provider, payment id):
@@ -317,6 +317,7 @@ export async function postPickupSale(db: Prisma.TransactionClient, input: PostIn
       method: "credit_card", status: "captured", amountCents: input.amountCents, changeCents: 0, refundedCents: 0,
       currencyCode: cart.currencyCode.toUpperCase(), providerPaymentId: input.paymentId, providerLookupKey: lookupKey,
       processedAt: postingAt, metadata: { onlinePickup: true, cartId: cart.id },
+      ...(input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}),
     },
   });
   await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
@@ -358,7 +359,7 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
   assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
 
   const result = await context.prisma.$transaction(
-    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode }),
+    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode, card: status.card }),
     // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 30_000 },
   );
