@@ -76,7 +76,6 @@ export async function StoreSettingsPage({
             <FormGrid action={configureBusinessBrandAction} submit="Save" submitSlot={(button) => <div className="sm:col-span-2"><StoreSettingsSaveBar isSaving={false} button={button} /></div>}>
               <HiddenScope projection={state.projection} returnPath={path} />
               <input type="hidden" name="brandMark" value={brand?.mark ?? ""} />
-              <input type="hidden" name="storefrontMode" value="live" />
               <h2 className={heading}>Brand</h2>
               <StoreLogoField initialIcon={brand?.logoIcon ?? ""} initialColor={brand?.logoColor ?? "0"} />
               <TextField label="Public name" id="field-brandName" name="brandName" defaultValue={brand?.name ?? ""} maxLength={80} required />

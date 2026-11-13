@@ -70,7 +70,7 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
           />
           {template === "sample" && (
             <p className="mt-2 text-xs text-muted-foreground">
-              {seed.storefront.name}: sample business details and {seed.demoProducts.length} {seed.demoProducts.length === 1 ? "product" : "products"}. Review and change anything before you create the store.
+              {seed.storefront.name}: starter business details and {seed.starterProducts.length} {seed.starterProducts.length === 1 ? "product" : "products"}. Review and change anything before you create the store.
             </p>
           )}
         </div>
@@ -201,9 +201,9 @@ export function OnboardingForm({ onSuccess }: OnboardingFormProps = {}) {
             </Label>
           </div>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <Checkbox id="includeDemoCatalog" name="includeDemoCatalog" defaultChecked={value("includeDemoCatalog") === "on"} />
-            <Label htmlFor="includeDemoCatalog" className="font-normal">
-              Add {seed.demoProducts.length} sample products
+            <Checkbox id="includeStarterCatalog" name="includeStarterCatalog" defaultChecked={value("includeStarterCatalog") === "on"} />
+            <Label htmlFor="includeStarterCatalog" className="font-normal">
+              Add {seed.starterProducts.length} starter products
             </Label>
           </div>
         </div>

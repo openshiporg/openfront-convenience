@@ -219,7 +219,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         logoColor: String!
         primaryColor: String!
         accentColor: String!
-        storefrontMode: BusinessStorefrontModeType!
         storefrontStatus: BusinessStorefrontStatusType!
         store: ConvenienceStorefrontLocation
       }
@@ -270,7 +269,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
 
       type ConveniencePublicStorefrontProjection {
         state: ConveniencePublicStorefrontState!
-        mode: BusinessStorefrontModeType
         identity: ConveniencePublicStorefrontIdentity
         location: ConveniencePublicStorefrontLocation
         categories: [ConveniencePublicStorefrontCategory!]!
@@ -496,7 +494,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         currencyCode: String
         standardTaxRate: Float
         fuelEnabled: Boolean
-        includeDemoCatalog: Boolean
+        includeStarterCatalog: Boolean
         addressLine1: String
         city: String
         stateProvince: String
@@ -507,7 +505,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         brandMark: String
         brandPrimaryColor: String
         brandAccentColor: String
-        storefrontMode: BusinessStorefrontModeType
         storefrontStatus: BusinessStorefrontStatusType
         logoIcon: String
         logoColor: String
@@ -523,7 +520,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         logoIcon: String
         logoColor: String
         themePreset: String!
-        storefrontMode: BusinessStorefrontModeType!
         storefrontStatus: BusinessStorefrontStatusType!
         addressLine1: String!
         addressLine2: String!

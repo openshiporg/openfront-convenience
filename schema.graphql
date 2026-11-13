@@ -13,7 +13,6 @@ type Business {
   brandMark: String
   brandPrimaryColor: String
   brandAccentColor: String
-  storefrontMode: BusinessStorefrontModeType
   storefrontStatus: BusinessStorefrontStatusType
   storefrontStore: Store
   status: BusinessStatusType
@@ -31,11 +30,6 @@ type Business {
   operationalHeartbeatsCount(where: OperationalHeartbeatWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
-}
-
-enum BusinessStorefrontModeType {
-  demo
-  live
 }
 
 enum BusinessStorefrontStatusType {
@@ -71,7 +65,6 @@ input BusinessWhereInput {
   brandMark: StringFilter
   brandPrimaryColor: StringFilter
   brandAccentColor: StringFilter
-  storefrontMode: BusinessStorefrontModeTypeNullableFilter
   storefrontStatus: BusinessStorefrontStatusTypeNullableFilter
   storefrontStore: StoreWhereInput
   status: BusinessStatusTypeNullableFilter
@@ -129,13 +122,6 @@ input NestedStringFilter {
   startsWith: String
   endsWith: String
   not: NestedStringFilter
-}
-
-input BusinessStorefrontModeTypeNullableFilter {
-  equals: BusinessStorefrontModeType
-  in: [BusinessStorefrontModeType!]
-  notIn: [BusinessStorefrontModeType!]
-  not: BusinessStorefrontModeTypeNullableFilter
 }
 
 input BusinessStorefrontStatusTypeNullableFilter {
@@ -199,7 +185,6 @@ input BusinessOrderByInput {
   brandMark: OrderDirection
   brandPrimaryColor: OrderDirection
   brandAccentColor: OrderDirection
-  storefrontMode: OrderDirection
   storefrontStatus: OrderDirection
   status: OrderDirection
   defaultCurrencyCode: OrderDirection
@@ -225,7 +210,6 @@ input BusinessUpdateInput {
   brandMark: String
   brandPrimaryColor: String
   brandAccentColor: String
-  storefrontMode: BusinessStorefrontModeType
   storefrontStatus: BusinessStorefrontStatusType
   storefrontStore: StoreRelateToOneForUpdateInput
   status: BusinessStatusType
@@ -290,7 +274,6 @@ input BusinessCreateInput {
   brandMark: String
   brandPrimaryColor: String
   brandAccentColor: String
-  storefrontMode: BusinessStorefrontModeType
   storefrontStatus: BusinessStorefrontStatusType
   storefrontStore: StoreRelateToOneForCreateInput
   status: BusinessStatusType
@@ -9881,7 +9864,6 @@ type ConvenienceBrand {
   logoColor: String!
   primaryColor: String!
   accentColor: String!
-  storefrontMode: BusinessStorefrontModeType!
   storefrontStatus: BusinessStorefrontStatusType!
   store: ConvenienceStorefrontLocation
 }
@@ -9932,7 +9914,6 @@ type ConveniencePublicStorefrontCategory {
 
 type ConveniencePublicStorefrontProjection {
   state: ConveniencePublicStorefrontState!
-  mode: BusinessStorefrontModeType
   identity: ConveniencePublicStorefrontIdentity
   location: ConveniencePublicStorefrontLocation
   categories: [ConveniencePublicStorefrontCategory!]!
@@ -10158,7 +10139,7 @@ input OnboardConvenienceBusinessInput {
   currencyCode: String
   standardTaxRate: Float
   fuelEnabled: Boolean
-  includeDemoCatalog: Boolean
+  includeStarterCatalog: Boolean
   addressLine1: String
   city: String
   stateProvince: String
@@ -10169,7 +10150,6 @@ input OnboardConvenienceBusinessInput {
   brandMark: String
   brandPrimaryColor: String
   brandAccentColor: String
-  storefrontMode: BusinessStorefrontModeType
   storefrontStatus: BusinessStorefrontStatusType
   logoIcon: String
   logoColor: String
@@ -10185,7 +10165,6 @@ input ConfigureBusinessBrandInput {
   logoIcon: String
   logoColor: String
   themePreset: String!
-  storefrontMode: BusinessStorefrontModeType!
   storefrontStatus: BusinessStorefrontStatusType!
   addressLine1: String!
   addressLine2: String!

@@ -5,7 +5,6 @@ import { normalizeStoreLogoColor } from "../../platform/store-settings/lib/store
 import {
   storefrontHoursFromMetadata,
   type StorefrontHours,
-  type StorefrontMode,
 } from "../../storefront/lib/storefront-settings";
 
 export type PublicStorefrontProduct = {
@@ -24,7 +23,6 @@ export type PublicStorefrontCategory = {
 
 export type PublicStorefrontProjection = {
   state: "unset" | "unpublished" | "published" | "unavailable";
-  mode: StorefrontMode | null;
   identity: {
     name: string;
     tagline: string;
@@ -163,7 +161,6 @@ export async function conveniencePublicStorefrontProjection(
       logoColor: true,
       brandPrimaryColor: true,
       brandAccentColor: true,
-      storefrontMode: true,
       storefrontStore: {
         select: {
           id: true,
@@ -239,7 +236,6 @@ export async function conveniencePublicStorefrontProjection(
 
     return {
       state: "published",
-      mode: settings.storefrontMode,
       identity,
       location: {
         name: store.name,

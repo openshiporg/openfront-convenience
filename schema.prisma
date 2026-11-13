@@ -23,7 +23,6 @@ model Business {
   brandMark                                    String                           @default("")
   brandPrimaryColor                            String                           @default("")
   brandAccentColor                             String                           @default("")
-  storefrontMode                               BusinessStorefrontModeType       @default(demo)
   storefrontStatus                             BusinessStorefrontStatusType     @default(draft)
   storefrontStore                              Store?                           @relation("Business_storefrontStore", fields: [storefrontStoreId], references: [id])
   storefrontStoreId                            String?                          @map("storefrontStore")
@@ -3308,11 +3307,6 @@ model WebhookEvent {
   @@index([externalEventId])
   @@index([eventType])
   @@index([idempotencyId])
-}
-
-enum BusinessStorefrontModeType {
-  demo
-  live
 }
 
 enum BusinessStorefrontStatusType {

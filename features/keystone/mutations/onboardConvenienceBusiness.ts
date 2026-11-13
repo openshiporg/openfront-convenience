@@ -8,7 +8,6 @@ import {
   findStorefrontThemePreset,
   getStorefrontThemePreset,
 } from "../../storefront/lib/storefront-theme";
-import type { StorefrontMode } from "../../storefront/lib/storefront-settings";
 import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON, normalizeStoreLogoColor } from "../../platform/store-settings/lib/store-logo";
 import { sanitizeStoreLogoSvg } from "../../lib/sanitize-store-logo";
 import {
@@ -37,7 +36,7 @@ export type OnboardConvenienceBusinessArgs = {
     currencyCode?: string | null;
     standardTaxRate?: number | null;
     fuelEnabled?: boolean | null;
-    includeDemoCatalog?: boolean | null;
+    includeStarterCatalog?: boolean | null;
     addressLine1?: string | null;
     city?: string | null;
     stateProvince?: string | null;
@@ -48,7 +47,6 @@ export type OnboardConvenienceBusinessArgs = {
     brandMark?: string | null;
     brandPrimaryColor?: string | null;
     brandAccentColor?: string | null;
-    storefrontMode?: StorefrontMode | null;
     storefrontStatus?: "draft" | "published" | null;
     logoIcon?: string | null;
     logoColor?: string | null;
@@ -100,7 +98,6 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   const brandAccentColor = (
     input.brandAccentColor?.trim() || seedTheme.accentColor
   ).toUpperCase();
-  const storefrontModeValue = input.storefrontMode ?? seed.storefront.mode;
   const storefrontStatusValue =
     input.storefrontStatus ?? seed.storefront.status;
   if (brandName.length > 80 || brandTagline.length > 160) {
@@ -113,9 +110,6 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   }
   if (!findStorefrontThemePreset(brandPrimaryColor, brandAccentColor)) {
     throw new Error("Storefront settings require a supported theme");
-  }
-  if (storefrontModeValue !== "demo" && storefrontModeValue !== "live") {
-    throw new Error("Storefront mode must be demo or live");
   }
   if (
     storefrontStatusValue !== "draft" &&
@@ -139,7 +133,6 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
   ) {
     throw new Error("Address or phone exceeds its supported length");
   }
-  const storefrontMode: StorefrontMode = storefrontModeValue;
   const storefrontStatus: "draft" | "published" = storefrontStatusValue;
   return {
     businessName,
@@ -151,14 +144,13 @@ function validateInput(input: OnboardConvenienceBusinessArgs["input"]) {
     standardTaxRate,
     fuelEnabled: input.fuelEnabled ?? false,
     // API callers keep the sample catalog unless they opt out; the dashboard form asks.
-    includeDemoCatalog: input.includeDemoCatalog ?? true,
+    includeStarterCatalog: input.includeStarterCatalog ?? true,
     ...location,
     brandName,
     brandTagline,
     brandMark,
     brandPrimaryColor,
     brandAccentColor,
-    storefrontMode,
     storefrontStatus,
   };
 }
@@ -296,7 +288,6 @@ export default async function onboardConvenienceBusiness(
         // As E-commerce onboarding: the template's logo, or the default logo and hue.
         logoIcon: logo.logoIcon,
         logoColor: logo.logoColor,
-        storefrontMode: input.storefrontMode,
         storefrontStatus: input.storefrontStatus,
         status: "active",
         defaultCurrencyCode: input.currencyCode,
@@ -331,7 +322,7 @@ export default async function onboardConvenienceBusiness(
         metadata: {
           // Hours stay blank until the operator enters their real hours.
           publicHours: {},
-          demoSeedVersion: seed.version,
+          seedVersion: seed.version,
         },
       },
     });
@@ -420,9 +411,9 @@ export default async function onboardConvenienceBusiness(
       create: { businessId: business.id, storeId: store.id, name: seed.register.name, code: seed.register.code, lookupKey: `${store.id}:${seed.register.code}`, status: "active" },
     });
 
-    if (input.includeDemoCatalog) {
-      const demoCategories = new Map<string, { id: string }>();
-      for (const categorySeed of seed.demoCategories) {
+    if (input.includeStarterCatalog) {
+      const starterCategories = new Map<string, { id: string }>();
+      for (const categorySeed of seed.starterCategories) {
         const category = await transaction.productCategory.upsert({
           where: {
             lookupKey: `${business.id}:category:${categorySeed.code}`,
@@ -443,11 +434,11 @@ export default async function onboardConvenienceBusiness(
           },
           select: { id: true },
         });
-        demoCategories.set(categorySeed.code, category);
+        starterCategories.set(categorySeed.code, category);
       }
 
-      for (const productSeed of seed.demoProducts) {
-        const category = demoCategories.get(productSeed.categoryCode);
+      for (const productSeed of seed.starterProducts) {
+        const category = starterCategories.get(productSeed.categoryCode);
         if (!category) {
           throw new Error(
             `Demo product category is missing: ${productSeed.categoryCode}`,

@@ -86,7 +86,6 @@ type Projection = {
     logoColor: string;
     primaryColor: string;
     accentColor: string;
-    storefrontMode: "demo" | "live";
     storefrontStatus: "draft" | "published";
     store: {
       id: string;
@@ -548,7 +547,6 @@ export async function conveniencePlatformProjection(
       logoColor: true,
       brandPrimaryColor: true,
       brandAccentColor: true,
-      storefrontMode: true,
       storefrontStatus: true,
       storefrontStore: {
         select: {
@@ -3511,7 +3509,6 @@ export async function conveniencePlatformProjection(
       logoColor: selectedBusiness.logoColor,
       primaryColor: selectedBusiness.brandPrimaryColor,
       accentColor: selectedBusiness.brandAccentColor,
-      storefrontMode: selectedBusiness.storefrontMode,
       storefrontStatus: selectedBusiness.storefrontStatus,
       store: selectedBusiness.storefrontStore
         ? {

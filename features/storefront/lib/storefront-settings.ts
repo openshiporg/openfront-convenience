@@ -10,7 +10,6 @@ export const STOREFRONT_DAYS = [
 
 export type StorefrontDay = (typeof STOREFRONT_DAYS)[number];
 export type StorefrontHours = Record<StorefrontDay, string>;
-export type StorefrontMode = "demo" | "live";
 
 export const EMPTY_STOREFRONT_HOURS: StorefrontHours = {
   monday: "",

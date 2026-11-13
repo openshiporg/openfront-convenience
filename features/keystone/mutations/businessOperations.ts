@@ -11,7 +11,6 @@ import {
   mergeStorefrontHoursMetadata,
   normalizeStorefrontHours,
   STOREFRONT_DAYS,
-  type StorefrontMode,
 } from "../../storefront/lib/storefront-settings";
 import { runIdempotentOperation } from "./operationRunner";
 import type { OperationResult } from "./cashOperations";
@@ -44,7 +43,6 @@ export async function configureBusinessBrand(
       logoIcon?: string;
       logoColor?: string;
       themePreset: string;
-      storefrontMode: StorefrontMode;
       storefrontStatus: "draft" | "published";
       addressLine1: string;
       addressLine2: string;
@@ -84,9 +82,6 @@ export async function configureBusinessBrand(
   const theme =
     getStorefrontThemePreset(args.input.themePreset ?? "") ??
     STOREFRONT_THEME_PRESETS[0];
-  if (!(["demo", "live"] as const).includes(args.input.storefrontMode)) {
-    throw new Error("Storefront mode must be demo or live");
-  }
   if (!(["draft", "published"] as const).includes(args.input.storefrontStatus)) {
     throw new Error("Storefront status must be draft or published");
   }
@@ -135,7 +130,6 @@ export async function configureBusinessBrand(
       ...(logoIcon !== undefined ? { logoIcon } : {}),
       ...(logoColor !== undefined ? { logoColor } : {}),
       themePreset: theme.id,
-      storefrontMode: args.input.storefrontMode,
       storefrontStatus: args.input.storefrontStatus,
       addressLine1,
       addressLine2,
@@ -205,7 +199,6 @@ export async function configureBusinessBrand(
           ...(logoColor !== undefined ? { logoColor } : {}),
           brandPrimaryColor: theme.primaryColor,
           brandAccentColor: theme.accentColor,
-          storefrontMode: args.input.storefrontMode,
           storefrontStatus: args.input.storefrontStatus,
           storefrontStoreId: store.id,
         },

@@ -1,7 +1,6 @@
 {
   "version": 4,
   "storefront": {
-    "mode": "live",
     "status": "draft",
     "name": "Cedar & Main Market",
     "tagline": "Everyday essentials, good coffee, and a quick bite",
@@ -56,7 +55,7 @@
       "code": "exempt"
     }
   ],
-  "demoCategories": [
+  "starterCategories": [
     {
       "name": "Cold Drinks",
       "code": "cold-drinks",
@@ -83,7 +82,7 @@
       "description": "Household staples."
     }
   ],
-  "demoProducts": [
+  "starterProducts": [
     {
       "title": "Sparkling Lime Water",
       "summary": "A crisp, unsweetened sparkling water with lime.",
@@ -321,6 +320,6 @@
     "postalCode": "10000",
     "phone": "(212) 555-0184",
     "storefrontStatus": "published",
-    "includeDemoCatalog": "on"
+    "includeStarterCatalog": "on"
   }
 }

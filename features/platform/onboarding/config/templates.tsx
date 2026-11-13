@@ -46,14 +46,14 @@ const baseNames = {
 export const CONVENIENCE_TEMPLATES: Record<ConvenienceTemplateId, ConvenienceTemplate> = {
   sample: {
     name: "Sample store",
-    description: `${seed.storefront.name}: sample business details and ${seed.demoProducts.length} products.`,
+    description: `${seed.storefront.name}: starter business details and ${seed.starterProducts.length} products.`,
     icon: <Store className="h-5 w-5" />,
     formValues: seed.sampleForm,
     logo: defaultLogo,
     displayNames: {
       ...baseNames,
-      categories: seed.demoCategories.map((category) => category.name),
-      products: seed.demoProducts.map((product) => product.title),
+      categories: seed.starterCategories.map((category) => category.name),
+      products: seed.starterProducts.map((product) => product.title),
     },
   },
   blank: {

@@ -240,7 +240,6 @@ export async function configureBusinessBrandAction(formData: FormData) {
       logoIcon: field(formData, "logoIcon"),
       logoColor: normalizeStoreLogoColor(field(formData, "logoColor")),
       themePreset: field(formData, "themePreset"),
-      storefrontMode: field(formData, "storefrontMode") || "live",
       storefrontStatus: field(formData, "storefrontStatus"),
       addressLine1: field(formData, "addressLine1"),
       addressLine2: field(formData, "addressLine2"),

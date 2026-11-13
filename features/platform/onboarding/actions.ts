@@ -52,7 +52,7 @@ export async function onboardConvenienceBusinessAction(
   values.businessCode = values.businessCode.toLowerCase();
   values.storeCode = values.storeCode.toLowerCase();
   values.fuelEnabled = formData.get("fuelEnabled") === "on" ? "on" : "";
-  values.includeDemoCatalog = formData.get("includeDemoCatalog") === "on" ? "on" : "";
+  values.includeStarterCatalog = formData.get("includeStarterCatalog") === "on" ? "on" : "";
   const template = formData.get("template") === "sample" ? "sample" : "blank";
   const attempt = previousState.attempt + 1;
   const failure = (message: string): OnboardingActionState => ({ message, success: false, values, attempt });
@@ -69,7 +69,7 @@ export async function onboardConvenienceBusinessAction(
     currencyCode: (values.currencyCode || "USD").toUpperCase(),
     standardTaxRate: percentToRate(values.standardTaxPercent || "0"),
     fuelEnabled: values.fuelEnabled === "on",
-    includeDemoCatalog: values.includeDemoCatalog === "on",
+    includeStarterCatalog: values.includeStarterCatalog === "on",
     storefrontStatus: values.storefrontStatus || "draft",
     addressLine1: values.addressLine1,
     city: values.city,

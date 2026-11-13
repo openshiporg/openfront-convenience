@@ -61,7 +61,6 @@ export type PlatformProjection = {
     logoColor: string;
     primaryColor: string;
     accentColor: string;
-    storefrontMode: "demo" | "live";
     storefrontStatus: "draft" | "published";
     store: {
       id: string;
@@ -378,7 +377,7 @@ export async function getPlatformProjection(
         surface businessId storeId generatedAt limit timezone currencyCode
         brand {
           name tagline mark logoIcon logoColor primaryColor accentColor
-          storefrontMode storefrontStatus
+          storefrontStatus
           store {
             id name addressLine1 addressLine2 city stateProvince postalCode
             countryCode phone hours

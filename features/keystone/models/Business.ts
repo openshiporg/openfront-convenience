@@ -110,16 +110,6 @@ export const Business = list({
         },
       },
     }),
-    storefrontMode: select({
-      type: "enum",
-      options: [
-        { label: "Demo", value: "demo" },
-        { label: "Live", value: "live" },
-      ],
-      defaultValue: "demo",
-      validation: { isRequired: true },
-      access: { create: () => false, update: () => false },
-    }),
     storefrontStatus: select({
       type: "enum",
       options: [
