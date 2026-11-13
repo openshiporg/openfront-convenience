@@ -389,7 +389,7 @@ export async function storefrontPickupOrder(_root: unknown, args: { cartId: stri
   if (!cart.saleId) return null;
   const sale = await context.prisma.sale.findUnique({
     where: { id: cart.saleId },
-    select: { id: true, receiptNumber: true, pickupStatus: true, currencyCode: true, totalCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } },
+    select: { id: true, receiptNumber: true, status: true, pickupStatus: true, currencyCode: true, totalCents: true, refundedCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } },
   });
   if (!sale) return null;
   return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };

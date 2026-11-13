@@ -52,6 +52,14 @@ const platformPagePermissions: Record<string, string[]> = {
   exports: ['canReadExports', 'canReadPeople'],
 }
 
+/** Whether the role holds what a /dashboard/platform/<page> path needs; unknown pages or sessions pass. */
+export function canOpenPlatformPath(pathname: string, user: SidebarUser): boolean {
+  const slug = pathname.split('/platform')[1]?.split('/')[1] ?? ''
+  const held = user?.role?.permissions
+  const needed = platformPagePermissions[slug]
+  return !held || !needed || needed.every((permission) => held.includes(permission))
+}
+
 /**
  * A platform page whose first segment is a list path follows that list's visibility;
  * pages that are not tied to one list stay visible to dashboard users.

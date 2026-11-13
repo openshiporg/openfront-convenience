@@ -6,6 +6,9 @@ const REFERENCE_WORDS: Record<string, string> = {
   SHIFT: "Shift",
   SALE: "Sale",
   RCPT: "Receipt",
+  WEB: "Order",
+  REF: "Refund",
+  RET: "Return",
 };
 
 /** "CART-c11b2d04-544b-…" → "Basket C11B2D"; short, human-readable codes pass through. */

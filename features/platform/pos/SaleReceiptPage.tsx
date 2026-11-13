@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 
@@ -32,13 +33,21 @@ export async function SaleReceiptRoute({ params, searchParams }: {
   searchParams: Promise<{ businessId?: string; storeId?: string }>;
 }) {
   const [{ saleId }, query] = await Promise.all([params, searchParams]);
-  return <SaleReceiptPage saleId={saleId} businessId={query.businessId ?? ""} storeId={query.storeId ?? ""} />;
+  // The sale itself names its business and store, so the link works for storefront sales and without a scope query.
+  const owner = await keystoneClient<{ sale: { business: { id: string } | null; store: { id: string } | null } | null }>(
+    `query ReceiptOwner($id: ID!) { sale(where: { id: $id }) { business { id } store { id } } }`,
+    { id: saleId },
+  );
+  const sale = owner.success ? owner.data.sale : null;
+  if (!sale) notFound();
+  return <SaleReceiptPage saleId={saleId} businessId={sale.business?.id ?? query.businessId ?? ""} storeId={sale.store?.id ?? query.storeId ?? ""} />;
 }
 
 export async function SaleReceiptPage({ saleId, businessId, storeId }: { saleId: string; businessId: string; storeId: string }) {
   const response = await keystoneClient<{ posSaleReceipt: Receipt }>(`
     query OperationalReceipt($input: PosSaleReceiptInput!) { posSaleReceipt(input: $input) }
   `, { input: { businessId, storeId, saleId } });
+  if (!response.success && /not found/i.test(response.error)) notFound();
   if (!response.success) {
     return <main className="mx-auto max-w-md p-6"><h1 className="flex items-baseline gap-2 text-xl font-semibold"><Dot tone="danger" />Receipt unavailable</h1><p className="mt-2 text-sm text-destructive">{response.error}</p></main>;
   }

@@ -14,6 +14,7 @@ import { PickupState, PickupWhen } from "../components/PickupTiming";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { customerAuth, customerSignout, removeBasketLine, startNewBasket } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
+import { shortRef } from "@/features/platform/lib/labels";
 
 export const shopMetadata = () => storefrontTitle("Shop");
 export const accountMetadata = () => storefrontTitle("Account");
@@ -408,17 +409,21 @@ export async function PickupCompletePage({ searchParams }: { searchParams?: Prom
   const [order, projection] = await Promise.all([pickupOrder(link), getPublicStorefrontProjection()]);
   if (!order) redirect("/shop");
   const pickedUp = order.pickupStatus === "picked_up";
+  const closed = order.status === "refunded" || order.status === "voided";
+  const partlyRefunded = order.status === "partially_refunded";
+  const closedLabel = order.status === "voided" ? "Order cancelled" : closed ? "Order refunded" : undefined;
   return (
     <ShopShell showCategories={false}>
       <div className="sf-page">
         <section className="sf-card sf-placed" aria-labelledby="sf-placed-title">
           <CircleCheck aria-hidden="true" className="sf-placed__mark" />
           <h1 id="sf-placed-title" className="sf-listhead__title">
-            Order placed
+            {closed ? closedLabel : "Order placed"}
           </h1>
-          <PickupState pickedUp={pickedUp} hours={projection.location?.hours} timeZone={projection.location?.timezone} />
-          <p className="sf-placed__no sf-num">{order.receiptNumber}</p>
-          <p className="sf-muted">Show this order number at the counter at {pickupPlace(projection.location)}.</p>
+          <PickupState pickedUp={pickedUp} closedLabel={closedLabel} hours={projection.location?.hours} timeZone={projection.location?.timezone} />
+          <p className="sf-placed__no sf-num">{shortRef(order.receiptNumber)}</p>
+          {closed ? null : <p className="sf-muted">Show this order number at the counter at {pickupPlace(projection.location)}.</p>}
+          {partlyRefunded ? <p className="sf-muted">Part of this order was refunded: {money(order.refundedCents, order.currencyCode)}.</p> : null}
           <ul className="sf-lines sf-placed__lines">
             {order.lines.map((line, index) => (
               <li key={index}>
@@ -433,6 +438,12 @@ export async function PickupCompletePage({ searchParams }: { searchParams?: Prom
             <dt>Paid</dt>
             <dd className="sf-figure sf-num">{money(order.totalCents, order.currencyCode)}</dd>
           </dl>
+          {closed ? (
+            <dl className="sf-receipt__total">
+              <dt>Refunded</dt>
+              <dd className="sf-figure sf-num">{money(order.refundedCents || order.totalCents, order.currencyCode)}</dd>
+            </dl>
+          ) : null}
           <form action={startNewBasket}>
             <button className="sf-btn sf-btn--wide sf-btn--big">Continue shopping</button>
           </form>
@@ -548,7 +559,7 @@ export async function AccountPage() {
                 <li key={order.id}>
                   <Link className="sf-order" href={`/account/receipts/${order.id}`}>
                     <span className="sf-order__main">
-                      <span className="sf-order__no sf-num">{order.receiptNumber}</span>
+                      <span className="sf-order__no sf-num">{shortRef(order.receiptNumber)}</span>
                       <span className="sf-muted">
                         {itemCount(order.lines.length)}
                         {order.completedAt ? ` · ${shortDate(order.completedAt)}` : ""}
@@ -588,7 +599,7 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
           <ArrowLeft aria-hidden="true" className="sf-icon" />
           Account
         </Link>
-        <PageHead title={<span className="sf-num">{order.receiptNumber}</span>}>
+        <PageHead title={<span className="sf-num">{shortRef(order.receiptNumber)}</span>}>
           <span className="sf-state">
             <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
             {statusLabel(order.status)}

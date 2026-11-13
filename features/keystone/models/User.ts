@@ -96,6 +96,8 @@ export const User = list({
     },
   },
   ui: {
+    // Anyone may sign up on the storefront, but the dashboard's create form is for people managers.
+    hideCreate: ({ session }) => !(isPlatformAdmin({ session }) || hasPermission({ session }, "canManagePeople")),
     labelField: "name",
     listView: { initialColumns: ["name", "email", "onboardingStatus", "employees"] },
   },

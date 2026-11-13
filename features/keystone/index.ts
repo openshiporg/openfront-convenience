@@ -255,6 +255,17 @@ function hiddenWithoutQueryAccess(listKey: string, model: (typeof models)[keyof 
     }
   };
 }
+function hiddenCreateWithoutAccess(listKey: string, model: (typeof models)[keyof typeof models]) {
+  const create = (model.access as { operation?: { create?: unknown } } | undefined)?.operation?.create;
+  if (typeof create !== "function") return undefined;
+  return ({ session }: { session?: unknown }) => {
+    try {
+      return !(create as (args: unknown) => unknown)({ session, listKey, operation: "create" });
+    } catch {
+      return false;
+    }
+  };
+}
 const boundedModels = Object.fromEntries(
   Object.entries(models).map(([key, model]) => {
     if (genericMediaConfiguration.has(key)) return [key, model];
@@ -271,6 +282,8 @@ const boundedModels = Object.fromEntries(
           ...model.ui,
           // Hide a list from the sidebar when the signed-in person fails the list's own query access.
           isHidden: model.ui?.isHidden ?? hiddenWithoutQueryAccess(key, model),
+          // No "Create" link or form for a person whose role cannot create in this list.
+          hideCreate: model.ui?.hideCreate ?? hiddenCreateWithoutAccess(key, model),
           ...(workflowOnly ? { itemView: { ...model.ui?.itemView, defaultFieldMode: "read" as const } } : {}),
         },
         graphql: {

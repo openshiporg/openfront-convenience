@@ -4,6 +4,7 @@ import { getServerGraphQLTarget } from "@/features/dashboard/lib/getBaseUrl";
 import { GraphQLClient } from 'graphql-request';
 import { safeErrorSummary, sanitizeDashboardRedirect } from './lib/security';
 import { isDashboardRoute, publicSignUpsAllowed } from './lib/authFlow';
+import { canOpenPlatformPath } from './lib/sidebarAccess';
 
 const basePath = "/dashboard";
 
@@ -52,6 +53,7 @@ export async function getAuthenticatedUser(request: NextRequest) {
           id
           role {
             canAccessDashboard
+            permissions
           }
         }
       }
@@ -134,6 +136,11 @@ export async function handleDashboardRoutes(
   // Check role permissions
   if (user && !isNoAccessRoute && !user.role?.canAccessDashboard) {
     return NextResponse.redirect(new URL(`${basePath}/no-access`, request.url));
+  }
+
+  // A platform page the role holds none of the permissions for is a 404, the same as a link the sidebar hides.
+  if (user && /^\/dashboard\/platform(\/|$)/.test(pathname) && !canOpenPlatformPath(pathname, user)) {
+    return NextResponse.rewrite(new URL(`${basePath}/not-found-404`, request.url));
   }
 
   return NextResponse.next();

@@ -221,6 +221,7 @@ export async function refundPosSale(
             },
             include: {
               product: { select: { returnable: true } },
+              variant: { select: { trackInventory: true } },
               inventoryEntries: true,
               returnLines: {
                 include: { restockLedgerEntries: true },
@@ -685,7 +686,8 @@ export async function refundPosSale(
           },
         });
 
-        if (line.input.disposition === "restock") {
+        // Made-in-store items are never stocked, so a restock must not create on-hand from nothing.
+        if (line.input.disposition === "restock" && line.saleLine.variant?.trackInventory !== false) {
           if (!locationId || !line.saleLine.variantId) {
             throw new Error(
               "Restocked return requires a primary location and live variant",
