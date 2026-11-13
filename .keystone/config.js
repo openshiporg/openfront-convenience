@@ -167,7 +167,8 @@ async function createPaymentFunction({ order, amount, currency, idempotencyKey }
     {
       amount,
       currency: currency.toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+      // Card only: a bank (ACH) payment stays processing for days while the page promises pickup now.
+      payment_method_types: ["card"],
       metadata: {
         orderId: order?.id || "",
         orderNumber: order?.orderNumber || ""
@@ -208,7 +209,10 @@ async function refundPaymentFunction({ paymentId, amount, idempotencyKey, refund
 }
 async function getPaymentStatusFunction({ paymentId }) {
   const stripe = getStripeClient();
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentId);
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentId, { expand: ["latest_charge"] });
+  const charge = paymentIntent.latest_charge && typeof paymentIntent.latest_charge === "object" ? paymentIntent.latest_charge : null;
+  const cardDetails = charge?.payment_method_details?.card;
+  const card = cardDetails ? { brand: cardDetails.brand ?? "", last4: cardDetails.last4 ?? "" } : null;
   const refunds = [];
   let refundsComplete = true;
   for await (const refund of stripe.refunds.list({ payment_intent: paymentId, limit: 100 })) {
@@ -222,6 +226,7 @@ async function getPaymentStatusFunction({ paymentId }) {
     status: paymentIntent.status,
     amount: paymentIntent.status === "succeeded" ? paymentIntent.amount_received : paymentIntent.amount,
     currencyCode: paymentIntent.currency.toUpperCase(),
+    card,
     refunds,
     refundsComplete,
     data: paymentIntent
@@ -495,8 +500,7 @@ var init_paypal = __esm({
     "use strict";
     init_currency_units();
     getPayPalBaseUrl = () => {
-      const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
-      return isSandbox ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
+      return "https://api-m.paypal.com";
     };
     formatPayPalAmount = (amount, currency) => {
       const digits = currencyMinorUnitDigits(currency);
@@ -1415,7 +1419,7 @@ function currencyCodeField() {
     }
   });
 }
-function metadataField(description = "Non-authoritative metadata only") {
+function metadataField(description = "Extra notes for integrations. Prices, stock and totals are never read from here.") {
   return (0, import_fields.json)({
     defaultValue: {},
     hooks: {
@@ -2220,16 +2224,6 @@ var Business = (0, import_core7.list)({
           explanation: "Brand color must be empty or an uppercase six-digit hex color"
         }
       }
-    }),
-    storefrontMode: (0, import_fields9.select)({
-      type: "enum",
-      options: [
-        { label: "Demo", value: "demo" },
-        { label: "Live", value: "live" }
-      ],
-      defaultValue: "demo",
-      validation: { isRequired: true },
-      access: { create: () => false, update: () => false }
     }),
     storefrontStatus: (0, import_fields9.select)({
       type: "enum",
@@ -5247,7 +5241,8 @@ var Promotion = (0, import_core62.list)({
     business: businessField(),
     name: (0, import_fields64.text)({ validation: { isRequired: true } }),
     code: (0, import_fields64.text)({ isIndexed: true }),
-    lookupKey: (0, import_fields64.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    // Import identity (business:code); configurePromotion sets it, so the forms leave it alone.
+    lookupKey: (0, import_fields64.text)({ isIndexed: "unique", validation: { isRequired: true }, label: "Import key", ui: { itemView: { fieldMode: "read" } } }),
     status: (0, import_fields64.select)({
       type: "enum",
       options: [
@@ -6682,6 +6677,8 @@ var User = (0, import_core89.list)({
     }
   },
   ui: {
+    // Anyone may sign up on the storefront, but the dashboard's create form is for people managers.
+    hideCreate: ({ session }) => !(isPlatformAdmin({ session }) || hasPermission({ session }, "canManagePeople")),
     labelField: "name",
     listView: { initialColumns: ["name", "email", "onboardingStatus", "employees"] }
   },
@@ -6777,7 +6774,9 @@ var User = (0, import_core89.list)({
           name: "UserDashboardRole",
           fields: {
             canAccessDashboard: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.Boolean) }),
-            canManageOnboarding: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.Boolean) })
+            canManageOnboarding: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.Boolean) }),
+            // The permission keys this person holds, so the sidebar can hide pages they cannot use.
+            permissions: import_core89.graphql.field({ type: import_core89.graphql.nonNull(import_core89.graphql.list(import_core89.graphql.nonNull(import_core89.graphql.String))) })
           }
         }),
         resolve(item, _args, context) {
@@ -6787,12 +6786,13 @@ var User = (0, import_core89.list)({
             canAccessDashboard: hasPermission({ session }, "canAccessDashboard"),
             // Onboarding creates a new business, which only a platform administrator
             // may do; employees of an existing business never see the setup card.
-            canManageOnboarding: isHumanPlatformAdmin(session)
+            canManageOnboarding: isHumanPlatformAdmin(session),
+            permissions: permissionKeys.filter((permission) => hasPermission({ session }, permission))
           };
         }
       }),
       ui: {
-        query: "{ canAccessDashboard canManageOnboarding }",
+        query: "{ canAccessDashboard canManageOnboarding permissions }",
         itemView: { fieldMode: "hidden" },
         listView: { fieldMode: "hidden" }
       }
@@ -7209,6 +7209,48 @@ var QUANTITY_SCALE_FACTOR = SCALE_FACTOR;
 // features/keystone/mutations/operationRunner.ts
 var import_node_crypto2 = require("node:crypto");
 var import_client2 = require("@prisma/client");
+
+// features/keystone/lib/constraintRefusal.ts
+var UNIQUE_REFUSALS = {
+  "RegisterSession:register": "Register already has an active session",
+  "Shift:employee": "Employee already has an open shift",
+  "FuelTransaction:nozzle": "This nozzle already has a fuel transaction in progress",
+  "ProductBarcode:variant": "This item already has a primary barcode"
+};
+var CHECK_REFUSALS = [
+  [/^PromotionRule_percentage_check$/, "A percentage promotion can take at most 100% off"],
+  [/_window_check$/, "The end must be after the start"],
+  [/^(Sale|Tender)_refund_within_\w+_check$/, "Refund exceeds the amount paid"],
+  [/^FuelTank_within_capacity_check$/, "Fuel volume would exceed the tank capacity"],
+  [/^LotteryPack_ticket_range_check$/, "Lottery tickets fall outside this pack's range"],
+  [/^PurchaseOrderLine_received_within_ordered_check$/, "Receiving exceeds the quantity ordered"],
+  [/^InventoryTransferLine_flow_check$/, "Transfer quantities exceed what was requested or shipped"],
+  [/^InventoryLot_remaining_within_received_check$/, "Lot quantity exceeds what was received"],
+  [/^RegisterSession_bounds_check$/, "Register cash cannot go below zero"],
+  [/_bounds_check$|_positive_check$|_nonnegative_check$/, "Amounts and quantities cannot be negative"]
+];
+function constraintName(error) {
+  const e = error;
+  if (!e || typeof e !== "object") return null;
+  if (e.code === "P2002") {
+    const target = e.meta?.target;
+    const columns = Array.isArray(target) ? target.join(",") : String(target ?? "");
+    return { kind: "unique", name: `${String(e.meta?.modelName ?? "")}:${columns}` };
+  }
+  const text95 = [e.message ?? "", JSON.stringify(e.meta ?? {})].join(" ");
+  const check = text95.match(/check constraint \\?"([A-Za-z0-9_]+_check)\\?"/);
+  return check ? { kind: "check", name: check[1] } : null;
+}
+function constraintRefusal(error) {
+  const found = constraintName(error);
+  if (!found) return null;
+  if (found.kind === "unique") {
+    const message = UNIQUE_REFUSALS[found.name];
+    return message ? new Error(message) : null;
+  }
+  for (const [pattern, message] of CHECK_REFUSALS) if (pattern.test(found.name)) return new Error(message);
+  return null;
+}
 
 // features/keystone/lib/operationActor.ts
 async function assertOperationActor({
@@ -8199,7 +8241,7 @@ async function runIdempotentOperation({
         startedAt: record.startedAt
       }
     });
-    throw error;
+    throw constraintRefusal(error) ?? error;
   } finally {
     releaseLocalLock();
   }
@@ -8944,9 +8986,6 @@ async function configureBusinessBrand(_root, args, context) {
     throw new Error("Brand mark must contain 1-4 uppercase letters or digits");
   }
   const theme = getStorefrontThemePreset(args.input.themePreset ?? "") ?? STOREFRONT_THEME_PRESETS[0];
-  if (!["demo", "live"].includes(args.input.storefrontMode)) {
-    throw new Error("Storefront mode must be demo or live");
-  }
   if (!["draft", "published"].includes(args.input.storefrontStatus)) {
     throw new Error("Storefront status must be draft or published");
   }
@@ -8988,7 +9027,6 @@ async function configureBusinessBrand(_root, args, context) {
       ...logoIcon !== void 0 ? { logoIcon } : {},
       ...logoColor !== void 0 ? { logoColor } : {},
       themePreset: theme.id,
-      storefrontMode: args.input.storefrontMode,
       storefrontStatus: args.input.storefrontStatus,
       addressLine1,
       addressLine2,
@@ -9056,7 +9094,6 @@ async function configureBusinessBrand(_root, args, context) {
           ...logoColor !== void 0 ? { logoColor } : {},
           brandPrimaryColor: theme.primaryColor,
           brandAccentColor: theme.accentColor,
-          storefrontMode: args.input.storefrontMode,
           storefrontStatus: args.input.storefrontStatus,
           storefrontStoreId: store.id
         }
@@ -9932,8 +9969,11 @@ async function configurePromotion(_root, args, context) {
   if (!name) throw new Error("Promotion name is required");
   if (code2 && !/^[A-Z0-9][A-Z0-9_-]{1,31}$/.test(code2))
     throw new Error("Promotion code must be 2-32 safe characters");
-  if (args.input.valueBasisPoints != null)
+  if (args.input.valueBasisPoints != null) {
     assertBasisPoints(args.input.valueBasisPoints, "Promotion percentage");
+    if (args.input.valueBasisPoints > 1e4)
+      throw new Error("A percentage promotion can take at most 100% off");
+  }
   if (args.input.valueCents != null)
     assertCents2(args.input.valueCents, "Promotion amount");
   if (args.input.benefitMethod === "percentage" && args.input.valueBasisPoints == null)
@@ -17314,7 +17354,6 @@ var import_client11 = require("@prisma/client");
 var seed_default = {
   version: 4,
   storefront: {
-    mode: "live",
     status: "draft",
     name: "Cedar & Main Market",
     tagline: "Everyday essentials, good coffee, and a quick bite",
@@ -17369,7 +17408,7 @@ var seed_default = {
       code: "exempt"
     }
   ],
-  demoCategories: [
+  starterCategories: [
     {
       name: "Cold Drinks",
       code: "cold-drinks",
@@ -17396,7 +17435,7 @@ var seed_default = {
       description: "Household staples."
     }
   ],
-  demoProducts: [
+  starterProducts: [
     {
       title: "Sparkling Lime Water",
       summary: "A crisp, unsweetened sparkling water with lime.",
@@ -17634,7 +17673,7 @@ var seed_default = {
     postalCode: "10000",
     phone: "(212) 555-0184",
     storefrontStatus: "published",
-    includeDemoCatalog: "on"
+    includeStarterCatalog: "on"
   }
 };
 
@@ -17668,7 +17707,6 @@ function validateInput(input) {
   const brandMark = (input.brandMark?.trim() || derivedMark || seed_default.storefront.mark).toUpperCase();
   const brandPrimaryColor = (input.brandPrimaryColor?.trim() || seedTheme.primaryColor).toUpperCase();
   const brandAccentColor = (input.brandAccentColor?.trim() || seedTheme.accentColor).toUpperCase();
-  const storefrontModeValue = input.storefrontMode ?? seed_default.storefront.mode;
   const storefrontStatusValue = input.storefrontStatus ?? seed_default.storefront.status;
   if (brandName.length > 80 || brandTagline.length > 160) {
     throw new Error("Brand name or tagline exceeds its supported length");
@@ -17680,9 +17718,6 @@ function validateInput(input) {
   }
   if (!findStorefrontThemePreset(brandPrimaryColor, brandAccentColor)) {
     throw new Error("Storefront settings require a supported theme");
-  }
-  if (storefrontModeValue !== "demo" && storefrontModeValue !== "live") {
-    throw new Error("Storefront mode must be demo or live");
   }
   if (storefrontStatusValue !== "draft" && storefrontStatusValue !== "published") {
     throw new Error("Storefront status must be draft or published");
@@ -17697,7 +17732,6 @@ function validateInput(input) {
   if (location.addressLine1.length > 120 || location.city.length > 80 || location.stateProvince.length > 80 || location.postalCode.length > 24 || location.phone.length > 40) {
     throw new Error("Address or phone exceeds its supported length");
   }
-  const storefrontMode = storefrontModeValue;
   const storefrontStatus = storefrontStatusValue;
   return {
     businessName,
@@ -17709,14 +17743,13 @@ function validateInput(input) {
     standardTaxRate,
     fuelEnabled: input.fuelEnabled ?? false,
     // API callers keep the sample catalog unless they opt out; the dashboard form asks.
-    includeDemoCatalog: input.includeDemoCatalog ?? true,
+    includeStarterCatalog: input.includeStarterCatalog ?? true,
     ...location,
     brandName,
     brandTagline,
     brandMark,
     brandPrimaryColor,
     brandAccentColor,
-    storefrontMode,
     storefrontStatus
   };
 }
@@ -17837,7 +17870,6 @@ async function onboardConvenienceBusiness(_root, args, context) {
         // As E-commerce onboarding: the template's logo, or the default logo and hue.
         logoIcon: logo.logoIcon,
         logoColor: logo.logoColor,
-        storefrontMode: input.storefrontMode,
         storefrontStatus: input.storefrontStatus,
         status: "active",
         defaultCurrencyCode: input.currencyCode,
@@ -17871,7 +17903,7 @@ async function onboardConvenienceBusiness(_root, args, context) {
         metadata: {
           // Hours stay blank until the operator enters their real hours.
           publicHours: {},
-          demoSeedVersion: seed_default.version
+          seedVersion: seed_default.version
         }
       }
     });
@@ -17957,9 +17989,9 @@ async function onboardConvenienceBusiness(_root, args, context) {
       update: { name: seed_default.register.name, status: "active" },
       create: { businessId: business.id, storeId: store.id, name: seed_default.register.name, code: seed_default.register.code, lookupKey: `${store.id}:${seed_default.register.code}`, status: "active" }
     });
-    if (input.includeDemoCatalog) {
-      const demoCategories = /* @__PURE__ */ new Map();
-      for (const categorySeed of seed_default.demoCategories) {
+    if (input.includeStarterCatalog) {
+      const starterCategories = /* @__PURE__ */ new Map();
+      for (const categorySeed of seed_default.starterCategories) {
         const category = await transaction.productCategory.upsert({
           where: {
             lookupKey: `${business.id}:category:${categorySeed.code}`
@@ -17980,10 +18012,10 @@ async function onboardConvenienceBusiness(_root, args, context) {
           },
           select: { id: true }
         });
-        demoCategories.set(categorySeed.code, category);
+        starterCategories.set(categorySeed.code, category);
       }
-      for (const productSeed of seed_default.demoProducts) {
-        const category = demoCategories.get(productSeed.categoryCode);
+      for (const productSeed of seed_default.starterProducts) {
+        const category = starterCategories.get(productSeed.categoryCode);
         if (!category) {
           throw new Error(
             `Demo product category is missing: ${productSeed.categoryCode}`
@@ -21609,7 +21641,10 @@ var REFERENCE_WORDS = {
   REG: "Till",
   SHIFT: "Shift",
   SALE: "Sale",
-  RCPT: "Receipt"
+  RCPT: "Receipt",
+  WEB: "Order",
+  REF: "Refund",
+  RET: "Return"
 };
 function shortRef(code2) {
   const value = (code2 ?? "").trim();
@@ -22025,7 +22060,6 @@ async function conveniencePlatformProjection(_root, args, context) {
       logoColor: true,
       brandPrimaryColor: true,
       brandAccentColor: true,
-      storefrontMode: true,
       storefrontStatus: true,
       storefrontStore: {
         select: {
@@ -24660,7 +24694,6 @@ async function conveniencePlatformProjection(_root, args, context) {
       logoColor: selectedBusiness.logoColor,
       primaryColor: selectedBusiness.brandPrimaryColor,
       accentColor: selectedBusiness.brandAccentColor,
-      storefrontMode: selectedBusiness.storefrontMode,
       storefrontStatus: selectedBusiness.storefrontStatus,
       store: selectedBusiness.storefrontStore ? {
         id: selectedBusiness.storefrontStore.id,
@@ -24731,7 +24764,6 @@ function plainDocumentText(value, maxLength = 240) {
 }
 var emptyProjection = (state) => ({
   state,
-  mode: null,
   identity: null,
   location: null,
   categories: [],
@@ -24774,7 +24806,6 @@ async function conveniencePublicStorefrontProjection(_root, _args, context) {
       logoColor: true,
       brandPrimaryColor: true,
       brandAccentColor: true,
-      storefrontMode: true,
       storefrontStore: {
         select: {
           id: true,
@@ -24842,7 +24873,6 @@ async function conveniencePublicStorefrontProjection(_root, _args, context) {
     });
     return {
       state: "published",
-      mode: settings.storefrontMode,
       identity,
       location: {
         name: store.name,
@@ -26844,6 +26874,7 @@ async function refundPosSale(_root, args, context) {
             },
             include: {
               product: { select: { returnable: true } },
+              variant: { select: { trackInventory: true } },
               inventoryEntries: true,
               returnLines: {
                 include: { restockLedgerEntries: true }
@@ -27251,7 +27282,7 @@ async function refundPosSale(_root, args, context) {
             note: line.input.note?.trim() || ""
           }
         });
-        if (line.input.disposition === "restock") {
+        if (line.input.disposition === "restock" && line.saleLine.variant?.trackInventory !== false) {
           if (!locationId || !line.saleLine.variantId) {
             throw new Error(
               "Restocked return requires a primary location and live variant"
@@ -28981,7 +29012,8 @@ async function postPickupSale(db, input) {
       providerPaymentId: input.paymentId,
       providerLookupKey: lookupKey,
       processedAt: postingAt,
-      metadata: { onlinePickup: true, cartId: cart.id }
+      metadata: { onlinePickup: true, cartId: cart.id },
+      ...input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}
     }
   });
   await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
@@ -29025,7 +29057,7 @@ async function settleStorefrontPickup(_root, args, context) {
   if (status?.status !== "succeeded") return { state: "unpaid", status: String(status?.status ?? "unknown") };
   assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
   const result = await context.prisma.$transaction(
-    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode }),
+    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode, card: status.card }),
     // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
     { isolationLevel: import_client19.Prisma.TransactionIsolationLevel.Serializable, maxWait: 1e4, timeout: 3e4 }
   );
@@ -29055,7 +29087,7 @@ async function storefrontPickupOrder(_root, args, context) {
   if (!cart.saleId) return null;
   const sale = await context.prisma.sale.findUnique({
     where: { id: cart.saleId },
-    select: { id: true, receiptNumber: true, pickupStatus: true, currencyCode: true, totalCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } }
+    select: { id: true, receiptNumber: true, status: true, pickupStatus: true, currencyCode: true, totalCents: true, subtotalCents: true, refundedCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, subtotalCents: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } }
   });
   if (!sale) return null;
   return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
@@ -29151,7 +29183,6 @@ function extendGraphqlSchema(baseSchema) {
         logoColor: String!
         primaryColor: String!
         accentColor: String!
-        storefrontMode: BusinessStorefrontModeType!
         storefrontStatus: BusinessStorefrontStatusType!
         store: ConvenienceStorefrontLocation
       }
@@ -29202,7 +29233,6 @@ function extendGraphqlSchema(baseSchema) {
 
       type ConveniencePublicStorefrontProjection {
         state: ConveniencePublicStorefrontState!
-        mode: BusinessStorefrontModeType
         identity: ConveniencePublicStorefrontIdentity
         location: ConveniencePublicStorefrontLocation
         categories: [ConveniencePublicStorefrontCategory!]!
@@ -29428,7 +29458,7 @@ function extendGraphqlSchema(baseSchema) {
         currencyCode: String
         standardTaxRate: Float
         fuelEnabled: Boolean
-        includeDemoCatalog: Boolean
+        includeStarterCatalog: Boolean
         addressLine1: String
         city: String
         stateProvince: String
@@ -29439,7 +29469,6 @@ function extendGraphqlSchema(baseSchema) {
         brandMark: String
         brandPrimaryColor: String
         brandAccentColor: String
-        storefrontMode: BusinessStorefrontModeType
         storefrontStatus: BusinessStorefrontStatusType
         logoIcon: String
         logoColor: String
@@ -29455,7 +29484,6 @@ function extendGraphqlSchema(baseSchema) {
         logoIcon: String
         logoColor: String
         themePreset: String!
-        storefrontMode: BusinessStorefrontModeType!
         storefrontStatus: BusinessStorefrontStatusType!
         addressLine1: String!
         addressLine2: String!
@@ -31104,6 +31132,81 @@ var genericIdentityAndTenantConfiguration = /* @__PURE__ */ new Set([
   "Employee",
   "Role"
 ]);
+function hiddenWithoutQueryAccess(listKey, model) {
+  const query = model.access?.operation?.query;
+  if (typeof query !== "function") return void 0;
+  return ({ session }) => {
+    try {
+      return !query({ session, listKey, operation: "query" });
+    } catch {
+      return false;
+    }
+  };
+}
+function hiddenCreateWithoutAccess(listKey, model) {
+  const create = model.access?.operation?.create;
+  if (typeof create !== "function") return void 0;
+  return ({ session }) => {
+    try {
+      return !create({ session, listKey, operation: "create" });
+    } catch {
+      return false;
+    }
+  };
+}
+var neverFilterable = /(password|posPin|secret|token|digest|hash|credentialReference|sessionVersion)/i;
+var peopleLists = /* @__PURE__ */ new Set(["User", "Employee"]);
+function canQueryList(targetKey, args) {
+  const session = args.session;
+  if (!session) return false;
+  if (peopleLists.has(targetKey)) {
+    return hasPermission({ session }, "canReadPeople") || hasPermission({ session }, "canManagePeople");
+  }
+  const query = models[targetKey]?.access?.operation?.query;
+  if (typeof query !== "function") return false;
+  try {
+    return Boolean(query({ ...args, listKey: targetKey, operation: "query" }));
+  } catch {
+    return false;
+  }
+}
+function gateFilterAndOrder(listKey, fields) {
+  return Object.fromEntries(
+    Object.entries(fields).map(([name, build]) => {
+      if (typeof build !== "function") return [name, build];
+      return [
+        name,
+        (args) => {
+          const field = build(args);
+          const kind = field?.dbField?.kind;
+          if (!kind || kind === "none") return field;
+          if (neverFilterable.test(name)) return { ...field, isFilterable: false, isOrderable: false };
+          const staticOff = (value) => value === false;
+          const target = kind === "relation" ? field.dbField.list : null;
+          const readRule = typeof field.access === "function" ? field.access : field.access?.read;
+          const gate = async (own, ctx) => {
+            if (own === false || neverFilterable.test(name)) return false;
+            if (typeof own === "function" && !await own(ctx)) return false;
+            if (target && !canQueryList(target, ctx)) return false;
+            if (typeof readRule === "function") {
+              try {
+                if (!await readRule({ ...ctx, operation: "read", item: void 0 })) return false;
+              } catch {
+                return false;
+              }
+            }
+            return true;
+          };
+          return {
+            ...field,
+            isFilterable: staticOff(field.isFilterable) ? false : (ctx) => gate(field.isFilterable, ctx),
+            isOrderable: staticOff(field.isOrderable) ? false : (ctx) => gate(field.isOrderable, ctx)
+          };
+        }
+      ];
+    })
+  );
+}
 var boundedModels = Object.fromEntries(
   Object.entries(models).map(([key, model]) => {
     if (genericMediaConfiguration.has(key)) return [key, model];
@@ -31113,10 +31216,15 @@ var boundedModels = Object.fromEntries(
       key,
       {
         ...model,
+        fields: gateFilterAndOrder(key, model.fields),
         // Match the generic UI to the same workflow-only mutation boundary.
         // Per-field hidden/read modes remain intact; domain commands own edits.
         ui: {
           ...model.ui,
+          // Hide a list from the sidebar when the signed-in person fails the list's own query access.
+          isHidden: model.ui?.isHidden ?? hiddenWithoutQueryAccess(key, model),
+          // No "Create" link or form for a person whose role cannot create in this list.
+          hideCreate: model.ui?.hideCreate ?? hiddenCreateWithoutAccess(key, model),
           ...workflowOnly ? { itemView: { ...model.ui?.itemView, defaultFieldMode: "read" } } : {}
         },
         graphql: {
