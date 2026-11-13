@@ -266,6 +266,65 @@ function hiddenCreateWithoutAccess(listKey: string, model: (typeof models)[keyof
     }
   };
 }
+// A where-filter or orderBy through a relationship reads the related list, and a filter on a
+// read-gated scalar reveals it, so both need the permission that reads the target. Secrets,
+// digests and session counters are never filterable for anyone. Applied to every field of
+// every list; an explicit isFilterable/isOrderable: false on a field is kept.
+const neverFilterable = /(password|posPin|secret|token|digest|hash|credentialReference|sessionVersion)/i;
+const peopleLists = new Set(["User", "Employee"]);
+function canQueryList(targetKey: string, args: Record<string, unknown>): boolean {
+  const session = args.session as Session | undefined;
+  if (!session) return false;
+  if (peopleLists.has(targetKey)) {
+    return hasPermission({ session }, "canReadPeople") || hasPermission({ session }, "canManagePeople");
+  }
+  const query = (models as Record<string, any>)[targetKey]?.access?.operation?.query;
+  if (typeof query !== "function") return false;
+  try {
+    return Boolean(query({ ...args, listKey: targetKey, operation: "query" }));
+  } catch {
+    return false;
+  }
+}
+function gateFilterAndOrder(listKey: string, fields: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(fields).map(([name, build]) => {
+      if (typeof build !== "function") return [name, build];
+      return [
+        name,
+        (args: unknown) => {
+          const field = build(args);
+          const kind = field?.dbField?.kind;
+          if (!kind || kind === "none") return field;
+          // Keep static refusals static so the field stays out of the where/orderBy schema.
+          if (neverFilterable.test(name)) return { ...field, isFilterable: false, isOrderable: false };
+          const staticOff = (value: unknown) => value === false;
+          const target = kind === "relation" ? (field.dbField.list as string) : null;
+          const readRule = typeof field.access === "function" ? field.access : field.access?.read;
+          const gate = async (own: unknown, ctx: Record<string, unknown>) => {
+            if (own === false || neverFilterable.test(name)) return false;
+            if (typeof own === "function" && !(await own(ctx))) return false;
+            if (target && !canQueryList(target, ctx)) return false;
+            if (typeof readRule === "function") {
+              try {
+                if (!(await readRule({ ...ctx, operation: "read", item: undefined }))) return false;
+              } catch {
+                return false;
+              }
+            }
+            return true;
+          };
+          return {
+            ...field,
+            isFilterable: staticOff(field.isFilterable) ? false : (ctx: Record<string, unknown>) => gate(field.isFilterable, ctx),
+            isOrderable: staticOff(field.isOrderable) ? false : (ctx: Record<string, unknown>) => gate(field.isOrderable, ctx),
+          };
+        },
+      ];
+    }),
+  );
+}
+
 const boundedModels = Object.fromEntries(
   Object.entries(models).map(([key, model]) => {
     if (genericMediaConfiguration.has(key)) return [key, model];
@@ -276,6 +335,7 @@ const boundedModels = Object.fromEntries(
       key,
       {
         ...model,
+        fields: gateFilterAndOrder(key, model.fields as Record<string, any>),
         // Match the generic UI to the same workflow-only mutation boundary.
         // Per-field hidden/read modes remain intact; domain commands own edits.
         ui: {

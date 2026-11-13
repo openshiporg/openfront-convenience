@@ -697,7 +697,6 @@ input UserWhereInput {
   name: StringFilter
   isPlatformAdmin: BooleanFilter
   platformAdminApprovedAt: DateTimeNullableFilter
-  sessionVersion: IntFilter
   onboardingStatus: UserOnboardingStatusTypeNullableFilter
   phone: StringFilter
   employees: EmployeeManyRelationFilter
@@ -721,17 +720,6 @@ input DateTimeNullableFilter {
   gt: DateTime
   gte: DateTime
   not: DateTimeNullableFilter
-}
-
-input IntFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntFilter
 }
 
 input UserOnboardingStatusTypeNullableFilter {
@@ -774,7 +762,6 @@ input UserOrderByInput {
   name: OrderDirection
   isPlatformAdmin: OrderDirection
   platformAdminApprovedAt: OrderDirection
-  sessionVersion: OrderDirection
   onboardingStatus: OrderDirection
   phone: OrderDirection
   createdAt: OrderDirection
@@ -925,7 +912,6 @@ input EmployeeWhereInput {
   terminatedAt: DateTimeNullableFilter
   hourlyRateCents: IntNullableFilter
   overtimeEligible: BooleanFilter
-  posPin: PasswordFilter
   manager: EmployeeWhereInput
   directReports: EmployeeManyRelationFilter
   shifts: ShiftManyRelationFilter
@@ -1526,6 +1512,17 @@ input RegisterSessionStatusTypeNullableFilter {
   in: [RegisterSessionStatusType!]
   notIn: [RegisterSessionStatusType!]
   not: RegisterSessionStatusTypeNullableFilter
+}
+
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
 }
 
 input CashMovementManyRelationFilter {
@@ -3735,7 +3732,6 @@ input MoneyServiceProviderWhereInput {
   adapterKey: StringFilter
   externalAgentReference: StringFilter
   jurisdictionCode: StringFilter
-  credentialReference: StringFilter
   stores: StoreManyRelationFilter
   transactions: MoneyServiceTransactionManyRelationFilter
   settlements: MoneyServiceSettlementManyRelationFilter
@@ -3787,7 +3783,6 @@ input MoneyServiceProviderOrderByInput {
   adapterKey: OrderDirection
   externalAgentReference: OrderDirection
   jurisdictionCode: OrderDirection
-  credentialReference: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -5287,7 +5282,6 @@ input CartWhereInput {
   customer: UserWhereInput
   loyaltyAccount: LoyaltyAccountWhereInput
   priceBook: PriceBookWhereInput
-  guestTokenDigest: StringFilter
   expiresAt: DateTimeNullableFilter
   lines: CartLineManyRelationFilter
   promotions: PromotionManyRelationFilter
@@ -5334,7 +5328,6 @@ input CartOrderByInput {
   totalCents: OrderDirection
   loyaltyPointsToRedeem: OrderDirection
   loyaltyRedemptionCents: OrderDirection
-  guestTokenDigest: OrderDirection
   expiresAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
@@ -5809,7 +5802,6 @@ input PaymentProviderWhereInput {
   getPaymentStatusFunction: StringFilter
   handleWebhookFunction: StringFilter
   generatePaymentLinkFunction: StringFilter
-  credentialReference: StringFilter
   tenders: TenderManyRelationFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
@@ -5835,7 +5827,6 @@ input PaymentProviderOrderByInput {
   getPaymentStatusFunction: OrderDirection
   handleWebhookFunction: OrderDirection
   generatePaymentLinkFunction: OrderDirection
-  credentialReference: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -7286,7 +7277,6 @@ input FuelSiteWhereInput {
   enabled: BooleanFilter
   status: FuelSiteStatusTypeNullableFilter
   controllerAdapterKey: StringFilter
-  controllerCredentialReference: StringFilter
   grades: FuelGradeManyRelationFilter
   tanks: FuelTankManyRelationFilter
   pumps: FuelPumpManyRelationFilter
@@ -7348,7 +7338,6 @@ input FuelSiteOrderByInput {
   enabled: OrderDirection
   status: OrderDirection
   controllerAdapterKey: OrderDirection
-  controllerCredentialReference: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -8229,7 +8218,6 @@ input OfflineOperationBatchWhereInput {
   device: OfflineDeviceWhereInput
   batchNumber: StringFilter
   lookupKey: StringFilter
-  requestDigest: StringFilter
   status: OfflineOperationBatchStatusTypeNullableFilter
   firstSequence: IntFilter
   lastSequence: IntFilter
@@ -8263,7 +8251,6 @@ input OfflineOperationBatchOrderByInput {
   id: OrderDirection
   batchNumber: OrderDirection
   lookupKey: OrderDirection
-  requestDigest: OrderDirection
   status: OrderDirection
   firstSequence: OrderDirection
   lastSequence: OrderDirection
@@ -8321,8 +8308,6 @@ input OfflineOperationWhereInput {
   sequence: IntFilter
   operationKey: StringFilter
   operationType: StringFilter
-  idempotencyKeyDigest: StringFilter
-  requestDigest: StringFilter
   outcome: OfflineOperationOutcomeTypeNullableFilter
   resourceType: StringFilter
   resourceId: StringFilter
@@ -8344,8 +8329,6 @@ input OfflineOperationOrderByInput {
   sequence: OrderDirection
   operationKey: OrderDirection
   operationType: OrderDirection
-  idempotencyKeyDigest: OrderDirection
-  requestDigest: OrderDirection
   outcome: OrderDirection
   resourceType: OrderDirection
   resourceId: OrderDirection
@@ -8672,7 +8655,6 @@ input ExportDestinationWhereInput {
   type: ExportDestinationTypeTypeNullableFilter
   status: ExportDestinationStatusTypeNullableFilter
   adapterKey: StringFilter
-  credentialReference: StringFilter
   stores: StoreManyRelationFilter
   batches: ExportBatchManyRelationFilter
   createdAt: DateTimeFilter
@@ -8707,7 +8689,6 @@ input ExportDestinationOrderByInput {
   type: OrderDirection
   status: OrderDirection
   adapterKey: OrderDirection
-  credentialReference: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -8994,7 +8975,6 @@ type AuthenticationThrottle {
 
 input AuthenticationThrottleWhereUniqueInput {
   id: ID
-  keyHash: String
 }
 
 input AuthenticationThrottleWhereInput {
@@ -9002,7 +8982,6 @@ input AuthenticationThrottleWhereInput {
   OR: [AuthenticationThrottleWhereInput!]
   NOT: [AuthenticationThrottleWhereInput!]
   id: IDFilter
-  keyHash: StringFilter
   count: IntFilter
   resetsAt: DateTimeFilter
   createdAt: DateTimeFilter
@@ -9011,7 +8990,6 @@ input AuthenticationThrottleWhereInput {
 
 input AuthenticationThrottleOrderByInput {
   id: OrderDirection
-  keyHash: OrderDirection
   count: OrderDirection
   resetsAt: OrderDirection
   createdAt: OrderDirection
@@ -9057,12 +9035,9 @@ input IdempotencyKeyWhereInput {
   id: IDFilter
   business: BusinessWhereInput
   scope: StringFilter
-  keyDigest: StringFilter
   lookupKey: StringFilter
-  requestDigest: StringFilter
   state: IdempotencyKeyStateTypeNullableFilter
   responseCode: StringFilter
-  responseDigest: StringFilter
   startedAt: DateTimeFilter
   completedAt: DateTimeNullableFilter
   expiresAt: DateTimeFilter
@@ -9082,12 +9057,9 @@ input IdempotencyKeyStateTypeNullableFilter {
 input IdempotencyKeyOrderByInput {
   id: OrderDirection
   scope: OrderDirection
-  keyDigest: OrderDirection
   lookupKey: OrderDirection
-  requestDigest: OrderDirection
   state: OrderDirection
   responseCode: OrderDirection
-  responseDigest: OrderDirection
   startedAt: OrderDirection
   completedAt: OrderDirection
   expiresAt: OrderDirection
@@ -9155,7 +9127,6 @@ input AuditEventWhereInput {
   actorApiKey: ApiKeyWhereInput
   requestId: StringFilter
   idempotency: IdempotencyKeyWhereInput
-  sourceIpDigest: StringFilter
   userAgent: StringFilter
   occurredAt: DateTimeFilter
   createdAt: DateTimeFilter
@@ -9185,7 +9156,6 @@ input AuditEventOrderByInput {
   result: OrderDirection
   actorType: OrderDirection
   requestId: OrderDirection
-  sourceIpDigest: OrderDirection
   userAgent: OrderDirection
   occurredAt: OrderDirection
   createdAt: OrderDirection
@@ -9234,7 +9204,6 @@ input WebhookEventWhereInput {
   externalEventId: StringFilter
   lookupKey: StringFilter
   eventType: StringFilter
-  payloadDigest: StringFilter
   status: WebhookEventStatusTypeNullableFilter
   attemptCount: IntFilter
   receivedAt: DateTimeFilter
@@ -9257,7 +9226,6 @@ input WebhookEventOrderByInput {
   externalEventId: OrderDirection
   lookupKey: OrderDirection
   eventType: OrderDirection
-  payloadDigest: OrderDirection
   status: OrderDirection
   attemptCount: OrderDirection
   receivedAt: OrderDirection
