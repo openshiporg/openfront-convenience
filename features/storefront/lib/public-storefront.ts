@@ -26,7 +26,6 @@ export const getPublicStorefrontProjection = cache(
       });
       return {
         state: "unavailable",
-        mode: null,
         identity: null,
         location: null,
         categories: [],

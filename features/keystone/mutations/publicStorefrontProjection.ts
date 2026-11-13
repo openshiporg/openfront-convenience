@@ -102,7 +102,6 @@ const emptyProjection = (
   state: PublicStorefrontProjection["state"],
 ): PublicStorefrontProjection => ({
   state,
-  mode: null,
   identity: null,
   location: null,
   categories: [],
