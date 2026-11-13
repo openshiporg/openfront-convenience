@@ -20,7 +20,8 @@ export async function createPaymentFunction({ order, amount, currency, idempoten
     {
       amount,
       currency: currency.toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+      // Card only: a bank (ACH) payment stays processing for days while the page promises pickup now.
+      payment_method_types: ["card"],
       metadata: {
         orderId: order?.id || "",
         orderNumber: order?.orderNumber || "",

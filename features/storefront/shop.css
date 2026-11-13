@@ -1884,3 +1884,24 @@ a.sf-ctl:hover {
     transition: none !important;
   }
 }
+
+/* ---------- Tap targets: 44px minimum ---------- */
+.sf-step {
+  grid-template-columns: 44px 32px 44px;
+}
+.sf-step button {
+  width: 44px;
+  height: 44px;
+}
+.sf-link,
+.sf-back,
+.sf-row__name a,
+.sf-bline__name a,
+.sf-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.sf-back {
+  margin-top: 8px;
+}

@@ -51,6 +51,13 @@ type Sale = {
   promotionRedemptions: Array<{ id: string; amountCents: number; codeSnapshot: string; promotion: { name: string } | null }>;
 };
 
+/** "(Unknown, restock)" read as words: "back on the shelf", "thrown away"; an unknown condition is left out. */
+function returnNote(condition: string, disposition: string) {
+  const where: Record<string, string> = { restock: "back on the shelf", discard: "thrown away", waste: "thrown away", damaged: "written off" };
+  const parts = [condition && condition !== "unknown" ? statusLabel(condition).toLowerCase() : null, where[disposition] ?? statusLabel(disposition).toLowerCase()].filter(Boolean);
+  return `(${parts.join(", ")})`;
+}
+
 export async function SaleDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: PlatformSearch }) {
   const [{ id }, search] = await Promise.all([params, searchParams]);
   const scope = await getPlatformScope(search);
@@ -265,7 +272,7 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
                   {[
                     tender.cardBrand || null,
                     tender.tenderedCents != null && tender.method === "cash" ? `tendered ${money(tender.tenderedCents)} · change ${money(tender.changeCents)}` : null,
-                    tender.refundedCents ? `${money(tender.refundedCents)} refunded` : null,
+                    tender.refundedCents && tender.status !== "refunded" ? `${money(tender.refundedCents)} refunded` : null,
                   ]
                     .filter(Boolean)
                     .join(" · ") || "—"}
@@ -331,7 +338,7 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
                   <Td priority={2}>{statusLabel(entry.reason)}</Td>
                   <Td className="text-muted-foreground">
                     {entry.lines
-                      .map((line) => `${quantityText(line.quantity)} × ${line.saleLine?.titleSnapshot ?? "item"} (${statusLabel(line.condition)}, ${statusLabel(line.disposition).toLowerCase()})`)
+                      .map((line) => `${quantityText(line.quantity)} × ${line.saleLine?.titleSnapshot ?? "item"} ${returnNote(line.condition, line.disposition)}`)
                       .join(", ")}
                   </Td>
                   <Td>

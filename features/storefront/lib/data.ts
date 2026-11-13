@@ -40,7 +40,7 @@ export const customerHistory = cache(async () => ((await currentCustomer()) ? hi
 export const lastWebOrder = cache(async () => (await customerHistory()).find((order) => order.source === "storefront" && order.status === "completed"));
 export const customerRewards = cache(async () => ((await currentCustomer()) ? rewards() : []));
 
-export type PickupOrder = { id: string; receiptNumber: string; status: string; refundedCents: number; pickupStatus: "none" | "ready_for_pickup" | "picked_up"; currencyCode: string; totalCents: number; taxCents: number; completedAt: string | null; lines: { titleSnapshot: string; variantTitleSnapshot: string; quantity: string; totalCents: number }[] };
+export type PickupOrder = { id: string; receiptNumber: string; status: string; refundedCents: number; pickupStatus: "none" | "ready_for_pickup" | "picked_up"; currencyCode: string; totalCents: number; subtotalCents: number; taxCents: number; completedAt: string | null; lines: { titleSnapshot: string; variantTitleSnapshot: string; quantity: string; subtotalCents: number; totalCents: number }[] };
 export async function pickupOrder(link?: { cart?: string; token?: string }): Promise<PickupOrder | null> {
   const jar = await cookies();
   // The emailed receipt link carries the guest's own basket proof; otherwise the browser's cookies hold it.

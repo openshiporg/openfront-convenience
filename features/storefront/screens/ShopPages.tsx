@@ -358,6 +358,7 @@ export async function BasketPage({ searchParams }: { searchParams: Search }) {
 export async function CheckoutPage() {
   const [data, current, projection, user] = await Promise.all([firstPage(), basket(), getPublicStorefrontProjection(), currentCustomer()]);
   if (!data?.onlinePickup) redirect("/shop?from=checkout");
+  if (current?.status === "converted") redirect("/checkout/complete");
   if (!current || !current.lines.length) redirect("/basket");
   const productFor = (title: string) => data.products.find((product) => product.title === title);
   return (
@@ -430,11 +431,15 @@ export async function PickupCompletePage({ searchParams }: { searchParams?: Prom
                 <span>
                   <span className="sf-num sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
                 </span>
-                <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
+                <span className="sf-num">{money(line.subtotalCents ?? line.totalCents, order.currencyCode)}</span>
               </li>
             ))}
           </ul>
           <dl className="sf-receipt__total">
+            <dt>Subtotal</dt>
+            <dd className="sf-num">{money(order.subtotalCents, order.currencyCode)}</dd>
+            <dt>Tax</dt>
+            <dd className="sf-num">{money(order.taxCents, order.currencyCode)}</dd>
             <dt>Paid</dt>
             <dd className="sf-figure sf-num">{money(order.totalCents, order.currencyCode)}</dd>
           </dl>
