@@ -52,6 +52,20 @@ type RefundLineInput = {
   note?: string | null;
 };
 
+/** Same windows the Tender store-day and payment-reconciliation fences check (processedAt). */
+async function tenderPeriodClosed(
+  transaction: Prisma.TransactionClient,
+  tender: { processedAt: Date | null; businessId: string | null; storeId: string | null; paymentProviderId: string | null },
+): Promise<boolean> {
+  if (!tender.processedAt || !tender.businessId || !tender.storeId) return false;
+  const at = tender.processedAt;
+  const window = { businessId: tender.businessId, storeId: tender.storeId, periodStartedAt: { lte: at }, periodEndedAt: { gt: at } };
+  if (await transaction.storeDay.count({ where: { ...window, status: "locked" } })) return true;
+  return Boolean(tender.paymentProviderId && await transaction.paymentReconciliation.count({
+    where: { ...window, paymentProviderId: tender.paymentProviderId, status: { in: ["approved", "exported"] } },
+  }));
+}
+
 function prorateCents(totalCents: number, part: string, whole: string): number {
   const partScaled = quantityToScaledInteger(part);
   const wholeScaled = quantityToScaledInteger(whole);
@@ -965,6 +979,12 @@ export async function refundPosSale(
         const after = already + planned.allocation.amountCents;
         const tenderNext = after >= tender.amountCents ? "refunded" : "partially_refunded";
         if (tender.status !== tenderNext) evaluateTransition(TENDER_TRANSITIONS, tender.status, tenderNext);
+        // A tender in a locked store day or a closed payment reconciliation is immutable (database fence);
+        // its refund lives in RefundTenderAllocation, which the refundable balance already reads.
+        if (await tenderPeriodClosed(transaction, tender)) {
+          refundedByTender.set(tender.id, after);
+          continue;
+        }
         const moved = await transaction.tender.updateMany({
           where: { id: tender.id, status: tender.status },
           data: { status: tenderNext, refundedCents: after },
