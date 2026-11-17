@@ -150,11 +150,15 @@ export async function startStorefrontPickupPayment(_root: unknown, args: { input
   });
 
   const { cart, provider, existing, revision, totalCents, currencyCode } = prepared;
+  const cartMeta = (cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}) as Record<string, unknown>;
+  let retired = typeof cartMeta.pickupRetired === "string" ? cartMeta.pickupRetired : null;
   if (existing && existing.revision !== revision) {
     // The basket changed since this payment began: retire the old attempt before starting another.
     await retirePickupPayment(context, cart.id, provider, existing);
+    retired = existing.paymentId;
   }
-  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}`;
+  // After a retired attempt the key names it, so returning to an earlier basket never replays a cancelled intent.
+  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}${retired ? `-${retired}` : ""}`;
   const created: any = await createPayment({
     provider,
     order: { id: cart.id, orderNumber: cart.cartNumber },
@@ -172,7 +176,7 @@ export async function startStorefrontPickupPayment(_root: unknown, args: { input
   const pickupPayment: PickupPayment = { providerId: provider.id, paymentId, amountCents: totalCents, currencyCode, revision };
   await context.prisma.cart.update({
     where: { id: cart.id },
-    data: { metadata: { ...(cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}), pickupPayment } as Prisma.InputJsonValue },
+    data: { metadata: { ...cartMeta, pickupPayment, ...(retired ? { pickupRetired: retired } : {}) } as Prisma.InputJsonValue },
   });
   return { clientSecret, publishableKey: config.publishableKey, paymentId, amountCents: totalCents, currencyCode };
 }
@@ -185,7 +189,7 @@ async function retirePickupPayment(context: Context, cartId: string, provider: a
   if (status?.status !== "canceled") await cancelPayment({ provider, paymentId: payment.paymentId, idempotencyKey: `cancel-${cartId}-${payment.paymentId}` });
   const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
   const { pickupPayment: _removed, ...rest } = (cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}) as Record<string, unknown>;
-  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: rest as Prisma.InputJsonValue } });
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: { ...rest, pickupRetired: payment.paymentId } as Prisma.InputJsonValue } });
 }
 
 /** Saves (or clears) the optional receipt email on the guest's own open basket. */
