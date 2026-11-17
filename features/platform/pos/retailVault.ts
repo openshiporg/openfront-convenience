@@ -55,26 +55,35 @@ async function decrypt(value:Sealed,identity:RetailIdentity) {
 function sameCipher(a:Sealed,b:Sealed) { return new TextDecoder().decode(header(a))===new TextDecoder().decode(header(b))&&a.iv.every((v,i)=>v===b.iv[i])&&a.bytes.byteLength===b.bytes.byteLength&&new Uint8Array(a.bytes).every((v,i)=>v===new Uint8Array(b.bytes)[i]); }
 export function retailVault(identity:RetailIdentity) {
   const historyId=JSON.stringify(identity);
+  // One pending slot per account and store, so another cashier on this browser is not locked out.
+  // The older shared "pending" slot is still used by the identity that owns it.
+  const pendingId=async()=>{const legacy=await read("journal","pending");let owned=false;try{owned=legacy!==undefined&&sameRetailIdentity(sealed(legacy),identity);}catch{/* unreadable legacy slot */}return owned?"pending":`pending:${historyId}`;};
   return {
     async load() {
-      const value=await read("journal","pending");if(value===undefined)return null;
+      const value=await read("journal",await pendingId());if(value===undefined)return null;
       const result=await decrypt(sealed(value),identity);
       if(result.receipt!==null)throw new Error("Pending operation state changed");
       return result.intent;
     },
     async save(intent:RetailIntent) {
       if(!sameRetailIdentity(intent,identity))throw new Error("Original account or store changed");
-      const previous=await read("journal","pending");
+      const id=await pendingId(),previous=await read("journal",id);
       if(previous!==undefined&&JSON.stringify((await decrypt(sealed(previous),identity)).intent)!==JSON.stringify(intent))throw new Error("Retained operation changed");
-      await write("journal","pending",await encrypt(intent,null,true));
+      await write("journal",id,await encrypt(intent,null,true));
     },
     async confirm(intent:RetailIntent,receipt:RetailReceipt) {
-      const raw=sealed(await read("journal","pending")),current=await decrypt(raw,identity);
+      const id=await pendingId(),raw=sealed(await read("journal",id)),current=await decrypt(raw,identity);
       if(JSON.stringify(current.intent)!==JSON.stringify(intent)||current.receipt!==null)throw new Error("Retained operation changed");
       const archived=await encrypt(intent,receipt,false),db=await open(),tx=db.transaction(["journal","history"],"readwrite"),done=committed(tx);
-      const latest=sealed(await request(tx.objectStore("journal").get("pending")));
+      const latest=sealed(await request(tx.objectStore("journal").get(id)));
       if(!sameCipher(raw,latest)){tx.abort();await done;return;}
-      tx.objectStore("history").put(archived,historyId);tx.objectStore("journal").delete("pending");await done;
+      tx.objectStore("history").put(archived,historyId);tx.objectStore("journal").delete(id);await done;
+    },
+    /** Drops a pending operation the server holds no record of (refused, never recorded). */
+    async discard(intent:RetailIntent) {
+      const id=await pendingId(),current=await decrypt(sealed(await read("journal",id)),identity);
+      if(JSON.stringify(current.intent)!==JSON.stringify(intent))throw new Error("Retained operation changed");
+      const db=await open(),tx=db.transaction("journal","readwrite"),done=committed(tx);tx.objectStore("journal").delete(id);await done;
     },
     async history() {
       const value=await read("history",historyId);return value===undefined?null:decrypt(sealed(value),identity);

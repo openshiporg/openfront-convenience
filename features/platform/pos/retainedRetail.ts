@@ -33,6 +33,7 @@ export function confirmedRetailReceipt(value: unknown, intent: RetailIntent): Re
 
 type Vault = { load(): Promise<RetailIntent | null>; save(intent: RetailIntent): Promise<void>; confirm(intent: RetailIntent, receipt: RetailReceipt): Promise<void> };
 type Ports = { read(intent: RetailIntent): Promise<unknown>; submit(intent: RetailIntent): Promise<unknown> };
+function notFound(value: unknown) { const result = object(value); return Boolean(result && result.state === "not_found"); }
 /** Register-close pattern: roundtrip BEFORE network; never infer rollback or rekey. */
 export async function performRetainedRetail(vault: Vault, identity: RetailIdentity, mode: "new" | "read" | "retry", candidate: RetailIntent | null, ports: Ports) {
   const stored = await vault.load();
@@ -43,11 +44,13 @@ export async function performRetainedRetail(vault: Vault, identity: RetailIdenti
   let outcome: unknown;
   try { outcome = await ports.read(intent); } catch { outcome = null; }
   let receipt = confirmedRetailReceipt(outcome, intent);
+  let refusal: string | null = null;
   if (!receipt && mode !== "read") {
-    try { await ports.submit(intent); } catch { /* ambiguous; retain original */ }
+    try { const answer = await ports.submit(intent); refusal = typeof answer === "string" && answer ? answer : null; } catch { /* ambiguous; retain original */ }
     try { outcome = await ports.read(intent); } catch { outcome = null; }
     receipt = confirmedRetailReceipt(outcome, intent);
   }
   if (receipt) await vault.confirm(intent, receipt);
-  return { intent, receipt };
+  // The server answered and holds no record under this key: nothing was recorded, so the cashier may discard it.
+  return { intent, receipt, refusal: receipt ? null : refusal, discardable: !receipt && notFound(outcome) };
 }

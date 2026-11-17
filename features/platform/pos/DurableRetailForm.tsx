@@ -11,7 +11,7 @@ import { Dot, buttonClass, primaryButtonClass } from "../components/cv-ui";
 
 export function DurableRetailForm({userId,businessId,storeId,purpose,label,children}:{userId:string;businessId:string;storeId:string;purpose:RetailPurpose;label:string;children:ReactNode}) {
   const identity={userId,businessId,storeId},identityKey=JSON.stringify(identity),active=useRef(identityKey);active.current=identityKey;
-  const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[pending,setPending]=useState<RetailIntent|null>(null),[history,setHistory]=useState<{intent:RetailIntent;receipt:RetailReceipt}|null>(null),[message,setMessage]=useState("Loading retained operation");
+  const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[pending,setPending]=useState<RetailIntent|null>(null),[history,setHistory]=useState<{intent:RetailIntent;receipt:RetailReceipt}|null>(null),[message,setMessage]=useState("Loading retained operation"),[discardable,setDiscardable]=useState(false);
   const busyRef=useRef(false),formRef=useRef<HTMLFormElement>(null),router=useRouter();
   useEffect(()=>{
     let current=true;
@@ -43,13 +43,22 @@ export function DurableRetailForm({userId,businessId,storeId,purpose,label,child
         });
       });
       if(active.current!==originalIdentity)return;
-      setPending(result.receipt?null:result.intent);
-      setMessage(result.receipt?(purpose==="completePosSale"?"Sale completed":"Refund completed"):"Awaiting confirmation");
+      setPending(result.receipt?null:result.intent);setDiscardable(result.discardable);
+      setMessage(result.receipt?(purpose==="completePosSale"?"Sale completed":"Refund completed"):result.refusal??(result.discardable?"Not recorded":"Awaiting confirmation"));
       if(result.receipt){setHistory({intent:result.intent,receipt:result.receipt});formRef.current?.reset();router.refresh();}
       window.dispatchEvent(new Event("ofc-retail-vault"));
     }catch {
       if(active.current===originalIdentity){setReady(false);if(candidate)setPending(candidate);setMessage("Sale saved. Review the payment details before continuing.");}
     }finally {busyRef.current=false;if(active.current===originalIdentity)setBusy(false);}
+  }
+  async function discard() {
+    if(!pending||busyRef.current)return;
+    busyRef.current=true;setBusy(true);
+    try {
+      await navigator.locks.request(retailVaultLock,()=>retailVault(identity).discard(pending));
+      setPending(null);setDiscardable(false);setMessage("Ready");window.dispatchEvent(new Event("ofc-retail-vault"));
+    }catch {setMessage("Could not discard; check the result first");}
+    finally {busyRef.current=false;setBusy(false);}
   }
   function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(!ready||busyRef.current||pending)return;
@@ -61,7 +70,7 @@ export function DurableRetailForm({userId,businessId,storeId,purpose,label,child
     <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{busy?"Confirming…":message}</p>
     {pending&&<div className="grid min-w-0 gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
       <p className="flex items-baseline gap-2 text-sm font-medium"><Dot tone="warn" />{pending.purpose==="completePosSale"?"Sale":"Refund"} awaiting confirmation</p>
-      <div className="flex flex-wrap gap-2"><button type="button" disabled={!ready||busy} onClick={()=>void act("read",pending)} className={buttonClass}>Check result</button><button type="button" disabled={!ready||busy} onClick={()=>void act("retry",pending)} className={buttonClass}>Retry</button></div>
+      <div className="flex flex-wrap gap-2"><button type="button" disabled={!ready||busy} onClick={()=>void act("read",pending)} className={buttonClass}>Check result</button><button type="button" disabled={!ready||busy} onClick={()=>void act("retry",pending)} className={buttonClass}>Retry</button>{discardable&&<button type="button" disabled={busy} onClick={()=>void discard()} className={buttonClass}>Discard</button>}</div>
     </div>}
     <form ref={formRef} onSubmit={submit}>
       <fieldset disabled={!ready||busy||Boolean(pending)} className="grid min-w-0 gap-3 sm:grid-cols-2">

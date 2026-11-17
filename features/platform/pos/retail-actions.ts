@@ -45,14 +45,16 @@ function command(intent: RetailIntent) {
   return {...base,saleId:text("saleId"),originalTenderId:tenderAllocations?null:text("originalTenderId"),tenderAllocations,registerSessionId:text("registerSessionId"),employeeId:text("employeeId"),reason:text("reason"),returnReason:optional("returnReason"),providerRefundId:optional("providerRefundId"),providerAuthority:optional("providerAuthority"),notes:optional("notes"),overrideNonReturnable:text("overrideNonReturnable")==="true",overrideReason:optional("overrideReason"),managerPin:optional("managerPin"),lines:[{saleLineId:text("saleLineId"),quantity:normalizeQuantity(text("quantity")),disposition:text("disposition"),condition:optional("condition"),note:optional("notes")}]};
 }
 // FormData keeps private PIN/proof values out of development action-argument logs.
-export async function submitRetainedRetail(form:FormData):Promise<void> {
+// Returns the server's refusal reason; throws only when the outcome is unknown.
+export async function submitRetainedRetail(form:FormData):Promise<string|null> {
   const intent=await original(form),input=command(intent);
   const document=intent.purpose==="completePosSale"
     ? "mutation($input:CompletePosSaleInput!){completePosSale(input:$input){id status reference}}"
     : "mutation($input:RefundPosSaleInput!){refundPosSale(input:$input){id status reference}}";
   const result=await keystoneClient(document,{input});
-  if(!result.success)throw new Error("Original operation is unconfirmed");
+  if(!result.success)return result.error;
   for(const path of ["/dashboard/platform/pos","/dashboard/platform/payments","/dashboard/platform/reconciliation","/account"])revalidatePath(path);
+  return null;
 }
 export async function readRetainedRetail(form:FormData):Promise<unknown> {
   const intent=await original(form),body=command(intent);
