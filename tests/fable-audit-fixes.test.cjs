@@ -79,3 +79,12 @@ test('refunds skip the Tender write inside a locked store day or closed reconcil
   assert.match(source, /storeDay\.count\(\{ where: \{ \.\.\.window, status: "locked" \} \}\)/);
   assert.match(source, /status: \{ in: \["approved", "exported"\] \}/);
 });
+
+test('POS refund Processor defaults to the signed-in employee and a sync keeps the refusal text', () => {
+  const page = fs.readFileSync(path.resolve(root, 'features/platform/pos/PosPage.tsx'), 'utf8');
+  assert.match(page, /label="Processor"[\s\S]{0,200}defaultValue=\{controls\.selfEmployee\?\.\[0\]\?\.id\}/);
+  const projection = fs.readFileSync(path.resolve(root, 'features/keystone/mutations/platformProjection.ts'), 'utf8');
+  assert.match(projection, /controls\.selfEmployee = self/);
+  const form = fs.readFileSync(path.resolve(root, 'features/platform/pos/DurableRetailForm.tsx'), 'utf8');
+  assert.doesNotMatch(form, /setMessage\(loaded\.pending\?"Awaiting confirmation":"Ready"\)/);
+});

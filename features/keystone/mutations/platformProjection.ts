@@ -676,7 +676,18 @@ export async function conveniencePlatformProjection(
       label: employee.user?.name?.trim() || employee.employeeNumber,
       detail: employee.user?.name?.trim() ? "" : employee.employeeNumber,
     }));
-  } else if (surface === "pos") {
+  }
+  if (surface === "pos") {
+    // POS commands accept only the signed-in employee as actor, so forms default to it.
+    const self = session?.data.employees?.find(
+      (employee) =>
+        employee.status === "active" &&
+        employee.business?.id === businessId &&
+        employee.stores?.some((store) => store.id === storeId),
+    );
+    controls.selfEmployee = self ? [{ id: self.id, label: "Signed-in employee" }] : [];
+  }
+  if (!controls.employees && surface === "pos") {
     const ownEmployee = session?.data.employees?.find(
       (employee) =>
         employee.status === "active" &&

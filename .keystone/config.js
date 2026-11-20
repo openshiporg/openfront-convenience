@@ -22164,7 +22164,14 @@ async function conveniencePlatformProjection(_root, args, context) {
       label: employee.user?.name?.trim() || employee.employeeNumber,
       detail: employee.user?.name?.trim() ? "" : employee.employeeNumber
     }));
-  } else if (surface === "pos") {
+  }
+  if (surface === "pos") {
+    const self = session?.data.employees?.find(
+      (employee) => employee.status === "active" && employee.business?.id === businessId && employee.stores?.some((store) => store.id === storeId)
+    );
+    controls.selfEmployee = self ? [{ id: self.id, label: "Signed-in employee" }] : [];
+  }
+  if (!controls.employees && surface === "pos") {
     const ownEmployee = session?.data.employees?.find(
       (employee) => employee.status === "active" && employee.business?.id === businessId && employee.stores?.some((store) => store.id === storeId)
     );
@@ -26761,6 +26768,15 @@ function refundOriginalTenderWhere(scope, tenderIds) {
 }
 
 // features/keystone/mutations/refundOperations.ts
+async function tenderPeriodClosed(transaction, tender) {
+  if (!tender.processedAt || !tender.businessId || !tender.storeId) return false;
+  const at = tender.processedAt;
+  const window = { businessId: tender.businessId, storeId: tender.storeId, periodStartedAt: { lte: at }, periodEndedAt: { gt: at } };
+  if (await transaction.storeDay.count({ where: { ...window, status: "locked" } })) return true;
+  return Boolean(tender.paymentProviderId && await transaction.paymentReconciliation.count({
+    where: { ...window, paymentProviderId: tender.paymentProviderId, status: { in: ["approved", "exported"] } }
+  }));
+}
 function prorateCents(totalCents, part, whole) {
   const partScaled = quantityToScaledInteger(part);
   const wholeScaled = quantityToScaledInteger(whole);
@@ -27521,6 +27537,10 @@ async function refundPosSale(_root, args, context) {
         const after = already + planned.allocation.amountCents;
         const tenderNext = after >= tender.amountCents ? "refunded" : "partially_refunded";
         if (tender.status !== tenderNext) evaluateTransition(TENDER_TRANSITIONS, tender.status, tenderNext);
+        if (await tenderPeriodClosed(transaction, tender)) {
+          refundedByTender.set(tender.id, after);
+          continue;
+        }
         const moved = await transaction.tender.updateMany({
           where: { id: tender.id, status: tender.status },
           data: { status: tenderNext, refundedCents: after }
@@ -28810,10 +28830,13 @@ async function startStorefrontPickupPayment(_root, args, context) {
     return { cart: cart2, store, provider: provider2, existing: existing2, revision: revision2, totalCents: priced.totalCents, currencyCode: cart2.currencyCode };
   });
   const { cart, provider, existing, revision, totalCents, currencyCode } = prepared;
+  const cartMeta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
+  let retired = typeof cartMeta.pickupRetired === "string" ? cartMeta.pickupRetired : null;
   if (existing && existing.revision !== revision) {
     await retirePickupPayment(context, cart.id, provider, existing);
+    retired = existing.paymentId;
   }
-  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}`;
+  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}${retired ? `-${retired}` : ""}`;
   const created = await createPayment({
     provider,
     order: { id: cart.id, orderNumber: cart.cartNumber },
@@ -28831,7 +28854,7 @@ async function startStorefrontPickupPayment(_root, args, context) {
   const pickupPayment = { providerId: provider.id, paymentId, amountCents: totalCents, currencyCode, revision };
   await context.prisma.cart.update({
     where: { id: cart.id },
-    data: { metadata: { ...cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {}, pickupPayment } }
+    data: { metadata: { ...cartMeta, pickupPayment, ...retired ? { pickupRetired: retired } : {} } }
   });
   return { clientSecret, publishableKey: config2.publishableKey, paymentId, amountCents: totalCents, currencyCode };
 }
@@ -28843,7 +28866,7 @@ async function retirePickupPayment(context, cartId, provider, payment) {
   if (status?.status !== "canceled") await cancelPayment({ provider, paymentId: payment.paymentId, idempotencyKey: `cancel-${cartId}-${payment.paymentId}` });
   const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
   const { pickupPayment: _removed, ...rest } = cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
-  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: rest } });
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: { ...rest, pickupRetired: payment.paymentId } } });
 }
 async function setStorefrontReceiptEmail(_root, args, context) {
   const { cartId, token } = args.input;

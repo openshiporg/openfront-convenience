@@ -630,6 +630,7 @@ export async function PosPage({
                         label="Processor"
                         name="employeeId"
                         options={controls.employees ?? []}
+                        defaultValue={controls.selfEmployee?.[0]?.id}
                       />
                       <TextField
                         label="Return quantity"

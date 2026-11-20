@@ -24,7 +24,9 @@ export function DurableRetailForm({userId,businessId,storeId,purpose,label,child
         setPending(loaded.pending);
         const receipt=loaded.history?confirmedRetailReceipt({...(loaded.history.receipt&&typeof loaded.history.receipt==="object"?loaded.history.receipt:{}),state:"succeeded",retryable:false,purpose:loaded.history.intent.purpose,key:loaded.history.intent.key},loaded.history.intent):null;
         setHistory(receipt&&loaded.history?{intent:loaded.history.intent,receipt}:null);
-        setReady(true);setMessage(loaded.pending?"Awaiting confirmation":"Ready");
+        setReady(true);
+        // A sync (also fired by act) replaces only the generic status text, never the server's refusal.
+        setMessage(m=>!loaded.pending?"Ready":["Loading retained operation","Ready"].includes(m)?"Awaiting confirmation":m);
       }catch {if(current){setReady(false);setMessage("Private operation storage unavailable or belongs to another account/store");}}
     };
     void sync();window.addEventListener("ofc-retail-vault",sync);
