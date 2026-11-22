@@ -250,7 +250,7 @@ export function Pagination({
           {/* Previous Page Button */}
           <Button
             variant="outline"
-            className="rounded-l-[20px] rounded-r-md p-1.5 sm:p-2 font-semibold text-xs sm:text-sm h-8 sm:h-9 w-9 sm:w-auto"
+            className="rounded-l-[20px] rounded-r-md p-1.5 sm:p-2 font-semibold text-xs sm:text-sm h-11 sm:h-9 w-11 sm:w-auto"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage <= 1}
           >
@@ -258,7 +258,7 @@ export function Pagination({
           </Button>
 
           {/* Page Navigation */}
-          <div className="flex items-center gap-x-1 rounded-md bg-background py-1.5 sm:py-2 pr-2 pl-1 font-semibold dark:text-zinc-50 ring-1 ring-inset dark:ring-input ring-zinc-300 h-8 sm:h-9">
+          <div className="flex items-center gap-x-1 rounded-md bg-background py-1.5 sm:py-2 pr-2 pl-1 font-semibold dark:text-zinc-50 ring-1 ring-inset dark:ring-input ring-zinc-300 h-11 sm:h-9">
             <div className="flex items-center gap-x-1.5 px-2">
               <input
                 className="w-5 sm:w-6 bg-transparent border-0 p-0 text-center text-xs sm:text-sm font-semibold focus:ring-0 h-full"
@@ -282,14 +282,14 @@ export function Pagination({
           </div>
 
           {/* Stats */}
-          <div className="flex items-center gap-x-2 whitespace-nowrap rounded-md bg-background py-1.5 sm:py-2 px-3 sm:px-4 font-semibold dark:text-zinc-50 ring-1 ring-inset ring-zinc-300 dark:ring-input h-8 sm:h-9">
+          <div className="flex items-center gap-x-2 whitespace-nowrap rounded-md bg-background py-1.5 sm:py-2 px-3 sm:px-4 font-semibold dark:text-zinc-50 ring-1 ring-inset ring-zinc-300 dark:ring-input h-11 sm:h-9">
             {getStatsMessage()}
           </div>
 
           {/* Items Per Page Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex gap-2 items-center whitespace-nowrap rounded-md bg-background py-1.5 sm:py-2 px-3 sm:px-4 font-semibold dark:text-zinc-50 ring-1 ring-inset ring-zinc-300 dark:ring-input h-8 sm:h-9 text-xs sm:text-sm">
+              <button className="flex gap-2 items-center whitespace-nowrap rounded-md bg-background py-1.5 sm:py-2 px-3 sm:px-4 font-semibold dark:text-zinc-50 ring-1 ring-inset ring-zinc-300 dark:ring-input h-11 sm:h-9 text-xs sm:text-sm">
                 {pageSize}
                 <span className="text-muted-foreground/70 uppercase tracking-wide hidden sm:inline">
                   per page
@@ -366,7 +366,7 @@ export function Pagination({
           {/* Next Page Button */}
           <Button
             variant="outline"
-            className="rounded-r-[20px] rounded-l-md p-1.5 sm:p-2 font-semibold text-xs sm:text-sm h-8 sm:h-9 w-9 sm:w-auto"
+            className="rounded-r-[20px] rounded-l-md p-1.5 sm:p-2 font-semibold text-xs sm:text-sm h-11 sm:h-9 w-11 sm:w-auto"
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
           >

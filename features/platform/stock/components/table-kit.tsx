@@ -122,7 +122,7 @@ export function Prerequisite({ text, href, link }: { text: string; href: string;
     <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-dashed px-4 py-3 text-sm text-muted-foreground">
       <Dot tone="warn" />
       {text}
-      <Link href={href} className="font-medium text-foreground underline underline-offset-2">
+      <Link href={href} className="font-medium text-foreground underline underline-offset-2 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
         {link}
       </Link>
     </p>
