@@ -148,7 +148,7 @@ export async function PromotionListPage({ searchParams }: { searchParams: Platfo
             <Th priority={3}>Rule</Th>
             <Th priority={3}>Window</Th>
             <Th>Status</Th>
-            <Th align="right">Used</Th>
+            <Th align="right" priority={2}>Used</Th>
             <Th align="right" priority={2}>
               Limit
             </Th>
@@ -179,7 +179,7 @@ export async function PromotionListPage({ searchParams }: { searchParams: Platfo
               <Td>
                 <StatusText status={promotion.status} />
               </Td>
-              <Td align="right">{promotion.redemptionsCount}</Td>
+              <Td align="right" priority={2}>{promotion.redemptionsCount}</Td>
               <Td align="right" priority={2}>
                 {promotion.usageLimit ?? "—"}
               </Td>

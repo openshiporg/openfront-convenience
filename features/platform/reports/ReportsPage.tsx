@@ -111,7 +111,7 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
   const flagged = stores.filter((store) => Number(store.cashOverShortCents) < 0 || Number(store.exceptionCount) > 0).length;
   const pageState: { tone: DotTone; label: string } | null = summary
     ? summary.dayCount === 0
-      ? { tone: "muted", label: "No closed days in period" }
+      ? sales ? { tone: sales.saleCount ? "ok" : "muted", label: `${sales.saleCount} ${sales.saleCount === 1 ? "sale" : "sales"}` } : null
       : overShort < 0
         ? { tone: "danger", label: `Short ${m(String(Math.abs(overShort)))}` }
         : Number(summary.exceptionCount) > 0
@@ -120,13 +120,13 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
     : null;
   return <PlatformPage title="Reports" {...state} showMetrics={false} state={pageState} error={state.error || reportError}>
     {state.projection ? <>
-      <form method="get" aria-label="Reporting period" className="grid min-w-0 gap-3 border-b pb-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
+      <form method="get" aria-label="Reporting period" className="grid min-w-0 gap-3 border-b pb-4 sm:grid-cols-2 sm:items-end xl:grid-cols-[repeat(3,minmax(0,14rem))_auto]">
         <input type="hidden" name="businessId" value={state.projection.businessId ?? ""} />
         <input type="hidden" name="storeId" value={state.projection.storeId ?? ""} />
         <TextField label="Start date" name="startDate" type="date" defaultValue={startDate} required />
         <TextField label="End date" name="endDate" type="date" defaultValue={endDate} required />
-        <label className={labelClass}>Currency<input className={`${inputClass} font-mono uppercase`} name="currencyCode" defaultValue={currencyCode} maxLength={3} pattern="[A-Za-z]{3}" placeholder="USD" /></label>
-        <EnumField label="Scope" name="scope" defaultValue={scope} values={[{ value: "business", label: "All stores" }, { value: "store", label: "Selected store" }]} />
+        <input type="hidden" name="currencyCode" value={currencyCode} />
+        {state.projection.stores.length > 1 ? <EnumField label="Scope" name="scope" defaultValue={scope} values={[{ value: "business", label: "All stores" }, { value: "store", label: "Selected store" }]} /> : <input type="hidden" name="scope" value="business" />}
         <div className="sm:col-span-2 xl:col-span-1"><button className={primaryButtonClass} type="submit">Run report</button></div>
       </form>
       {sales ? <section className="min-w-0 space-y-6" aria-labelledby="report-sales">
