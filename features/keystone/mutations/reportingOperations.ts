@@ -212,7 +212,7 @@ export async function convenienceSalesReport(
     }),
     context.prisma.tender.findMany({
       where: { businessId: args.input.businessId, status: { in: ["captured", "partially_refunded", "refunded"] }, sale: { ...counted, OR: inPeriod("completedAt") } },
-      select: { method: true, amountCents: true, changeCents: true },
+      select: { method: true, amountCents: true },
       take: LIMIT,
     }),
     context.prisma.refund.findMany({
@@ -240,7 +240,7 @@ export async function convenienceSalesReport(
   const byMethod = new Map<string, { method: string; label: string; count: number; amountCents: number }>();
   for (const tender of tenders) {
     const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
-    row.count += 1; row.amountCents += tender.amountCents - (tender.changeCents ?? 0); byMethod.set(tender.method, row);
+    row.count += 1; row.amountCents += tender.amountCents; // already net of change given byMethod.set(tender.method, row);
   }
   const bySource = new Map<string, { source: string; label: string; count: number; totalCents: number }>();
   for (const sale of sales) {

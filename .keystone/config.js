@@ -26821,7 +26821,7 @@ async function convenienceSalesReport(_root, args, context) {
     }),
     context.prisma.tender.findMany({
       where: { businessId: args.input.businessId, status: { in: ["captured", "partially_refunded", "refunded"] }, sale: { ...counted, OR: inPeriod("completedAt") } },
-      select: { method: true, amountCents: true, changeCents: true },
+      select: { method: true, amountCents: true },
       take: LIMIT
     }),
     context.prisma.refund.findMany({
@@ -26853,8 +26853,7 @@ async function convenienceSalesReport(_root, args, context) {
   for (const tender of tenders) {
     const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
     row.count += 1;
-    row.amountCents += tender.amountCents - (tender.changeCents ?? 0);
-    byMethod.set(tender.method, row);
+    row.amountCents += tender.amountCents;
   }
   const bySource = /* @__PURE__ */ new Map();
   for (const sale of sales) {
