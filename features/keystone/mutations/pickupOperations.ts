@@ -17,7 +17,7 @@ import {
 } from "../utils/paymentProviderAdapter";
 import { getPublicPaymentProviderConfig, isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { consumeInventoryLots } from "./inventoryPosting";
-import { assertProof, currentCustomerId, publishedStore } from "./storefrontOperations";
+import { assertProof, currentCustomerId, ensureCustomerLoyaltyAccount, publishedStore } from "./storefrontOperations";
 import { assertStorePermission, type Session } from "../access";
 import { requireSession } from "./operationRunner";
 
@@ -324,6 +324,28 @@ export async function postPickupSale(db: Prisma.TransactionClient, input: PostIn
       ...(input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}),
     },
   });
+  // A signed-in customer earns the store's points on a web order, as at the counter.
+  const loyalty = cart.customerId ? await ensureCustomerLoyaltyAccount(db, cart.businessId, cart.customerId) : null;
+  if (loyalty) {
+    await db.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${loyalty.account.id}`}))::text`);
+    const account = await db.loyaltyAccount.findUniqueOrThrow({ where: { id: loyalty.account.id } });
+    const points = Math.floor((cart.totalCents * (loyalty.program.pointsPerDollar ?? 0)) / 100);
+    const balanceAfter = (account.pointsBalance ?? 0) + points;
+    if (points > 0) {
+      await db.loyaltyLedgerEntry.create({
+        data: {
+          businessId: cart.businessId, storeId: cart.storeId, accountId: account.id, type: "earned", pointsDelta: points, balanceAfter,
+          description: `Points earned on ${sale.receiptNumber}`, saleId: sale.id, occurredAt: postingAt,
+          expiresAt: loyalty.program.pointsExpireAfterDays ? new Date(postingAt.getTime() + loyalty.program.pointsExpireAfterDays * 86_400_000) : null,
+        },
+      });
+    }
+    await db.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { pointsBalance: balanceAfter, lifetimePoints: (account.lifetimePoints ?? 0) + points, firstVisitAt: account.firstVisitAt ?? postingAt, lastVisitAt: postingAt },
+    });
+    await db.sale.update({ where: { id: sale.id }, data: { loyaltyAccountId: account.id } });
+  }
   await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
   await db.auditEvent.create({
     data: {

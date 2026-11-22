@@ -1282,14 +1282,15 @@ ${emailButton("Reset password", url)}
 ${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`
   });
 }
-async function sendPasswordResetEmail(resetToken, to, baseUrl) {
+async function sendPasswordResetEmail(resetToken, to, baseUrl, audience = "staff") {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   const info = await transport.sendMail({
     to,
     from: process.env.SMTP_FROM,
-    subject: "Your password reset token!",
+    subject: "Reset your password",
     html: passwordResetEmail({
-      url: `${frontendUrl}/dashboard/reset?token=${encodeURIComponent(resetToken)}`
+      // A shopper chooses a new password on the shop; staff do it on the dashboard.
+      url: audience === "customer" ? `${frontendUrl}/account/reset?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(to)}` : `${frontendUrl}/dashboard/reset?token=${encodeURIComponent(resetToken)}`
     })
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
@@ -22419,13 +22420,14 @@ async function conveniencePlatformProjection(_root, args, context) {
         where: { ...scope, status: { in: ["clocked_in", "on_break"] } }
       }),
       context.prisma.cart.findMany({
-        where: { ...scope, status: { in: ["open", "held"] } },
+        // The register lists register baskets only; a shopper's online basket is theirs.
+        where: { ...scope, status: { in: ["open", "held"] }, source: { in: ["pos", "kiosk"] } },
         select: { id: true, cartNumber: true, status: true, totalCents: true },
         orderBy: { updatedAt: "desc" },
         take: 50
       }),
       context.prisma.cartLine.findMany({
-        where: { ...scope, cart: { status: { in: ["open", "held"] } } },
+        where: { ...scope, cart: { status: { in: ["open", "held"] }, source: { in: ["pos", "kiosk"] } } },
         select: {
           id: true,
           titleSnapshot: true,
@@ -28696,10 +28698,40 @@ async function updateStorefrontBasket(_root, args, context) {
     return basketDto(result);
   });
 }
+async function ensureCustomerLoyaltyAccount(db, businessId, userId) {
+  const program = await db.loyaltyProgram.findFirst({ where: { businessId, status: "active" }, orderBy: { createdAt: "asc" } });
+  if (!program) return null;
+  const lookupKey = `${businessId}:${program.id}:user:${userId}`;
+  const existing = await db.loyaltyAccount.findUnique({ where: { lookupKey } });
+  if (existing) return existing.status === "active" ? { account: existing, program } : null;
+  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!user) return null;
+  const account = await db.loyaltyAccount.upsert({
+    where: { lookupKey },
+    update: {},
+    create: {
+      businessId,
+      programId: program.id,
+      userId,
+      accountNumber: `LOY-${(0, import_node_crypto30.randomUUID)()}`,
+      lookupKey,
+      email: user.email?.toLowerCase() ?? "",
+      phone: "",
+      status: "active",
+      tier: "standard",
+      pointsBalance: 0,
+      lifetimePoints: 0,
+      marketingOptIn: false,
+      metadata: { enrolledBy: "customer_account" }
+    }
+  });
+  return { account, program };
+}
 async function storefrontRewards(_root, _args, context) {
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];
   const { business, store } = await publishedStore(context.prisma);
+  await ensureCustomerLoyaltyAccount(context.prisma, business.id, userId);
   const accounts = await context.prisma.loyaltyAccount.findMany({
     where: { userId, businessId: business.id, status: { in: ["active", "paused"] } },
     select: {
@@ -28723,7 +28755,7 @@ async function storefrontRewards(_root, _args, context) {
 async function storefrontHistory(_root, args, context) {
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];
-  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, source: true, status: true, completedAt: true, currencyCode: true, totalCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
+  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, source: true, status: true, pickupStatus: true, completedAt: true, currencyCode: true, subtotalCents: true, discountCents: true, taxCents: true, totalCents: true, refundedCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
 }
 
 // features/keystone/mutations/pickupOperations.ts
@@ -29039,6 +29071,34 @@ async function postPickupSale(db, input) {
       ...input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}
     }
   });
+  const loyalty = cart.customerId ? await ensureCustomerLoyaltyAccount(db, cart.businessId, cart.customerId) : null;
+  if (loyalty) {
+    await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${loyalty.account.id}`}))::text`);
+    const account = await db.loyaltyAccount.findUniqueOrThrow({ where: { id: loyalty.account.id } });
+    const points = Math.floor(cart.totalCents * (loyalty.program.pointsPerDollar ?? 0) / 100);
+    const balanceAfter = (account.pointsBalance ?? 0) + points;
+    if (points > 0) {
+      await db.loyaltyLedgerEntry.create({
+        data: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          accountId: account.id,
+          type: "earned",
+          pointsDelta: points,
+          balanceAfter,
+          description: `Points earned on ${sale.receiptNumber}`,
+          saleId: sale.id,
+          occurredAt: postingAt,
+          expiresAt: loyalty.program.pointsExpireAfterDays ? new Date(postingAt.getTime() + loyalty.program.pointsExpireAfterDays * 864e5) : null
+        }
+      });
+    }
+    await db.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { pointsBalance: balanceAfter, lifetimePoints: (account.lifetimePoints ?? 0) + points, firstVisitAt: account.firstVisitAt ?? postingAt, lastVisitAt: postingAt }
+    });
+    await db.sale.update({ where: { id: sale.id }, data: { loyaltyAccountId: account.id } });
+  }
   await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
   await db.auditEvent.create({
     data: {
@@ -31280,7 +31340,8 @@ var { withAuth } = (0, import_auth.createAuth)({
   },
   passwordResetLink: {
     async sendToken(args) {
-      await sendPasswordResetEmail(args.token, args.identity);
+      const staff = await args.context.sudo().db.Employee.count({ where: { user: { id: { equals: String(args.itemId) } } } });
+      await sendPasswordResetEmail(args.token, args.identity, void 0, staff ? "staff" : "customer");
     }
   },
   sessionData: `

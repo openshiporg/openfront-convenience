@@ -377,7 +377,9 @@ const { withAuth } = createAuth({
   },
   passwordResetLink: {
     async sendToken(args) {
-      await sendPasswordResetEmail(args.token, args.identity);
+      // Someone with a staff record resets on the dashboard; a shopper resets on the shop.
+      const staff = await args.context.sudo().db.Employee.count({ where: { user: { id: { equals: String(args.itemId) } } } });
+      await sendPasswordResetEmail(args.token, args.identity, undefined, staff ? "staff" : "customer");
     },
   },
   sessionData: `

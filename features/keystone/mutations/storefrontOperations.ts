@@ -171,11 +171,38 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
   });
 }
 
+/**
+ * A customer account is a rewards membership, as at the large chains (7-Eleven
+ * 7Rewards, Circle K Inner Circle, Starbucks): when the store runs a programme,
+ * the signed-in customer's account is found or opened on the request that needs
+ * it. Linked by user id only.
+ */
+export async function ensureCustomerLoyaltyAccount(db: Prisma.TransactionClient, businessId: string, userId: string) {
+  const program = await db.loyaltyProgram.findFirst({ where: { businessId, status: "active" }, orderBy: { createdAt: "asc" } });
+  if (!program) return null;
+  const lookupKey = `${businessId}:${program.id}:user:${userId}`;
+  const existing = await db.loyaltyAccount.findUnique({ where: { lookupKey } });
+  if (existing) return existing.status === "active" ? { account: existing, program } : null;
+  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!user) return null;
+  const account = await db.loyaltyAccount.upsert({
+    where: { lookupKey },
+    update: {},
+    create: {
+      businessId, programId: program.id, userId, accountNumber: `LOY-${randomUUID()}`, lookupKey,
+      email: user.email?.toLowerCase() ?? "", phone: "", status: "active", tier: "standard",
+      pointsBalance: 0, lifetimePoints: 0, marketingOptIn: false, metadata: { enrolledBy: "customer_account" },
+    },
+  });
+  return { account, program };
+}
+
 /** The signed-in customer's own loyalty accounts (linked by user, never by email). */
 export async function storefrontRewards(_root: unknown, _args: Record<string, never>, context: Context) {
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];
   const { business, store } = await publishedStore(context.prisma);
+  await ensureCustomerLoyaltyAccount(context.prisma, business.id, userId);
   const accounts = await context.prisma.loyaltyAccount.findMany({
     where: { userId, businessId: business.id, status: { in: ["active", "paused"] } },
     select: {
@@ -201,5 +228,5 @@ export async function storefrontHistory(_root: unknown, args: { saleId?: string 
   const userId = await currentCustomerId(context.prisma, context);
   if (!userId) return [];
   // Never claim receipts by an unverified email or accept a client customerId.
-  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...(args.saleId ? { id: args.saleId } : {}) }, select: { id: true, receiptNumber: true, source: true, status: true, completedAt: true, currencyCode: true, totalCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map(sale => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map(line => ({ ...line, quantity: line.quantity.toString() })) }));
+  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...(args.saleId ? { id: args.saleId } : {}) }, select: { id: true, receiptNumber: true, source: true, status: true, pickupStatus: true, completedAt: true, currencyCode: true, subtotalCents: true, discountCents: true, taxCents: true, totalCents: true, refundedCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map(sale => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map(line => ({ ...line, quantity: line.quantity.toString() })) }));
 }

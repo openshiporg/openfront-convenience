@@ -12,7 +12,7 @@ import { basket, catalog, currentCustomer, customerHistory, customerRewards, fir
 import { PickupPayment } from "../components/PickupPayment";
 import { PickupState, PickupWhen } from "../components/PickupTiming";
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
-import { customerAuth, customerSignout, removeBasketLine, startNewBasket } from "../actions";
+import { customerAuth, customerForgot, customerReset, customerSignout, removeBasketLine, startNewBasket } from "../actions";
 import { storefrontTitle } from "../lib/metadata";
 import { shortRef } from "@/features/platform/lib/labels";
 
@@ -20,7 +20,7 @@ export const shopMetadata = () => storefrontTitle("Shop");
 export const accountMetadata = () => storefrontTitle("Account");
 export async function accountAuthMetadata({ params }: { params: Promise<{ mode: string }> }) {
   const { mode } = await params;
-  return storefrontTitle(mode === "signup" ? "Create account" : "Sign in");
+  return storefrontTitle(mode === "signup" ? "Create account" : mode === "forgot" || mode === "reset" ? "Reset password" : "Sign in");
 }
 export async function productMetadata({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -28,7 +28,7 @@ export async function productMetadata({ params }: { params: Promise<{ productId:
   return storefrontTitle(data?.products[0]?.title ?? "Product");
 }
 
-type Search = Promise<{ q?: string; category?: string; page?: string; error?: string; from?: string; email?: string }>;
+type Search = Promise<{ q?: string; category?: string; page?: string; error?: string; from?: string; email?: string; token?: string; sent?: string; reset?: string }>;
 // Error codes map to fixed text; the query string is never rendered.
 const errorMessages: Record<string, string> = {
   basket: "Basket could not be updated",
@@ -36,7 +36,9 @@ const errorMessages: Record<string, string> = {
   exists: "An account with this email already exists.",
   unavailable: "Sign in is unavailable right now. Try again in a moment.",
   signin: "Email or password incorrect",
-  password: "Choose a less common password",
+  password: "Choose a less common password of at least 10 characters",
+  expired: "That reset link has expired or was already used. Send a new one.",
+  nomail: "This store cannot send email right now. Ask at the counter and staff can set a new password for you.",
 };
 const errorMessage = (code?: string) => (code ? errorMessages[code] : undefined);
 
@@ -55,6 +57,13 @@ const orderTone = (status: string) =>
 const statusLabel = (status: string) => {
   const text = status.replaceAll("_", " ");
   return text[0]?.toUpperCase() + text.slice(1);
+};
+/** What the customer needs to know about an order: where it is, or what was refunded. */
+const orderState = (order: { status: string; pickupStatus?: string }) => {
+  if (order.status === "partially_refunded") return { tone: "warn", label: "Partly refunded" };
+  if (order.status === "completed" && order.pickupStatus === "ready_for_pickup") return { tone: "warn", label: "Ready for pickup" };
+  if (order.status === "completed" && order.pickupStatus === "picked_up") return { tone: "ok", label: "Picked up" };
+  return { tone: orderTone(order.status), label: statusLabel(order.status) };
 };
 const quantityLabel = (value: string) => String(Number(value));
 export const receiptMetadata = () => storefrontTitle("Receipt");
@@ -571,8 +580,8 @@ export async function AccountPage() {
                       </span>
                     </span>
                     <span className="sf-state">
-                      <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
-                      {statusLabel(order.status)}
+                      <span className="sf-dot" data-tone={orderState(order).tone} aria-hidden="true" />
+                      {orderState(order).label}
                     </span>
                     <span className="sf-order__total sf-num">{money(order.totalCents, order.currencyCode)}</span>
                   </Link>
@@ -595,8 +604,9 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
   const { saleId } = await params;
   const user = await currentCustomer();
   if (!user) redirect("/account/signin");
-  const [order] = await history(saleId);
+  const [[order], projection] = await Promise.all([history(saleId), getPublicStorefrontProjection()]);
   if (!order) notFound();
+  const state = orderState(order);
   return (
     <ShopShell>
       <div className="sf-page">
@@ -606,8 +616,8 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
         </Link>
         <PageHead title={<span className="sf-num">{shortRef(order.receiptNumber)}</span>}>
           <span className="sf-state">
-            <span className="sf-dot" data-tone={orderTone(order.status)} aria-hidden="true" />
-            {statusLabel(order.status)}
+            <span className="sf-dot" data-tone={state.tone} aria-hidden="true" />
+            {state.label}
           </span>
         </PageHead>
         <section className="sf-card sf-receipt" aria-label="Receipt">
@@ -618,17 +628,39 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
                   <span className="sf-num sf-muted">{quantityLabel(line.quantity)}×</span> {line.titleSnapshot}
                   {line.variantTitleSnapshot ? <span className="sf-muted"> · {line.variantTitleSnapshot}</span> : null}
                 </span>
-                <span className="sf-num">{money(line.totalCents, order.currencyCode)}</span>
+                <span className="sf-num">{money(line.subtotalCents ?? line.totalCents, order.currencyCode)}</span>
               </li>
             ))}
           </ul>
-          <dl className="sf-receipt__total">
-            <dt>Total</dt>
-            <dd className="sf-figure sf-num">{money(order.totalCents, order.currencyCode)}</dd>
+          <dl className="sf-totals sf-receipt__sums">
+            <div>
+              <dt>Subtotal</dt>
+              <dd className="sf-num">{money(order.subtotalCents, order.currencyCode)}</dd>
+            </div>
+            {order.discountCents ? (
+              <div>
+                <dt>Discount</dt>
+                <dd className="sf-num">−{money(order.discountCents, order.currencyCode)}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Tax</dt>
+              <dd className="sf-num">{money(order.taxCents, order.currencyCode)}</dd>
+            </div>
+            <div className="sf-totals__grand">
+              <dt>Total</dt>
+              <dd className="sf-num">{money(order.totalCents, order.currencyCode)}</dd>
+            </div>
+            {order.refundedCents ? (
+              <div>
+                <dt>Refunded</dt>
+                <dd className="sf-num">−{money(order.refundedCents, order.currencyCode)}</dd>
+              </div>
+            ) : null}
           </dl>
           {order.completedAt ? (
             <p className="sf-muted sf-receipt__when">
-              {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+              {new Date(order.completedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: projection.location?.timezone || undefined })}
             </p>
           ) : null}
         </section>
@@ -639,8 +671,50 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
 
 export async function AccountAuthPage({ params, searchParams }: { params: Promise<{ mode: string }>; searchParams: Search }) {
   const [{ mode }, search] = await Promise.all([params, searchParams]);
-  if (!["signin", "signup"].includes(mode)) notFound();
+  if (!["signin", "signup", "forgot", "reset"].includes(mode)) notFound();
   if (await currentCustomer()) redirect("/account");
+  if (mode === "forgot" || mode === "reset") {
+    const choosing = mode === "reset" && Boolean(search.token && search.email);
+    if (mode === "reset" && !choosing) redirect("/account/forgot");
+    return (
+      <ShopShell>
+        <section className="sf-auth">
+          <Link href="/account/signin" className="sf-back">
+            <ArrowLeft aria-hidden="true" className="sf-icon" />
+            Sign in
+          </Link>
+          <h1 className="sf-listhead__title">{choosing ? "Choose a new password" : "Reset password"}</h1>
+          <Alert message={errorMessage(search.error)} />
+          {search.sent ? (
+            <p role="status" className="sf-note">
+              <span className="sf-dot" data-tone="ok" aria-hidden="true" />
+              If that email has an account, a reset link is on its way. It works for 10 minutes.
+            </p>
+          ) : null}
+          {choosing ? (
+            <form className="sf-card sf-form" action={customerReset}>
+              <input type="hidden" name="token" value={search.token} />
+              <input type="hidden" name="email" value={search.email} />
+              <p className="sf-muted">For {search.email?.slice(0, 254)}</p>
+              <label className="sf-field">
+                <span>New password</span>
+                <input name="password" type="password" autoComplete="new-password" minLength={10} maxLength={1000} required />
+              </label>
+              <button className="sf-btn sf-btn--wide sf-btn--big">Save password</button>
+            </form>
+          ) : (
+            <form className="sf-card sf-form" action={customerForgot}>
+              <label className="sf-field">
+                <span>Email</span>
+                <input name="email" type="email" autoComplete="email" maxLength={254} required />
+              </label>
+              <button className="sf-btn sf-btn--wide sf-btn--big">{search.sent ? "Send again" : "Email me a reset link"}</button>
+            </form>
+          )}
+        </section>
+      </ShopShell>
+    );
+  }
   const signup = mode === "signup";
   return (
     <ShopShell>
@@ -655,6 +729,12 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
         </nav>
         <h1 className="sf-listhead__title">{signup ? "Create account" : "Sign in"}</h1>
         <Alert message={errorMessage(search.error)} />
+        {!signup && search.reset ? (
+          <p role="status" className="sf-note">
+            <span className="sf-dot" data-tone="ok" aria-hidden="true" />
+            Password saved. Sign in with it.
+          </p>
+        ) : null}
         {signup && search.error === "exists" ? (
           <p className="sf-muted">
             Already have an account?{" "}
@@ -688,6 +768,13 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
           </label>
           <button className="sf-btn sf-btn--wide sf-btn--big">{signup ? "Create account" : "Sign in"}</button>
         </form>
+        {signup ? null : (
+          <p className="sf-auth__more">
+            <Link href="/account/forgot" className="sf-link">
+              Forgot password?
+            </Link>
+          </p>
+        )}
       </section>
     </ShopShell>
   );

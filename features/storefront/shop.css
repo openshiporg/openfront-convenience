@@ -1299,6 +1299,10 @@ a.sf-ctl:hover {
   margin-top: 16px;
   font-weight: 600;
 }
+.sf-receipt__sums {
+  margin-top: 4px;
+  border-top: 0;
+}
 .sf-receipt__when {
   margin-top: 8px;
   font-size: 0.9rem;
@@ -1357,6 +1361,18 @@ a.sf-ctl:hover {
 .sf-field select:focus {
   border-color: var(--sf-ink);
 }
+.sf-auth__more {
+  margin: 0;
+  text-align: center;
+}
+
+.sf-auth__more .sf-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
 .sf-alert {
   display: flex;
   align-items: center;
@@ -1670,7 +1686,9 @@ a.sf-ctl:hover {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .sf-order .sf-state {
-    display: none;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: -8px;
   }
   .sf-bar {
     display: flex;

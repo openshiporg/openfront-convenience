@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
+import { passwordResetEmailAvailable } from "@/features/dashboard/lib/authFlow";
 import { isCommonPassword } from "./lib/password-rules";
 import { basket, catalog, lastWebOrder } from "./lib/data";
 import { isDuplicateEmail } from "./lib/auth-errors";
@@ -52,6 +53,30 @@ export async function customerAuth(form: FormData) {
   const token = result.data.authenticateUserWithPassword?.sessionToken;
   if (!token) redirect("/account/signin?error=signin");
   (await cookies()).set("keystonejs-session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  redirect("/account");
+}
+/** Sends the reset link. The answer is the same whether or not the email has an account. */
+export async function customerForgot(form: FormData) {
+  const email = value(form, "email").toLowerCase();
+  if (!passwordResetEmailAvailable()) redirect("/account/forgot?error=nomail");
+  const result = await keystoneClient<{ sendUserPasswordResetLink: boolean }>(`mutation Forgot($email: String!) { sendUserPasswordResetLink(email: $email) }`, { email });
+  if (!result.success) redirect("/account/forgot?error=unavailable");
+  redirect("/account/forgot?sent=1");
+}
+/** Sets the new password from the emailed link, then signs the customer in. */
+export async function customerReset(form: FormData) {
+  const email = value(form, "email").toLowerCase();
+  const token = value(form, "token");
+  const password = String(form.get("password") ?? "");
+  const back = `/account/reset?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  if (isCommonPassword(password, email)) redirect(`${back}&error=password`);
+  const result = await keystoneClient<{ redeemUserPasswordResetToken: { code: string } | null }>(`mutation Reset($email: String!, $token: String!, $password: String!) { redeemUserPasswordResetToken(email: $email, token: $token, password: $password) { code } }`, { email, token, password });
+  if (!result.success) redirect(`${back}&error=${/password/i.test(result.error ?? "") ? "password" : "unavailable"}`);
+  if (result.data.redeemUserPasswordResetToken?.code) redirect("/account/forgot?error=expired");
+  const login = await keystoneClient<{ authenticateUserWithPassword: { sessionToken?: string } }>(`mutation Login($email: String!, $password: String!) { authenticateUserWithPassword(email: $email, password: $password) { ... on UserAuthenticationWithPasswordSuccess { sessionToken } } }`, { email, password });
+  const session = login.success ? login.data.authenticateUserWithPassword?.sessionToken : undefined;
+  if (!session) redirect("/account/signin?reset=1");
+  (await cookies()).set("keystonejs-session", session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
   redirect("/account");
 }
 export async function customerSignout() {
