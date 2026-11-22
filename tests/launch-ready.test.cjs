@@ -107,3 +107,12 @@ test("a new store starts with Cashier and Manager roles that can open the regist
   for (const permission of ["canAccessDashboard", "canReadSales", "canManageSales", "canReadCash", "canManageCash"]) assert.match(cashier, new RegExp(`"${permission}"`));
   for (const permission of ["canManageBusiness", "canManageRoles", "canManagePayments"]) assert.doesNotMatch(cashier, new RegExp(`"${permission}"`));
 });
+
+test("paid web orders post without a webhook: shop and dashboard reads reconcile open payments once a minute", () => {
+  const pickup = read("features/keystone/mutations/pickupOperations.ts");
+  assert.match(pickup, /export async function reconcileOpenPickupPayments/);
+  assert.match(pickup, /RECONCILE_EVERY_MS = 60_000/);
+  assert.match(pickup, /settlePaidPickup\(context, cart, provider, payment\)/);
+  assert.match(read("features/storefront/lib/public-storefront.ts"), /reconcileOpenPickupPayments\(keystoneContext\.sudo\(\)\)/);
+  assert.match(read("features/keystone/mutations/platformProjection.ts"), /reconcileOpenPickupPayments\(context\.sudo\(\)\)/);
+});

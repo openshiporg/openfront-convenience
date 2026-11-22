@@ -21252,6 +21252,922 @@ async function approvePaymentReconciliation(_root, args, context) {
   });
 }
 
+// features/keystone/mutations/pickupOperations.ts
+var import_node_crypto25 = require("node:crypto");
+var import_client15 = require("@prisma/client");
+var import_graphql4 = require("graphql");
+
+// features/keystone/lib/pickupPolicy.ts
+function assertPickupEligible(lines) {
+  if (!lines.length) throw new Error("Your basket is empty");
+  for (const line of lines) {
+    const product = line.variant?.product;
+    if (!line.variant || !product || line.variant.status !== "active" || product.status !== "active") {
+      throw new Error("An item in your basket is no longer available");
+    }
+    if (product.regulatedSaleType !== "none" || line.ageRestricted || (product.minimumAge ?? 0) > 0) {
+      throw new Error("Age-restricted items can only be bought in store");
+    }
+  }
+}
+function pickupRevision(lines, totalCents) {
+  return fingerprintInput({
+    totalCents,
+    lines: [...lines].sort((a, b) => a.id.localeCompare(b.id)).map((line) => [line.id, line.variantId, line.quantity.toString(), line.totalCents])
+  });
+}
+function assertPaymentMatches(expected, actual) {
+  if (!Number.isSafeInteger(expected.amountCents) || expected.amountCents <= 0) throw new Error("Order total is invalid");
+  if (!Number.isSafeInteger(actual.amountCents) || actual.amountCents !== expected.amountCents) {
+    throw new Error("Payment amount does not match the order total");
+  }
+  if (typeof actual.currencyCode !== "string" || actual.currencyCode.toUpperCase() !== expected.currencyCode.toUpperCase()) {
+    throw new Error("Payment currency does not match the order currency");
+  }
+}
+
+// features/keystone/mutations/storefrontOperations.ts
+var import_graphql3 = require("graphql");
+var import_node_crypto24 = require("node:crypto");
+var import_client14 = require("@prisma/client");
+
+// features/keystone/mutations/publicStorefrontProjection.ts
+function projectIdentity(settings) {
+  const name = settings.brandName.trim();
+  const tagline = settings.brandTagline.trim();
+  const mark = settings.brandMark.trim().toUpperCase();
+  if (!name) return null;
+  const logoColor = normalizeStoreLogoColor(settings.logoColor);
+  const brandHue = (260 + Number.parseInt(logoColor, 10)) % 360;
+  return {
+    name,
+    tagline,
+    mark,
+    logoIcon: sanitizeStoreLogoSvg(settings.logoIcon ?? ""),
+    logoColor,
+    primaryColor: `oklch(32% 0.08 ${brandHue})`,
+    accentColor: `oklch(82% 0.13 ${brandHue})`
+  };
+}
+function plainDocumentText(value, maxLength = 240) {
+  const parts = [];
+  const visit = (node, depth) => {
+    if (depth > 8 || parts.join(" ").length >= maxLength) return;
+    if (Array.isArray(node)) {
+      for (const child of node.slice(0, 30)) visit(child, depth + 1);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    const record = node;
+    if (typeof record.text === "string") parts.push(record.text.trim());
+    for (const key of ["children", "content", "document"]) {
+      if (key in record) visit(record[key], depth + 1);
+    }
+  };
+  visit(value, 0);
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, maxLength);
+}
+var emptyProjection = (state) => ({
+  state,
+  identity: null,
+  location: null,
+  categories: [],
+  fuelPrices: []
+});
+async function currentFuelPrices(context, businessId, storeId) {
+  const now = /* @__PURE__ */ new Date();
+  const prices = await context.prisma.fuelPrice.findMany({
+    where: {
+      businessId,
+      storeId,
+      status: { in: ["active", "scheduled"] },
+      startsAt: { lte: now },
+      OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      grade: { is: { status: "active" } }
+    },
+    select: { priceTier: true, priceMillsPerGallon: true, gradeId: true, grade: { select: { name: true } } },
+    orderBy: { startsAt: "desc" },
+    take: 50
+  });
+  const seen = /* @__PURE__ */ new Set();
+  const current = [];
+  for (const price of prices) {
+    const key = `${price.gradeId}:${price.priceTier}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    current.push({ grade: price.grade?.name ?? "Fuel", tier: price.priceTier, priceMillsPerGallon: price.priceMillsPerGallon });
+  }
+  return current;
+}
+async function conveniencePublicStorefrontProjection(_root, _args, context) {
+  const published = await context.prisma.business.findMany({
+    where: { status: "active", storefrontStatus: "published" },
+    select: {
+      id: true,
+      brandName: true,
+      brandTagline: true,
+      brandMark: true,
+      logoIcon: true,
+      logoColor: true,
+      brandPrimaryColor: true,
+      brandAccentColor: true,
+      storefrontStore: {
+        select: {
+          id: true,
+          businessId: true,
+          name: true,
+          status: true,
+          addressLine1: true,
+          addressLine2: true,
+          city: true,
+          stateProvince: true,
+          postalCode: true,
+          countryCode: true,
+          phone: true,
+          timezone: true,
+          fuelEnabled: true,
+          metadata: true
+        }
+      }
+    },
+    orderBy: { id: "asc" },
+    take: 2
+  });
+  if (published.length > 1) return emptyProjection("unavailable");
+  if (published.length === 1) {
+    const settings = published[0];
+    const identity = projectIdentity(settings);
+    const store = settings.storefrontStore;
+    if (!identity || !store || store.businessId !== settings.id || store.status !== "active") {
+      return emptyProjection("unavailable");
+    }
+    const productFilter = {
+      businessId: settings.id,
+      status: "active",
+      variants: {
+        some: {
+          businessId: settings.id,
+          status: "active"
+        }
+      }
+    };
+    const categories = await context.prisma.productCategory.findMany({
+      where: {
+        businessId: settings.id,
+        status: "active",
+        products: { some: productFilter }
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        products: {
+          where: productFilter,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            preparedFood: true
+          },
+          orderBy: { title: "asc" },
+          take: 12
+        }
+      },
+      orderBy: { name: "asc" },
+      take: 8
+    });
+    return {
+      state: "published",
+      identity,
+      location: {
+        name: store.name,
+        addressLine1: store.addressLine1,
+        addressLine2: store.addressLine2,
+        city: store.city,
+        stateProvince: store.stateProvince,
+        postalCode: store.postalCode,
+        countryCode: store.countryCode,
+        phone: store.phone,
+        timezone: store.timezone,
+        hours: storefrontHoursFromMetadata(store.metadata)
+      },
+      fuelPrices: store.fuelEnabled ? await currentFuelPrices(context, settings.id, store.id) : [],
+      categories: categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        products: category.products.map((product) => ({
+          id: product.id,
+          title: product.title,
+          summary: plainDocumentText(product.description),
+          preparedFood: product.preparedFood
+        }))
+      }))
+    };
+  }
+  const configuredDraft = await context.prisma.business.findFirst({
+    where: {
+      status: "active",
+      storefrontStatus: "draft",
+      brandName: { not: "" }
+    },
+    select: { id: true },
+    orderBy: { id: "asc" }
+  });
+  return configuredDraft ? emptyProjection("unpublished") : emptyProjection("unset");
+}
+
+// features/keystone/mutations/storefrontOperations.ts
+var ABANDON_AFTER_EXPIRY_MS = 864e5;
+async function publishedStore(db) {
+  const businesses = await db.business.findMany({ where: { status: "active", storefrontStatus: "published" }, include: { storefrontStore: true }, take: 2 });
+  const business = businesses.length === 1 ? businesses[0] : null;
+  const store = business?.storefrontStore;
+  if (!business || !store || store.status !== "active" || store.businessId !== business.id) throw new Error("Store unavailable");
+  return { business, store };
+}
+var CATALOG_PAGE_SIZE = 48;
+async function mainImages(context, productIds) {
+  const images = /* @__PURE__ */ new Map();
+  if (!productIds.length) return images;
+  const rows = await context.sudo().query.ProductImage.findMany({
+    where: { products: { some: { id: { in: productIds } } } },
+    orderBy: [{ order: "asc" }],
+    query: "altText image { url } products { id }",
+    take: 200
+  });
+  for (const row of rows) {
+    if (!row.image?.url) continue;
+    for (const product of row.products) {
+      if (productIds.includes(product.id) && !images.has(product.id)) images.set(product.id, { url: row.image.url, alt: row.altText });
+    }
+  }
+  return images;
+}
+async function storefrontCatalog(_root, args, context) {
+  const { business, store } = await publishedStore(context.prisma);
+  const search = (args.search ?? "").trim().slice(0, 100);
+  const category = (args.category ?? "").trim().slice(0, 100);
+  const page = Number.isSafeInteger(args.page) && Number(args.page) > 0 ? Math.min(Number(args.page), 1e4) : 1;
+  const where = {
+    businessId: business.id,
+    status: "active",
+    regulatedSaleType: "none",
+    variants: { some: { status: "active", sellBy: "unit" } },
+    ...args.productId ? { id: args.productId } : {},
+    ...search ? { title: { contains: search, mode: "insensitive" } } : {},
+    ...category ? { categories: { some: { name: category, status: "active" } } } : {}
+  };
+  const [products, total, categories] = await Promise.all([
+    context.prisma.product.findMany({
+      where,
+      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, allowNegativeInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
+      take: CATALOG_PAGE_SIZE,
+      skip: (page - 1) * CATALOG_PAGE_SIZE,
+      orderBy: { title: "asc" }
+    }),
+    context.prisma.product.count({ where }),
+    context.prisma.productCategory.findMany({
+      where: { businessId: business.id, status: "active", products: { some: { businessId: business.id, status: "active", regulatedSaleType: "none" } } },
+      select: { name: true },
+      orderBy: { name: "asc" },
+      take: 100
+    })
+  ]);
+  const now = /* @__PURE__ */ new Date();
+  const images = await mainImages(context, products.map((product) => product.id));
+  const onlinePickup = Boolean(await context.prisma.paymentProvider.findFirst({ where: { businessId: business.id, status: "active", createPaymentFunction: "stripe" }, select: { id: true } })) && isPaymentProviderConfigured("stripe");
+  return { currency: store.currencyCode, onlinePickup, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map((entry) => entry.name), products: await Promise.all(products.map(async (product) => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2e3), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async (variant) => {
+    const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
+    const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
+    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : variant.allowNegativeInventory ? "ask" : "sold_out";
+    return { id: variant.id, title: variant.title, unitOfMeasure: variant.unitOfMeasure, priceCents: price?.amountCents ?? variant.defaultPriceCents, availability };
+  })) }))) };
+}
+async function currentCustomerId(db, context, lock = false) {
+  const session = context.session;
+  if (!session?.itemId || session.apiKeyId) return void 0;
+  if (lock) await db.$queryRaw(import_client14.Prisma.sql`SELECT id FROM "User" WHERE id = ${session.itemId} FOR SHARE`);
+  const live = await db.user.findUnique({ where: { id: session.itemId }, select: { sessionVersion: true } });
+  if (!live || !Number.isSafeInteger(session.data.sessionVersion) || live.sessionVersion !== session.data.sessionVersion) throw new Error("Customer session expired");
+  return session.itemId;
+}
+var digest2 = (token) => (0, import_node_crypto24.createHash)("sha256").update(token).digest("hex");
+function assertProof(cart, token, userId) {
+  if (cart.source !== "storefront" || !cart.expiresAt || cart.expiresAt <= /* @__PURE__ */ new Date()) throw new Error("Basket unavailable");
+  if (cart.customerId) {
+    if (cart.customerId !== userId) throw new Error("Basket unavailable");
+    return;
+  }
+  const expected = Buffer.from(cart.guestTokenDigest, "hex");
+  const actual = Buffer.from(digest2(token), "hex");
+  if (!/^[a-f0-9]{64}$/.test(token) || expected.length !== actual.length || !(0, import_node_crypto24.timingSafeEqual)(expected, actual)) throw new Error("Basket unavailable");
+}
+var basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, orderBy: { createdAt: "asc" }, take: 50 } };
+function basketDto(cart) {
+  return { ...cart, lines: cart.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
+}
+async function readBasket(db, id2) {
+  return db.cart.findUnique({ where: { id: id2 }, select: basketSelection });
+}
+async function storefrontBasket(_root, args, context) {
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: args.cartId } });
+  if (!cart) return null;
+  assertProof(cart, args.token, userId);
+  const result = await readBasket(context.prisma, cart.id);
+  return result ? basketDto(result) : null;
+}
+async function updateStorefrontBasket(_root, args, context) {
+  const input = args.input;
+  if (!/^[a-f0-9]{64}$/.test(input.token) || !/^[a-zA-Z0-9-]{10,64}$/.test(input.cartId)) throw new Error("Basket unavailable");
+  if (!Number.isSafeInteger(input.quantity) || input.quantity < 0 || input.quantity > 99) throw new Error("Quantity must be between 0 and 99");
+  await releasePickupPaymentForEdit(context, input.cartId, input.token);
+  return context.prisma.$transaction(async (db) => {
+    const userId = await currentCustomerId(db, context, true);
+    await db.$queryRaw(import_client14.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
+    const { business, store } = await publishedStore(db);
+    let cart = await db.cart.findUnique({ where: { id: input.cartId } });
+    if (cart) {
+      assertProof(cart, input.token, userId);
+      if (cart.businessId !== business.id || cart.storeId !== store.id || cart.status !== "open") throw new Error("Basket unavailable");
+    } else {
+      if (!input.variantId || input.quantity === 0) throw new Error("Basket unavailable");
+      cart = await db.cart.create({ data: { id: input.cartId, businessId: business.id, storeId: store.id, cartNumber: `WEB-${(0, import_node_crypto24.randomUUID)()}`, source: "storefront", currencyCode: store.currencyCode, priceBookId: store.defaultPriceBookId, customerId: userId, guestTokenDigest: digest2(input.token), expiresAt: new Date(Date.now() + 864e5) } });
+    }
+    if (input.claim && userId && !cart.customerId) await db.cart.update({ where: { id: cart.id }, data: { customerId: userId } });
+    if (!input.lineId && input.variantId) {
+      const same = await db.cartLine.findFirst({ where: { cartId: cart.id, variantId: input.variantId }, select: { id: true } });
+      if (same) input.lineId = same.id;
+    }
+    if (input.lineId) {
+      const line = await db.cartLine.findFirst({ where: { id: input.lineId, cartId: cart.id } });
+      if (!line) throw new Error("Basket item unavailable");
+      if (input.quantity === 0) await db.cartLine.delete({ where: { id: line.id } });
+      else input.variantId = line.variantId ?? void 0;
+    }
+    if (input.variantId && input.quantity > 0) {
+      const variant = await db.productVariant.findFirst({ where: { id: input.variantId, businessId: business.id, status: "active", sellBy: "unit", product: { status: "active", regulatedSaleType: "none", businessId: business.id } }, include: { product: true } });
+      if (!variant?.product) throw new Error("Item unavailable");
+      if (await db.cartLine.count({ where: { cartId: cart.id } }) >= 50 && !input.lineId) throw new Error("Basket limit reached");
+      if (variant.trackInventory && !variant.allowNegativeInventory) {
+        const stock = store.primaryInventoryLocationId ? await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` }, select: { onHandQuantity: true } }) : null;
+        const onHand = Math.floor(Number(stock?.onHandQuantity ?? 0));
+        const current = input.lineId ? Number((await db.cartLine.findUnique({ where: { id: input.lineId }, select: { quantity: true } }))?.quantity ?? 0) : 0;
+        if (input.quantity > current && input.quantity > onHand) throw new import_graphql3.GraphQLError(onHand > 0 ? "No more in stock" : "Sold out", { extensions: { code: "KS_USER_INPUT_ERROR" } });
+      }
+      const quantity = `${input.quantity}.0000`;
+      const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: business.id, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at: /* @__PURE__ */ new Date() }) : null;
+      const tax = await findEffectiveTaxRate(db, { businessId: business.id, storeId: store.id, taxCategoryId: variant.product.taxCategoryId, at: /* @__PURE__ */ new Date() });
+      if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
+      const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
+      const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
+      const data = { businessId: business.id, storeId: store.id, cartId: cart.id, variantId: variant.id, titleSnapshot: variant.product.title, variantTitleSnapshot: variant.title, skuSnapshot: variant.sku, quantity, unitOfMeasure: variant.unitOfMeasure, unitPriceCents, subtotalCents: amounts.subtotalCents, discountCents: amounts.discountCents, taxCents: amounts.taxCents, totalCents: amounts.totalCents, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false, priceBookEntryId: price?.id ?? null, priceSource: price ? "price_book" : "variant_default" };
+      if (input.lineId) await db.cartLine.update({ where: { id: input.lineId }, data });
+      else await db.cartLine.create({ data });
+    }
+    await db.cart.updateMany({ where: { storeId: store.id, source: "storefront", status: "open", saleId: null, id: { not: cart.id }, expiresAt: { lt: new Date(Date.now() - ABANDON_AFTER_EXPIRY_MS) } }, data: { status: "abandoned" } });
+    const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
+    await db.cart.update({ where: { id: cart.id }, data: { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0, expiresAt: new Date(Date.now() + 864e5) } });
+    const result = await readBasket(db, cart.id);
+    if (!result) throw new Error("Basket unavailable");
+    return basketDto(result);
+  });
+}
+async function ensureCustomerLoyaltyAccount(db, businessId, userId) {
+  const program = await db.loyaltyProgram.findFirst({ where: { businessId, status: "active" }, orderBy: { createdAt: "asc" } });
+  if (!program) return null;
+  const lookupKey = `${businessId}:${program.id}:user:${userId}`;
+  const existing = await db.loyaltyAccount.findUnique({ where: { lookupKey } });
+  if (existing) return existing.status === "active" ? { account: existing, program } : null;
+  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!user) return null;
+  const account = await db.loyaltyAccount.upsert({
+    where: { lookupKey },
+    update: {},
+    create: {
+      businessId,
+      programId: program.id,
+      userId,
+      accountNumber: `LOY-${(0, import_node_crypto24.randomUUID)()}`,
+      lookupKey,
+      email: user.email?.toLowerCase() ?? "",
+      phone: "",
+      status: "active",
+      tier: "standard",
+      pointsBalance: 0,
+      lifetimePoints: 0,
+      marketingOptIn: false,
+      metadata: { enrolledBy: "customer_account" }
+    }
+  });
+  return { account, program };
+}
+async function storefrontRewards(_root, _args, context) {
+  const userId = await currentCustomerId(context.prisma, context);
+  if (!userId) return [];
+  const { business, store } = await publishedStore(context.prisma);
+  await ensureCustomerLoyaltyAccount(context.prisma, business.id, userId);
+  const accounts = await context.prisma.loyaltyAccount.findMany({
+    where: { userId, businessId: business.id, status: { in: ["active", "paused"] } },
+    select: {
+      id: true,
+      accountNumber: true,
+      status: true,
+      tier: true,
+      pointsBalance: true,
+      lifetimePoints: true,
+      program: { select: { name: true, redemptionPoints: true, redemptionValueCents: true } },
+      entries: { select: { type: true, pointsDelta: true, balanceAfter: true, occurredAt: true }, orderBy: { occurredAt: "desc" }, take: 10 }
+    },
+    take: 5
+  });
+  return accounts.map((account) => ({
+    ...account,
+    currencyCode: store.currencyCode,
+    entries: account.entries.map((entry) => ({ ...entry, occurredAt: entry.occurredAt?.toISOString() ?? null }))
+  }));
+}
+async function storefrontHistory(_root, args, context) {
+  const userId = await currentCustomerId(context.prisma, context);
+  if (!userId) return [];
+  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, source: true, status: true, pickupStatus: true, completedAt: true, currencyCode: true, subtotalCents: true, discountCents: true, taxCents: true, totalCents: true, refundedCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
+}
+
+// features/keystone/mutations/pickupOperations.ts
+var PROOF = /^[a-f0-9]{64}$/;
+var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function normalizeReceiptEmail(value) {
+  if (value == null) return null;
+  const invalid = () => new import_graphql4.GraphQLError("Enter a valid email address", { extensions: { code: "BAD_USER_INPUT" } });
+  if (typeof value !== "string") throw invalid();
+  const email = value.trim().toLowerCase();
+  if (!email) return null;
+  if (email.length > 254 || !EMAIL.test(email)) throw invalid();
+  return email;
+}
+var CART_ID = /^[a-zA-Z0-9-]{10,64}$/;
+function readPickupPayment(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const value = metadata.pickupPayment;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const p2 = value;
+  if (typeof p2.providerId !== "string" || typeof p2.paymentId !== "string" || typeof p2.currencyCode !== "string" || typeof p2.revision !== "string" || !Number.isSafeInteger(p2.amountCents)) return null;
+  return { providerId: p2.providerId, paymentId: p2.paymentId, amountCents: p2.amountCents, currencyCode: p2.currencyCode, revision: p2.revision };
+}
+var cartLineInclude = {
+  orderBy: { createdAt: "asc" },
+  take: 51,
+  include: { variant: { include: { product: { include: { taxCategory: true } } } } }
+};
+async function onlineProvider(db, businessId) {
+  const providers = await db.paymentProvider.findMany({
+    where: { businessId, status: "active", createPaymentFunction: "stripe" },
+    take: 2
+  });
+  if (providers.length !== 1) throw new Error("Online pickup payment is not available");
+  const provider = providers[0];
+  if (!isPaymentProviderConfigured(provider.createPaymentFunction) || provider.getPaymentStatusFunction !== "stripe" || provider.capturePaymentFunction !== "stripe") {
+    throw new Error("Online pickup payment is not available");
+  }
+  return provider;
+}
+async function repriceCart(db, cart, store) {
+  const lines = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
+  if (lines.length > 50) throw new Error("Basket limit reached");
+  assertPickupEligible(lines);
+  const at = /* @__PURE__ */ new Date();
+  for (const line of lines) {
+    const variant = line.variant;
+    const product = variant.product;
+    if (variant.sellBy !== "unit") throw new Error("An item in your basket is not sold online");
+    const quantity = line.quantity.toString();
+    const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: cart.businessId, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at }) : null;
+    const tax = await findEffectiveTaxRate(db, { businessId: cart.businessId, storeId: store.id, taxCategoryId: product.taxCategoryId, at });
+    if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
+    const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
+    const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
+    await db.cartLine.update({
+      where: { id: line.id },
+      data: {
+        unitPriceCents,
+        subtotalCents: amounts.subtotalCents,
+        discountCents: amounts.discountCents,
+        taxRate: tax?.rate ?? 0,
+        taxInclusive: tax?.inclusive ?? false,
+        taxCents: amounts.taxCents,
+        totalCents: amounts.totalCents,
+        priceBookEntryId: price?.id ?? null,
+        priceSource: price ? "price_book" : "variant_default"
+      }
+    });
+  }
+  const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
+  const totals = { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0 };
+  await db.cart.update({ where: { id: cart.id }, data: totals });
+  const fresh = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
+  return { lines: fresh, ...totals };
+}
+async function assertStock(db, store, lines) {
+  for (const line of lines) {
+    const variant = line.variant;
+    if (!variant.trackInventory || variant.allowNegativeInventory) continue;
+    if (!store.primaryInventoryLocationId) throw new Error("Store has no primary inventory location");
+    const stock = await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` } });
+    const onHand = stock?.onHandQuantity.toString() ?? "0.0000";
+    if (compareQuantities(onHand, line.quantity.toString()) < 0) throw new Error(`${line.titleSnapshot} is out of stock`);
+  }
+}
+async function startStorefrontPickupPayment(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const prepared = await context.prisma.$transaction(async (db) => {
+    const userId = await currentCustomerId(db, context, true);
+    await db.$queryRaw(import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${cartId}`}))::text`);
+    const { business, store } = await publishedStore(db);
+    const cart2 = await db.cart.findUnique({ where: { id: cartId } });
+    if (!cart2) throw new Error("Basket unavailable");
+    assertProof(cart2, token, userId);
+    if (cart2.businessId !== business.id || cart2.storeId !== store.id || cart2.status !== "open") throw new Error("Basket unavailable");
+    const existing2 = readPickupPayment(cart2.metadata);
+    const priced = await repriceCart(db, cart2, store);
+    await assertStock(db, store, priced.lines);
+    if (priced.totalCents < 50) throw new Error("Order total is too small to pay online");
+    const provider2 = await onlineProvider(db, business.id);
+    const revision2 = pickupRevision(priced.lines, priced.totalCents);
+    return { cart: cart2, store, provider: provider2, existing: existing2, revision: revision2, totalCents: priced.totalCents, currencyCode: cart2.currencyCode };
+  });
+  const { cart, provider, existing, revision, totalCents, currencyCode } = prepared;
+  const cartMeta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
+  let retired = typeof cartMeta.pickupRetired === "string" ? cartMeta.pickupRetired : null;
+  if (existing && existing.revision !== revision) {
+    await retirePickupPayment(context, cart.id, provider, existing);
+    retired = existing.paymentId;
+  }
+  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}${retired ? `-${retired}` : ""}`;
+  const created = await createPayment({
+    provider,
+    order: { id: cart.id, orderNumber: cart.cartNumber },
+    amount: totalCents,
+    currency: currencyCode,
+    idempotencyKey
+  });
+  const paymentId = created?.paymentIntentId;
+  const clientSecret = created?.clientSecret;
+  if (typeof paymentId !== "string" || !paymentId.startsWith("pi_") || typeof clientSecret !== "string") {
+    throw new Error("Payment could not be started");
+  }
+  const config2 = getPublicPaymentProviderConfig("stripe");
+  if (!config2) throw new Error("Online pickup payment is not available");
+  const pickupPayment = { providerId: provider.id, paymentId, amountCents: totalCents, currencyCode, revision };
+  await context.prisma.cart.update({
+    where: { id: cart.id },
+    data: { metadata: { ...cartMeta, pickupPayment, ...retired ? { pickupRetired: retired } : {} } }
+  });
+  return { clientSecret, publishableKey: config2.publishableKey, paymentId, amountCents: totalCents, currencyCode };
+}
+async function retirePickupPayment(context, cartId, provider, payment) {
+  const status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  if (status?.status === "succeeded" || status?.status === "processing") {
+    throw new Error("This basket has already been paid; it cannot be changed");
+  }
+  if (status?.status !== "canceled") await cancelPayment({ provider, paymentId: payment.paymentId, idempotencyKey: `cancel-${cartId}-${payment.paymentId}` });
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
+  const { pickupPayment: _removed, ...rest } = cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: { ...rest, pickupRetired: payment.paymentId } } });
+}
+async function setStorefrontReceiptEmail(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const email = normalizeReceiptEmail(args.input.email);
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  if (!cart || cart.status !== "open") throw new Error("Basket unavailable");
+  assertProof(cart, token, userId);
+  const meta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? { ...cart.metadata } : {};
+  if (email) meta.receiptEmail = email;
+  else delete meta.receiptEmail;
+  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: meta } });
+  return { ok: true };
+}
+async function releasePickupPaymentForEdit(context, cartId, token) {
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  const payment = readPickupPayment(cart?.metadata);
+  if (!cart || !payment || cart.status !== "open") return;
+  assertProof(cart, token, await currentCustomerId(context.prisma, context));
+  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0 } });
+  if (!provider) throw new Error("Basket unavailable");
+  await retirePickupPayment(context, cartId, provider, payment);
+}
+async function postPickupSale(db, input) {
+  await db.$queryRaw(import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pickup-post:${input.providerId}:${input.paymentId}`}))::text`);
+  await db.$queryRaw(import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
+  const lookupKey = `${input.providerId}:${input.paymentId}`;
+  const existing = await db.tender.findUnique({ where: { providerLookupKey: lookupKey }, include: { sale: true } });
+  if (existing?.sale) return { sale: existing.sale, created: false };
+  const cart = await db.cart.findUnique({ where: { id: input.cartId }, include: { store: true, lines: cartLineInclude } });
+  if (!cart || !cart.store || !cart.businessId || !cart.storeId) throw new Error("Order not found");
+  const pickup = readPickupPayment(cart.metadata);
+  if (!pickup || pickup.providerId !== input.providerId || pickup.paymentId !== input.paymentId) {
+    throw new Error("Payment does not belong to this order");
+  }
+  if (cart.status !== "open") throw new Error("Order is no longer open");
+  assertPickupEligible(cart.lines);
+  assertPaymentMatches({ amountCents: pickup.amountCents, currencyCode: pickup.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
+  assertPaymentMatches({ amountCents: cart.totalCents, currencyCode: cart.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
+  if (pickupRevision(cart.lines, cart.totalCents) !== pickup.revision) throw new Error("Basket changed after payment began");
+  const postingAt = /* @__PURE__ */ new Date();
+  if (await db.storeDay.findFirst({ where: { businessId: cart.businessId, storeId: cart.storeId, status: "locked", periodStartedAt: { lte: postingAt }, periodEndedAt: { gt: postingAt } }, select: { id: true } })) {
+    throw new Error("Current retail posting period is locked");
+  }
+  const subtotalCents = cart.lines.reduce((t, l) => t + l.subtotalCents, 0);
+  const discountCents = cart.lines.reduce((t, l) => t + l.discountCents, 0);
+  const taxCents = cart.lines.reduce((t, l) => t + l.taxCents, 0);
+  const sale = await db.sale.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      receiptNumber: `WEB-${(0, import_node_crypto25.randomUUID)()}`,
+      source: "storefront",
+      status: "completed",
+      pickupStatus: "ready_for_pickup",
+      currencyCode: cart.currencyCode,
+      subtotalCents,
+      discountCents,
+      taxCents,
+      roundingCents: 0,
+      totalCents: cart.totalCents,
+      refundedCents: 0,
+      customerId: cart.customerId,
+      startedAt: cart.createdAt,
+      completedAt: postingAt,
+      metadata: { onlinePickup: true, cartId: cart.id }
+    }
+  });
+  const locationId = cart.store.primaryInventoryLocationId;
+  for (const [index, line] of cart.lines.entries()) {
+    const variant = line.variant;
+    const product = variant.product;
+    const saleLine = await db.saleLine.create({
+      data: {
+        businessId: cart.businessId,
+        storeId: cart.storeId,
+        saleId: sale.id,
+        lineNumber: index + 1,
+        titleSnapshot: line.titleSnapshot,
+        variantTitleSnapshot: line.variantTitleSnapshot,
+        skuSnapshot: line.skuSnapshot,
+        barcodeSnapshot: line.barcodeSnapshot,
+        productSnapshot: { productId: product.id, productTitle: product.title, variantId: variant.id, returnable: product.returnable, discountable: product.discountable },
+        quantity: line.quantity,
+        unitOfMeasure: line.unitOfMeasure,
+        unitPriceCents: line.unitPriceCents,
+        subtotalCents: line.subtotalCents,
+        discountCents: line.discountCents,
+        taxCategorySnapshot: product.taxCategory?.name ?? "",
+        taxRate: line.taxRate,
+        taxInclusive: line.taxInclusive,
+        taxCents: line.taxCents,
+        totalCents: line.totalCents,
+        promotionSnapshot: [],
+        regulatedSaleType: "none",
+        minimumAge: null,
+        ageVerified: false,
+        productId: product.id,
+        variantId: variant.id
+      }
+    });
+    if (!variant.trackInventory || !locationId) continue;
+    const stockKey = `${locationId}:${variant.id}`;
+    const stock = await db.stockLevel.findUnique({ where: { lookupKey: stockKey } });
+    const previous = stock?.onHandQuantity.toString() ?? "0.0000";
+    const balanceAfter = addQuantities(previous, `-${line.quantity.toString()}`);
+    const updated = stock ? await db.stockLevel.update({ where: { id: stock.id }, data: { onHandQuantity: balanceAfter } }) : await db.stockLevel.create({ data: { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, lookupKey: stockKey, onHandQuantity: balanceAfter, reservedQuantity: "0.0000", parQuantity: "0.0000", reorderPoint: "0.0000", reorderQuantity: "0.0000" } });
+    if (compareQuantities(balanceAfter, "0") < 0 && !variant.allowNegativeInventory) {
+      await db.operationalAlert.upsert({
+        where: { fingerprint: `pickup-oversold:${sale.id}:${variant.id}` },
+        update: {},
+        create: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          alertNumber: `ALT-${(0, import_node_crypto25.randomUUID)()}`,
+          fingerprint: `pickup-oversold:${sale.id}:${variant.id}`,
+          type: "low_inventory",
+          severity: "critical",
+          status: "open",
+          title: "Online pickup order exceeded stock",
+          message: "A paid online pickup order needed more stock than was on hand; fulfil or refund it.",
+          resourceType: "Sale",
+          resourceId: sale.id,
+          detectedAt: postingAt
+        }
+      });
+    }
+    const segments = await consumeInventoryLots(db, { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, quantity: line.quantity.toString() });
+    let running = previous;
+    for (const segment of segments) {
+      running = addQuantities(running, `-${segment.quantity}`);
+      await db.inventoryLedgerEntry.create({
+        data: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          stockLevelId: updated.id,
+          locationId,
+          variantId: variant.id,
+          lotId: segment.lotId,
+          type: "sale",
+          quantityDelta: `-${segment.quantity}`,
+          balanceAfter: running,
+          unitCostCents: segment.unitCostCents ?? variant.costCents,
+          reason: `Online pickup ${sale.receiptNumber}`,
+          sourceType: "Sale",
+          sourceId: sale.id,
+          saleLineId: saleLine.id,
+          occurredAt: postingAt
+        }
+      });
+    }
+  }
+  const tender = await db.tender.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      saleId: sale.id,
+      paymentProviderId: input.providerId,
+      method: "credit_card",
+      status: "captured",
+      amountCents: input.amountCents,
+      changeCents: 0,
+      refundedCents: 0,
+      currencyCode: cart.currencyCode.toUpperCase(),
+      providerPaymentId: input.paymentId,
+      providerLookupKey: lookupKey,
+      processedAt: postingAt,
+      metadata: { onlinePickup: true, cartId: cart.id },
+      ...input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}
+    }
+  });
+  const loyalty = cart.customerId ? await ensureCustomerLoyaltyAccount(db, cart.businessId, cart.customerId) : null;
+  if (loyalty) {
+    await db.$queryRaw(import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${loyalty.account.id}`}))::text`);
+    const account = await db.loyaltyAccount.findUniqueOrThrow({ where: { id: loyalty.account.id } });
+    const points = Math.floor(cart.totalCents * (loyalty.program.pointsPerDollar ?? 0) / 100);
+    const balanceAfter = (account.pointsBalance ?? 0) + points;
+    if (points > 0) {
+      await db.loyaltyLedgerEntry.create({
+        data: {
+          businessId: cart.businessId,
+          storeId: cart.storeId,
+          accountId: account.id,
+          type: "earned",
+          pointsDelta: points,
+          balanceAfter,
+          description: `Points earned on ${sale.receiptNumber}`,
+          saleId: sale.id,
+          occurredAt: postingAt,
+          expiresAt: loyalty.program.pointsExpireAfterDays ? new Date(postingAt.getTime() + loyalty.program.pointsExpireAfterDays * 864e5) : null
+        }
+      });
+    }
+    await db.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { pointsBalance: balanceAfter, lifetimePoints: (account.lifetimePoints ?? 0) + points, firstVisitAt: account.firstVisitAt ?? postingAt, lastVisitAt: postingAt }
+    });
+    await db.sale.update({ where: { id: sale.id }, data: { loyaltyAccountId: account.id } });
+  }
+  await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
+  await db.auditEvent.create({
+    data: {
+      businessId: cart.businessId,
+      storeId: cart.storeId,
+      eventNumber: (0, import_node_crypto25.randomUUID)(),
+      action: "pickup.order.paid",
+      resourceType: "Sale",
+      resourceId: sale.id,
+      result: "succeeded",
+      actorType: "integration",
+      occurredAt: postingAt,
+      metadata: { tenderId: tender.id, providerId: input.providerId }
+    }
+  });
+  return { sale, created: true };
+}
+async function settleStorefrontPickup(_root, args, context) {
+  const { cartId, token } = args.input;
+  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
+  if (!cart) throw new Error("Basket unavailable");
+  assertProofAllowingConverted(cart, token, userId);
+  if (cart.status === "converted" && cart.saleId) {
+    const sale = await context.prisma.sale.findUnique({ where: { id: cart.saleId }, select: { id: true, receiptNumber: true, pickupStatus: true } });
+    if (sale) return { state: "paid", saleId: sale.id, receiptNumber: sale.receiptNumber, pickupStatus: sale.pickupStatus };
+  }
+  const payment = readPickupPayment(cart.metadata);
+  if (!payment || cart.status !== "open") throw new Error("There is no payment to confirm");
+  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0, status: "active" } });
+  if (!provider) throw new Error("Online pickup payment is not available");
+  const settled = await settlePaidPickup(context, cart, provider, payment);
+  if (settled.state !== "paid") return settled;
+  if (settled.created) {
+    const { sendConfirmationAfterCommit: sendConfirmationAfterCommit2 } = await Promise.resolve().then(() => (init_orderConfirmation(), orderConfirmation_exports));
+    await sendConfirmationAfterCommit2(context.prisma, settled.sale.id, { cartId, token });
+  }
+  return { state: "paid", saleId: settled.sale.id, receiptNumber: settled.sale.receiptNumber, pickupStatus: settled.sale.pickupStatus };
+}
+async function settlePaidPickup(context, cart, provider, payment) {
+  let status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  if (status?.status === "requires_capture") {
+    await capturePayment({ provider, paymentId: payment.paymentId, amount: payment.amountCents, idempotencyKey: `capture-${cart.id}-${payment.paymentId}` });
+    status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
+  }
+  if (status?.status === "processing") return { state: "processing" };
+  if (status?.status !== "succeeded") return { state: "unpaid", status: String(status?.status ?? "unknown") };
+  assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
+  const result = await context.prisma.$transaction(
+    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode, card: status.card }),
+    // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
+    { isolationLevel: import_client15.Prisma.TransactionIsolationLevel.Serializable, maxWait: 1e4, timeout: 3e4 }
+  );
+  return { state: "paid", ...result };
+}
+var RECONCILE_EVERY_MS = 6e4;
+var lastReconcile = 0;
+var reconciling = null;
+async function reconcileOpenPickupPayments(context) {
+  if (reconciling) return reconciling;
+  if (Date.now() - lastReconcile < RECONCILE_EVERY_MS) return;
+  lastReconcile = Date.now();
+  reconciling = (async () => {
+    const carts = await context.prisma.cart.findMany({
+      where: {
+        source: "storefront",
+        status: "open",
+        saleId: null,
+        updatedAt: { gt: new Date(Date.now() - 2 * 864e5) },
+        metadata: { path: ["pickupPayment", "paymentId"], string_starts_with: "pi_" }
+      },
+      select: { id: true, businessId: true, metadata: true },
+      orderBy: { updatedAt: "desc" },
+      take: 20
+    });
+    for (const cart of carts) {
+      const payment = readPickupPayment(cart.metadata);
+      if (!payment) continue;
+      try {
+        const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0, status: "active" } });
+        if (!provider) continue;
+        const settled = await settlePaidPickup(context, cart, provider, payment);
+        if (settled.state === "paid" && settled.created) {
+          const { sendConfirmationAfterCommit: sendConfirmationAfterCommit2 } = await Promise.resolve().then(() => (init_orderConfirmation(), orderConfirmation_exports));
+          await sendConfirmationAfterCommit2(context.prisma, settled.sale.id);
+        }
+      } catch (error) {
+        console.error("pickup reconcile", cart.id, error instanceof Error ? error.message : error);
+      }
+    }
+  })().finally(() => {
+    reconciling = null;
+  });
+  return reconciling;
+}
+function assertProofAllowingConverted(cart, token, userId) {
+  if (cart.status === "converted") {
+    assertProof({ ...cart, expiresAt: new Date(Date.now() + 6e4) }, token, userId);
+    return;
+  }
+  assertProof(cart, token, userId);
+}
+async function storefrontPickupOrder(_root, args, context) {
+  if (!PROOF.test(args.token) || !CART_ID.test(args.cartId)) return null;
+  const userId = await currentCustomerId(context.prisma, context);
+  const cart = await context.prisma.cart.findUnique({ where: { id: args.cartId } });
+  if (!cart) return null;
+  try {
+    assertProofAllowingConverted(cart, args.token, userId);
+  } catch {
+    return null;
+  }
+  if (!cart.saleId) return null;
+  const sale = await context.prisma.sale.findUnique({
+    where: { id: cart.saleId },
+    select: { id: true, receiptNumber: true, status: true, pickupStatus: true, currencyCode: true, totalCents: true, subtotalCents: true, refundedCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, subtotalCents: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } }
+  });
+  if (!sale) return null;
+  return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
+}
+async function markSalePickedUp(_root, args, context) {
+  const session = requireSession(context);
+  const sale = await context.prisma.sale.findUnique({ where: { id: args.saleId }, select: { id: true, businessId: true, storeId: true, pickupStatus: true, status: true } });
+  if (!sale?.businessId || !sale.storeId) throw new import_graphql4.GraphQLError("Sale not found");
+  assertStorePermission(session, sale.businessId, sale.storeId, "canManageSales");
+  if (sale.pickupStatus === "picked_up") return { saleId: sale.id, pickupStatus: "picked_up" };
+  if (sale.pickupStatus !== "ready_for_pickup" || sale.status !== "completed") throw new import_graphql4.GraphQLError("Only a paid order waiting for pickup can be handed over");
+  const updated = await context.prisma.sale.updateMany({ where: { id: sale.id, pickupStatus: "ready_for_pickup", status: "completed" }, data: { pickupStatus: "picked_up" } });
+  if (!updated.count) throw new import_graphql4.GraphQLError("This order changed; refresh and try again");
+  return { saleId: sale.id, pickupStatus: "picked_up" };
+}
+
 // features/keystone/lib/refundAccounting.ts
 function effectiveTenderRefundedCents(tenderAmountCents, legacySummaryCents, completedAllocationCents) {
   for (const [label, amount] of [
@@ -21963,6 +22879,7 @@ function conveniencePlatformNavigation(_root, _args, context) {
   };
 }
 async function conveniencePlatformProjection(_root, args, context) {
+  void reconcileOpenPickupPayments(context.sudo()).catch(() => void 0);
   const surface = args.input.surface;
   if (!platformSurfaces.includes(surface))
     throw new Error("Unsupported platform projection surface");
@@ -24834,192 +25751,6 @@ async function conveniencePlatformProjection(_root, args, context) {
   };
 }
 
-// features/keystone/mutations/publicStorefrontProjection.ts
-function projectIdentity(settings) {
-  const name = settings.brandName.trim();
-  const tagline = settings.brandTagline.trim();
-  const mark = settings.brandMark.trim().toUpperCase();
-  if (!name) return null;
-  const logoColor = normalizeStoreLogoColor(settings.logoColor);
-  const brandHue = (260 + Number.parseInt(logoColor, 10)) % 360;
-  return {
-    name,
-    tagline,
-    mark,
-    logoIcon: sanitizeStoreLogoSvg(settings.logoIcon ?? ""),
-    logoColor,
-    primaryColor: `oklch(32% 0.08 ${brandHue})`,
-    accentColor: `oklch(82% 0.13 ${brandHue})`
-  };
-}
-function plainDocumentText(value, maxLength = 240) {
-  const parts = [];
-  const visit = (node, depth) => {
-    if (depth > 8 || parts.join(" ").length >= maxLength) return;
-    if (Array.isArray(node)) {
-      for (const child of node.slice(0, 30)) visit(child, depth + 1);
-      return;
-    }
-    if (!node || typeof node !== "object") return;
-    const record = node;
-    if (typeof record.text === "string") parts.push(record.text.trim());
-    for (const key of ["children", "content", "document"]) {
-      if (key in record) visit(record[key], depth + 1);
-    }
-  };
-  visit(value, 0);
-  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, maxLength);
-}
-var emptyProjection = (state) => ({
-  state,
-  identity: null,
-  location: null,
-  categories: [],
-  fuelPrices: []
-});
-async function currentFuelPrices(context, businessId, storeId) {
-  const now = /* @__PURE__ */ new Date();
-  const prices = await context.prisma.fuelPrice.findMany({
-    where: {
-      businessId,
-      storeId,
-      status: { in: ["active", "scheduled"] },
-      startsAt: { lte: now },
-      OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-      grade: { is: { status: "active" } }
-    },
-    select: { priceTier: true, priceMillsPerGallon: true, gradeId: true, grade: { select: { name: true } } },
-    orderBy: { startsAt: "desc" },
-    take: 50
-  });
-  const seen = /* @__PURE__ */ new Set();
-  const current = [];
-  for (const price of prices) {
-    const key = `${price.gradeId}:${price.priceTier}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    current.push({ grade: price.grade?.name ?? "Fuel", tier: price.priceTier, priceMillsPerGallon: price.priceMillsPerGallon });
-  }
-  return current;
-}
-async function conveniencePublicStorefrontProjection(_root, _args, context) {
-  const published = await context.prisma.business.findMany({
-    where: { status: "active", storefrontStatus: "published" },
-    select: {
-      id: true,
-      brandName: true,
-      brandTagline: true,
-      brandMark: true,
-      logoIcon: true,
-      logoColor: true,
-      brandPrimaryColor: true,
-      brandAccentColor: true,
-      storefrontStore: {
-        select: {
-          id: true,
-          businessId: true,
-          name: true,
-          status: true,
-          addressLine1: true,
-          addressLine2: true,
-          city: true,
-          stateProvince: true,
-          postalCode: true,
-          countryCode: true,
-          phone: true,
-          timezone: true,
-          fuelEnabled: true,
-          metadata: true
-        }
-      }
-    },
-    orderBy: { id: "asc" },
-    take: 2
-  });
-  if (published.length > 1) return emptyProjection("unavailable");
-  if (published.length === 1) {
-    const settings = published[0];
-    const identity = projectIdentity(settings);
-    const store = settings.storefrontStore;
-    if (!identity || !store || store.businessId !== settings.id || store.status !== "active") {
-      return emptyProjection("unavailable");
-    }
-    const productFilter = {
-      businessId: settings.id,
-      status: "active",
-      variants: {
-        some: {
-          businessId: settings.id,
-          status: "active"
-        }
-      }
-    };
-    const categories = await context.prisma.productCategory.findMany({
-      where: {
-        businessId: settings.id,
-        status: "active",
-        products: { some: productFilter }
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        products: {
-          where: productFilter,
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            preparedFood: true
-          },
-          orderBy: { title: "asc" },
-          take: 12
-        }
-      },
-      orderBy: { name: "asc" },
-      take: 8
-    });
-    return {
-      state: "published",
-      identity,
-      location: {
-        name: store.name,
-        addressLine1: store.addressLine1,
-        addressLine2: store.addressLine2,
-        city: store.city,
-        stateProvince: store.stateProvince,
-        postalCode: store.postalCode,
-        countryCode: store.countryCode,
-        phone: store.phone,
-        timezone: store.timezone,
-        hours: storefrontHoursFromMetadata(store.metadata)
-      },
-      fuelPrices: store.fuelEnabled ? await currentFuelPrices(context, settings.id, store.id) : [],
-      categories: categories.map((category) => ({
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        products: category.products.map((product) => ({
-          id: product.id,
-          title: product.title,
-          summary: plainDocumentText(product.description),
-          preparedFood: product.preparedFood
-        }))
-      }))
-    };
-  }
-  const configuredDraft = await context.prisma.business.findFirst({
-    where: {
-      status: "active",
-      storefrontStatus: "draft",
-      brandName: { not: "" }
-    },
-    select: { id: true },
-    orderBy: { id: "asc" }
-  });
-  return configuredDraft ? emptyProjection("unpublished") : emptyProjection("unset");
-}
-
 // features/keystone/mutations/storeResourceOperations.ts
 function code(value, label) {
   const normalized = value.trim().toLowerCase();
@@ -25128,8 +25859,8 @@ async function configureInventoryLocation(_root, args, context) {
 }
 
 // features/keystone/mutations/pricingOperations.ts
-var import_node_crypto24 = require("node:crypto");
-var import_client14 = require("@prisma/client");
+var import_node_crypto26 = require("node:crypto");
+var import_client16 = require("@prisma/client");
 async function setRetailPrice(_root, args, context) {
   if (!Number.isSafeInteger(args.input.amountCents) || args.input.amountCents < 0) {
     throw new Error("Retail price must be non-negative integer cents");
@@ -25156,7 +25887,7 @@ async function setRetailPrice(_root, args, context) {
     action: "pricing.entry.set",
     execute: async (transaction, idempotencyId) => {
       await transaction.$queryRaw(
-        import_client14.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`retail-price:${args.input.priceBookId}:${args.input.variantId}:${minQuantity}`}))::text AS "locked"`
+        import_client16.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`retail-price:${args.input.priceBookId}:${args.input.variantId}:${minQuantity}`}))::text AS "locked"`
       );
       const [priceBook, variant] = await Promise.all([
         transaction.priceBook.findFirst({
@@ -25217,7 +25948,7 @@ async function setRetailPrice(_root, args, context) {
             businessId: args.input.businessId,
             priceBookId: priceBook.id,
             variantId: variant.id,
-            lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${endsAt.toISOString()}:${(0, import_node_crypto24.randomUUID)()}`,
+            lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${endsAt.toISOString()}:${(0, import_node_crypto26.randomUUID)()}`,
             amountCents: continuationSource.amountCents,
             minQuantity: continuationSource.minQuantity,
             maxQuantity: continuationSource.maxQuantity,
@@ -25237,7 +25968,7 @@ async function setRetailPrice(_root, args, context) {
           businessId: args.input.businessId,
           priceBookId: priceBook.id,
           variantId: variant.id,
-          lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${startsAt.toISOString()}:${(0, import_node_crypto24.randomUUID)()}`,
+          lookupKey: `${priceBook.id}:${variant.id}:${minQuantity}:${startsAt.toISOString()}:${(0, import_node_crypto26.randomUUID)()}`,
           amountCents: args.input.amountCents,
           minQuantity,
           status: "active",
@@ -25252,7 +25983,7 @@ async function setRetailPrice(_root, args, context) {
 }
 
 // features/keystone/mutations/purchasingOperations.ts
-var import_node_crypto25 = require("node:crypto");
+var import_node_crypto27 = require("node:crypto");
 function lineTotalCents(unitCostCents, quantity) {
   if (!Number.isSafeInteger(unitCostCents) || unitCostCents < 0) {
     throw new Error("Purchase-order unit cost must be non-negative integer cents");
@@ -25437,7 +26168,7 @@ async function draftPurchaseOrder(_root, args, context) {
           businessId: args.input.businessId,
           storeId: store.id,
           vendorId: vendor.id,
-          poNumber: `PO-${(0, import_node_crypto25.randomUUID)()}`,
+          poNumber: `PO-${(0, import_node_crypto27.randomUUID)()}`,
           status: "draft",
           currencyCode: store.currencyCode,
           subtotalCents,
@@ -25540,7 +26271,7 @@ async function transitionPurchaseOrder(_root, args, context) {
 }
 
 // features/keystone/mutations/reconciliationOperations.ts
-var import_node_crypto26 = require("node:crypto");
+var import_node_crypto28 = require("node:crypto");
 function parseTimestamp3(value, label) {
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.getTime()))
@@ -26486,7 +27217,7 @@ async function prepareBankDeposit(_root, args, context) {
           businessId: args.input.businessId,
           storeId: args.input.storeId,
           storeDayId: storeDay.id,
-          depositNumber: `DEP-${(0, import_node_crypto26.randomUUID)()}`,
+          depositNumber: `DEP-${(0, import_node_crypto28.randomUUID)()}`,
           status: "prepared",
           currencyCode: storeDay.currencyCode,
           expectedAmountCents: expectedAvailable,
@@ -26922,15 +27653,15 @@ async function convenienceSalesReport(_root, args, context) {
 }
 
 // features/keystone/mutations/refundOperations.ts
-var import_node_crypto27 = require("node:crypto");
-var import_graphql3 = require("graphql");
-var import_client16 = require("@prisma/client");
+var import_node_crypto29 = require("node:crypto");
+var import_graphql5 = require("graphql");
+var import_client18 = require("@prisma/client");
 
 // features/keystone/lib/saleRefundVoidLock.ts
-var import_client15 = require("@prisma/client");
+var import_client17 = require("@prisma/client");
 async function lockSaleRefundOrVoid(transaction, input) {
   await transaction.$queryRaw(
-    import_client15.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${input.businessId}:${input.storeId}:${input.saleId}`}))::text AS "locked"`
+    import_client17.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${input.businessId}:${input.storeId}:${input.saleId}`}))::text AS "locked"`
   );
 }
 
@@ -27137,12 +27868,12 @@ async function refundPosSale(_root, args, context) {
           select: { status: true }
         });
         if (existing) {
-          throw new import_graphql3.GraphQLError(
+          throw new import_graphql5.GraphQLError(
             existing.status === "refunded" ? "This sale has already been fully refunded" : `A sale that is ${existing.status.replace(/_/g, " ")} cannot be refunded`,
             { extensions: { code: "TRANSITION_REFUSED" } }
           );
         }
-        throw new import_graphql3.GraphQLError("Refundable sale not found", { extensions: { code: "NOT_FOUND" } });
+        throw new import_graphql5.GraphQLError("Refundable sale not found", { extensions: { code: "NOT_FOUND" } });
       }
       const ownershipScope = {
         businessId: args.input.businessId,
@@ -27163,7 +27894,7 @@ async function refundPosSale(_root, args, context) {
       }
       if (sale.loyaltyAccountId) {
         await transaction.$queryRaw(
-          import_client16.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
+          import_client18.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
         );
       }
       const loyaltyAccount = sale.loyaltyAccountId ? await transaction.loyaltyAccount.findFirst({
@@ -27277,7 +28008,7 @@ async function refundPosSale(_root, args, context) {
         0
       );
       if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > sale.totalCents - sale.refundedCents)
-        throw new import_graphql3.GraphQLError("Calculated refund must be positive and within the remaining sale total", { extensions: { code: "REFUND_EXCEEDS_SALE" } });
+        throw new import_graphql5.GraphQLError("Calculated refund must be positive and within the remaining sale total", { extensions: { code: "REFUND_EXCEEDS_SALE" } });
       const allocationInputs = requestedAllocations.length ? requestedAllocations : [
         {
           tenderId: args.input.originalTenderId,
@@ -27442,7 +28173,7 @@ async function refundPosSale(_root, args, context) {
           storeId: args.input.storeId,
           saleId: sale.id,
           originalTenderId: plannedAllocations[0].tender.id,
-          refundNumber: `REF-${(0, import_node_crypto27.randomUUID)()}`,
+          refundNumber: `REF-${(0, import_node_crypto29.randomUUID)()}`,
           status: "completed",
           reason: args.input.reason,
           amountCents,
@@ -27486,7 +28217,7 @@ async function refundPosSale(_root, args, context) {
           storeId: args.input.storeId,
           saleId: sale.id,
           refundId: refund.id,
-          returnNumber: `RET-${(0, import_node_crypto27.randomUUID)()}`,
+          returnNumber: `RET-${(0, import_node_crypto29.randomUUID)()}`,
           status: "completed",
           reason: args.input.returnReason ?? "unwanted",
           requestedById: employee.id,
@@ -27849,7 +28580,7 @@ async function refundPosSale(_root, args, context) {
 }
 
 // features/keystone/mutations/sessionOperations.ts
-var import_node_crypto28 = require("node:crypto");
+var import_node_crypto30 = require("node:crypto");
 async function revokeCurrentUserSessions(_root, _args, context) {
   const session = requireSession(context);
   if (session.apiKeyId) throw new Error("Machine sessions cannot revoke human sessions");
@@ -27865,7 +28596,7 @@ async function revokeCurrentUserSessions(_root, _args, context) {
         data: {
           businessId: employee.businessId,
           storeId: employee.stores[0]?.id ?? null,
-          eventNumber: (0, import_node_crypto28.randomUUID)(),
+          eventNumber: (0, import_node_crypto30.randomUUID)(),
           action: "session.revoke_current_user",
           resourceType: "User",
           resourceId: user.id,
@@ -27883,7 +28614,7 @@ async function revokeCurrentUserSessions(_root, _args, context) {
 }
 
 // features/keystone/mutations/saleLifecycleOperations.ts
-var import_client17 = require("@prisma/client");
+var import_client19 = require("@prisma/client");
 var MAX_RECEIPT_LINES = 250;
 var MAX_RECEIPT_TENDERS = 50;
 var MAX_RECEIPT_REFUNDS = 100;
@@ -28060,7 +28791,7 @@ async function voidCompletedPosSale(_root, args, context) {
       if (!sale) throw new Error("Sale not found for this register session");
       if (sale.loyaltyAccountId) {
         await transaction.$queryRaw(
-          import_client17.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
+          import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${sale.loyaltyAccountId}`}))::text AS "locked"`
         );
       }
       const loyaltyAccount = sale.loyaltyAccountId ? await transaction.loyaltyAccount.findFirst({
@@ -28278,7 +29009,7 @@ async function voidCompletedPosSale(_root, args, context) {
 }
 
 // features/keystone/mutations/transferOperations.ts
-var import_node_crypto29 = require("node:crypto");
+var import_node_crypto31 = require("node:crypto");
 var transitions = {
   draft: ["approved", "cancelled"],
   approved: ["shipped", "cancelled"],
@@ -28397,7 +29128,7 @@ async function draftInventoryTransfer(_root, args, context) {
       const transfer = await transaction.inventoryTransfer.create({
         data: {
           businessId: args.input.businessId,
-          transferNumber: `XFER-${(0, import_node_crypto29.randomUUID)()}`,
+          transferNumber: `XFER-${(0, import_node_crypto31.randomUUID)()}`,
           status: "draft",
           sourceStoreId: sourceStore.id,
           destinationStoreId: destinationStore.id,
@@ -28733,689 +29464,6 @@ async function redirectToInit(_root, _args, context) {
   return false;
 }
 var redirectToInit_default = redirectToInit;
-
-// features/keystone/mutations/pickupOperations.ts
-var import_node_crypto31 = require("node:crypto");
-var import_client19 = require("@prisma/client");
-var import_graphql5 = require("graphql");
-
-// features/keystone/lib/pickupPolicy.ts
-function assertPickupEligible(lines) {
-  if (!lines.length) throw new Error("Your basket is empty");
-  for (const line of lines) {
-    const product = line.variant?.product;
-    if (!line.variant || !product || line.variant.status !== "active" || product.status !== "active") {
-      throw new Error("An item in your basket is no longer available");
-    }
-    if (product.regulatedSaleType !== "none" || line.ageRestricted || (product.minimumAge ?? 0) > 0) {
-      throw new Error("Age-restricted items can only be bought in store");
-    }
-  }
-}
-function pickupRevision(lines, totalCents) {
-  return fingerprintInput({
-    totalCents,
-    lines: [...lines].sort((a, b) => a.id.localeCompare(b.id)).map((line) => [line.id, line.variantId, line.quantity.toString(), line.totalCents])
-  });
-}
-function assertPaymentMatches(expected, actual) {
-  if (!Number.isSafeInteger(expected.amountCents) || expected.amountCents <= 0) throw new Error("Order total is invalid");
-  if (!Number.isSafeInteger(actual.amountCents) || actual.amountCents !== expected.amountCents) {
-    throw new Error("Payment amount does not match the order total");
-  }
-  if (typeof actual.currencyCode !== "string" || actual.currencyCode.toUpperCase() !== expected.currencyCode.toUpperCase()) {
-    throw new Error("Payment currency does not match the order currency");
-  }
-}
-
-// features/keystone/mutations/storefrontOperations.ts
-var import_graphql4 = require("graphql");
-var import_node_crypto30 = require("node:crypto");
-var import_client18 = require("@prisma/client");
-var ABANDON_AFTER_EXPIRY_MS = 864e5;
-async function publishedStore(db) {
-  const businesses = await db.business.findMany({ where: { status: "active", storefrontStatus: "published" }, include: { storefrontStore: true }, take: 2 });
-  const business = businesses.length === 1 ? businesses[0] : null;
-  const store = business?.storefrontStore;
-  if (!business || !store || store.status !== "active" || store.businessId !== business.id) throw new Error("Store unavailable");
-  return { business, store };
-}
-var CATALOG_PAGE_SIZE = 48;
-async function mainImages(context, productIds) {
-  const images = /* @__PURE__ */ new Map();
-  if (!productIds.length) return images;
-  const rows = await context.sudo().query.ProductImage.findMany({
-    where: { products: { some: { id: { in: productIds } } } },
-    orderBy: [{ order: "asc" }],
-    query: "altText image { url } products { id }",
-    take: 200
-  });
-  for (const row of rows) {
-    if (!row.image?.url) continue;
-    for (const product of row.products) {
-      if (productIds.includes(product.id) && !images.has(product.id)) images.set(product.id, { url: row.image.url, alt: row.altText });
-    }
-  }
-  return images;
-}
-async function storefrontCatalog(_root, args, context) {
-  const { business, store } = await publishedStore(context.prisma);
-  const search = (args.search ?? "").trim().slice(0, 100);
-  const category = (args.category ?? "").trim().slice(0, 100);
-  const page = Number.isSafeInteger(args.page) && Number(args.page) > 0 ? Math.min(Number(args.page), 1e4) : 1;
-  const where = {
-    businessId: business.id,
-    status: "active",
-    regulatedSaleType: "none",
-    variants: { some: { status: "active", sellBy: "unit" } },
-    ...args.productId ? { id: args.productId } : {},
-    ...search ? { title: { contains: search, mode: "insensitive" } } : {},
-    ...category ? { categories: { some: { name: category, status: "active" } } } : {}
-  };
-  const [products, total, categories] = await Promise.all([
-    context.prisma.product.findMany({
-      where,
-      select: { id: true, title: true, description: true, categories: { select: { name: true }, take: 1 }, variants: { where: { status: "active", sellBy: "unit" }, select: { id: true, title: true, defaultPriceCents: true, unitOfMeasure: true, trackInventory: true, allowNegativeInventory: true, stockLevels: { where: { storeId: store.id }, select: { onHandQuantity: true } } }, take: 12, orderBy: { id: "asc" } } },
-      take: CATALOG_PAGE_SIZE,
-      skip: (page - 1) * CATALOG_PAGE_SIZE,
-      orderBy: { title: "asc" }
-    }),
-    context.prisma.product.count({ where }),
-    context.prisma.productCategory.findMany({
-      where: { businessId: business.id, status: "active", products: { some: { businessId: business.id, status: "active", regulatedSaleType: "none" } } },
-      select: { name: true },
-      orderBy: { name: "asc" },
-      take: 100
-    })
-  ]);
-  const now = /* @__PURE__ */ new Date();
-  const images = await mainImages(context, products.map((product) => product.id));
-  const onlinePickup = Boolean(await context.prisma.paymentProvider.findFirst({ where: { businessId: business.id, status: "active", createPaymentFunction: "stripe" }, select: { id: true } })) && isPaymentProviderConfigured("stripe");
-  return { currency: store.currencyCode, onlinePickup, page, pageSize: CATALOG_PAGE_SIZE, total, categories: categories.map((entry) => entry.name), products: await Promise.all(products.map(async (product) => ({ id: product.id, title: product.title, image: images.get(product.id) ?? null, description: plainDocumentText(product.description, 2e3), category: product.categories[0]?.name ?? "Shop", variants: await Promise.all(product.variants.map(async (variant) => {
-    const price = store.defaultPriceBookId ? await findEffectivePriceEntry(context.prisma, { businessId: business.id, priceBookId: store.defaultPriceBookId, variantId: variant.id, quantity: "1.0000", at: now }) : null;
-    const onHand = variant.stockLevels.reduce((sum, level) => sum + Number(level.onHandQuantity), 0);
-    const availability = !variant.trackInventory ? "untracked" : onHand > 0 ? "in_stock" : variant.allowNegativeInventory ? "ask" : "sold_out";
-    return { id: variant.id, title: variant.title, unitOfMeasure: variant.unitOfMeasure, priceCents: price?.amountCents ?? variant.defaultPriceCents, availability };
-  })) }))) };
-}
-async function currentCustomerId(db, context, lock = false) {
-  const session = context.session;
-  if (!session?.itemId || session.apiKeyId) return void 0;
-  if (lock) await db.$queryRaw(import_client18.Prisma.sql`SELECT id FROM "User" WHERE id = ${session.itemId} FOR SHARE`);
-  const live = await db.user.findUnique({ where: { id: session.itemId }, select: { sessionVersion: true } });
-  if (!live || !Number.isSafeInteger(session.data.sessionVersion) || live.sessionVersion !== session.data.sessionVersion) throw new Error("Customer session expired");
-  return session.itemId;
-}
-var digest2 = (token) => (0, import_node_crypto30.createHash)("sha256").update(token).digest("hex");
-function assertProof(cart, token, userId) {
-  if (cart.source !== "storefront" || !cart.expiresAt || cart.expiresAt <= /* @__PURE__ */ new Date()) throw new Error("Basket unavailable");
-  if (cart.customerId) {
-    if (cart.customerId !== userId) throw new Error("Basket unavailable");
-    return;
-  }
-  const expected = Buffer.from(cart.guestTokenDigest, "hex");
-  const actual = Buffer.from(digest2(token), "hex");
-  if (!/^[a-f0-9]{64}$/.test(token) || expected.length !== actual.length || !(0, import_node_crypto30.timingSafeEqual)(expected, actual)) throw new Error("Basket unavailable");
-}
-var basketSelection = { id: true, status: true, currencyCode: true, subtotalCents: true, taxCents: true, totalCents: true, lines: { select: { id: true, titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, orderBy: { createdAt: "asc" }, take: 50 } };
-function basketDto(cart) {
-  return { ...cart, lines: cart.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
-}
-async function readBasket(db, id2) {
-  return db.cart.findUnique({ where: { id: id2 }, select: basketSelection });
-}
-async function storefrontBasket(_root, args, context) {
-  const userId = await currentCustomerId(context.prisma, context);
-  const cart = await context.prisma.cart.findUnique({ where: { id: args.cartId } });
-  if (!cart) return null;
-  assertProof(cart, args.token, userId);
-  const result = await readBasket(context.prisma, cart.id);
-  return result ? basketDto(result) : null;
-}
-async function updateStorefrontBasket(_root, args, context) {
-  const input = args.input;
-  if (!/^[a-f0-9]{64}$/.test(input.token) || !/^[a-zA-Z0-9-]{10,64}$/.test(input.cartId)) throw new Error("Basket unavailable");
-  if (!Number.isSafeInteger(input.quantity) || input.quantity < 0 || input.quantity > 99) throw new Error("Quantity must be between 0 and 99");
-  await releasePickupPaymentForEdit(context, input.cartId, input.token);
-  return context.prisma.$transaction(async (db) => {
-    const userId = await currentCustomerId(db, context, true);
-    await db.$queryRaw(import_client18.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
-    const { business, store } = await publishedStore(db);
-    let cart = await db.cart.findUnique({ where: { id: input.cartId } });
-    if (cart) {
-      assertProof(cart, input.token, userId);
-      if (cart.businessId !== business.id || cart.storeId !== store.id || cart.status !== "open") throw new Error("Basket unavailable");
-    } else {
-      if (!input.variantId || input.quantity === 0) throw new Error("Basket unavailable");
-      cart = await db.cart.create({ data: { id: input.cartId, businessId: business.id, storeId: store.id, cartNumber: `WEB-${(0, import_node_crypto30.randomUUID)()}`, source: "storefront", currencyCode: store.currencyCode, priceBookId: store.defaultPriceBookId, customerId: userId, guestTokenDigest: digest2(input.token), expiresAt: new Date(Date.now() + 864e5) } });
-    }
-    if (input.claim && userId && !cart.customerId) await db.cart.update({ where: { id: cart.id }, data: { customerId: userId } });
-    if (!input.lineId && input.variantId) {
-      const same = await db.cartLine.findFirst({ where: { cartId: cart.id, variantId: input.variantId }, select: { id: true } });
-      if (same) input.lineId = same.id;
-    }
-    if (input.lineId) {
-      const line = await db.cartLine.findFirst({ where: { id: input.lineId, cartId: cart.id } });
-      if (!line) throw new Error("Basket item unavailable");
-      if (input.quantity === 0) await db.cartLine.delete({ where: { id: line.id } });
-      else input.variantId = line.variantId ?? void 0;
-    }
-    if (input.variantId && input.quantity > 0) {
-      const variant = await db.productVariant.findFirst({ where: { id: input.variantId, businessId: business.id, status: "active", sellBy: "unit", product: { status: "active", regulatedSaleType: "none", businessId: business.id } }, include: { product: true } });
-      if (!variant?.product) throw new Error("Item unavailable");
-      if (await db.cartLine.count({ where: { cartId: cart.id } }) >= 50 && !input.lineId) throw new Error("Basket limit reached");
-      if (variant.trackInventory && !variant.allowNegativeInventory) {
-        const stock = store.primaryInventoryLocationId ? await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` }, select: { onHandQuantity: true } }) : null;
-        const onHand = Math.floor(Number(stock?.onHandQuantity ?? 0));
-        const current = input.lineId ? Number((await db.cartLine.findUnique({ where: { id: input.lineId }, select: { quantity: true } }))?.quantity ?? 0) : 0;
-        if (input.quantity > current && input.quantity > onHand) throw new import_graphql4.GraphQLError(onHand > 0 ? "No more in stock" : "Sold out", { extensions: { code: "KS_USER_INPUT_ERROR" } });
-      }
-      const quantity = `${input.quantity}.0000`;
-      const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: business.id, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at: /* @__PURE__ */ new Date() }) : null;
-      const tax = await findEffectiveTaxRate(db, { businessId: business.id, storeId: store.id, taxCategoryId: variant.product.taxCategoryId, at: /* @__PURE__ */ new Date() });
-      if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
-      const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
-      const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
-      const data = { businessId: business.id, storeId: store.id, cartId: cart.id, variantId: variant.id, titleSnapshot: variant.product.title, variantTitleSnapshot: variant.title, skuSnapshot: variant.sku, quantity, unitOfMeasure: variant.unitOfMeasure, unitPriceCents, subtotalCents: amounts.subtotalCents, discountCents: amounts.discountCents, taxCents: amounts.taxCents, totalCents: amounts.totalCents, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false, priceBookEntryId: price?.id ?? null, priceSource: price ? "price_book" : "variant_default" };
-      if (input.lineId) await db.cartLine.update({ where: { id: input.lineId }, data });
-      else await db.cartLine.create({ data });
-    }
-    await db.cart.updateMany({ where: { storeId: store.id, source: "storefront", status: "open", saleId: null, id: { not: cart.id }, expiresAt: { lt: new Date(Date.now() - ABANDON_AFTER_EXPIRY_MS) } }, data: { status: "abandoned" } });
-    const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
-    await db.cart.update({ where: { id: cart.id }, data: { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0, expiresAt: new Date(Date.now() + 864e5) } });
-    const result = await readBasket(db, cart.id);
-    if (!result) throw new Error("Basket unavailable");
-    return basketDto(result);
-  });
-}
-async function ensureCustomerLoyaltyAccount(db, businessId, userId) {
-  const program = await db.loyaltyProgram.findFirst({ where: { businessId, status: "active" }, orderBy: { createdAt: "asc" } });
-  if (!program) return null;
-  const lookupKey = `${businessId}:${program.id}:user:${userId}`;
-  const existing = await db.loyaltyAccount.findUnique({ where: { lookupKey } });
-  if (existing) return existing.status === "active" ? { account: existing, program } : null;
-  const user = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (!user) return null;
-  const account = await db.loyaltyAccount.upsert({
-    where: { lookupKey },
-    update: {},
-    create: {
-      businessId,
-      programId: program.id,
-      userId,
-      accountNumber: `LOY-${(0, import_node_crypto30.randomUUID)()}`,
-      lookupKey,
-      email: user.email?.toLowerCase() ?? "",
-      phone: "",
-      status: "active",
-      tier: "standard",
-      pointsBalance: 0,
-      lifetimePoints: 0,
-      marketingOptIn: false,
-      metadata: { enrolledBy: "customer_account" }
-    }
-  });
-  return { account, program };
-}
-async function storefrontRewards(_root, _args, context) {
-  const userId = await currentCustomerId(context.prisma, context);
-  if (!userId) return [];
-  const { business, store } = await publishedStore(context.prisma);
-  await ensureCustomerLoyaltyAccount(context.prisma, business.id, userId);
-  const accounts = await context.prisma.loyaltyAccount.findMany({
-    where: { userId, businessId: business.id, status: { in: ["active", "paused"] } },
-    select: {
-      id: true,
-      accountNumber: true,
-      status: true,
-      tier: true,
-      pointsBalance: true,
-      lifetimePoints: true,
-      program: { select: { name: true, redemptionPoints: true, redemptionValueCents: true } },
-      entries: { select: { type: true, pointsDelta: true, balanceAfter: true, occurredAt: true }, orderBy: { occurredAt: "desc" }, take: 10 }
-    },
-    take: 5
-  });
-  return accounts.map((account) => ({
-    ...account,
-    currencyCode: store.currencyCode,
-    entries: account.entries.map((entry) => ({ ...entry, occurredAt: entry.occurredAt?.toISOString() ?? null }))
-  }));
-}
-async function storefrontHistory(_root, args, context) {
-  const userId = await currentCustomerId(context.prisma, context);
-  if (!userId) return [];
-  return (await context.prisma.sale.findMany({ where: { customerId: userId, ...args.saleId ? { id: args.saleId } : {} }, select: { id: true, receiptNumber: true, source: true, status: true, pickupStatus: true, completedAt: true, currencyCode: true, subtotalCents: true, discountCents: true, taxCents: true, totalCents: true, refundedCents: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, unitPriceCents: true, subtotalCents: true, totalCents: true }, take: 250 } }, orderBy: { completedAt: "desc" }, take: 50 })).map((sale) => ({ ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) }));
-}
-
-// features/keystone/mutations/pickupOperations.ts
-var PROOF = /^[a-f0-9]{64}$/;
-var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function normalizeReceiptEmail(value) {
-  if (value == null) return null;
-  const invalid = () => new import_graphql5.GraphQLError("Enter a valid email address", { extensions: { code: "BAD_USER_INPUT" } });
-  if (typeof value !== "string") throw invalid();
-  const email = value.trim().toLowerCase();
-  if (!email) return null;
-  if (email.length > 254 || !EMAIL.test(email)) throw invalid();
-  return email;
-}
-var CART_ID = /^[a-zA-Z0-9-]{10,64}$/;
-function readPickupPayment(metadata) {
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
-  const value = metadata.pickupPayment;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const p2 = value;
-  if (typeof p2.providerId !== "string" || typeof p2.paymentId !== "string" || typeof p2.currencyCode !== "string" || typeof p2.revision !== "string" || !Number.isSafeInteger(p2.amountCents)) return null;
-  return { providerId: p2.providerId, paymentId: p2.paymentId, amountCents: p2.amountCents, currencyCode: p2.currencyCode, revision: p2.revision };
-}
-var cartLineInclude = {
-  orderBy: { createdAt: "asc" },
-  take: 51,
-  include: { variant: { include: { product: { include: { taxCategory: true } } } } }
-};
-async function onlineProvider(db, businessId) {
-  const providers = await db.paymentProvider.findMany({
-    where: { businessId, status: "active", createPaymentFunction: "stripe" },
-    take: 2
-  });
-  if (providers.length !== 1) throw new Error("Online pickup payment is not available");
-  const provider = providers[0];
-  if (!isPaymentProviderConfigured(provider.createPaymentFunction) || provider.getPaymentStatusFunction !== "stripe" || provider.capturePaymentFunction !== "stripe") {
-    throw new Error("Online pickup payment is not available");
-  }
-  return provider;
-}
-async function repriceCart(db, cart, store) {
-  const lines = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
-  if (lines.length > 50) throw new Error("Basket limit reached");
-  assertPickupEligible(lines);
-  const at = /* @__PURE__ */ new Date();
-  for (const line of lines) {
-    const variant = line.variant;
-    const product = variant.product;
-    if (variant.sellBy !== "unit") throw new Error("An item in your basket is not sold online");
-    const quantity = line.quantity.toString();
-    const price = cart.priceBookId ? await findEffectivePriceEntry(db, { businessId: cart.businessId, priceBookId: cart.priceBookId, variantId: variant.id, quantity, at }) : null;
-    const tax = await findEffectiveTaxRate(db, { businessId: cart.businessId, storeId: store.id, taxCategoryId: product.taxCategoryId, at });
-    if (tax && tax.inclusive !== store.pricesIncludeTax) throw new Error("Item tax configuration unavailable");
-    const unitPriceCents = price?.amountCents ?? variant.defaultPriceCents;
-    const amounts = calculateLineAmounts({ unitPriceCents, quantity, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false });
-    await db.cartLine.update({
-      where: { id: line.id },
-      data: {
-        unitPriceCents,
-        subtotalCents: amounts.subtotalCents,
-        discountCents: amounts.discountCents,
-        taxRate: tax?.rate ?? 0,
-        taxInclusive: tax?.inclusive ?? false,
-        taxCents: amounts.taxCents,
-        totalCents: amounts.totalCents,
-        priceBookEntryId: price?.id ?? null,
-        priceSource: price ? "price_book" : "variant_default"
-      }
-    });
-  }
-  const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
-  const totals = { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0 };
-  await db.cart.update({ where: { id: cart.id }, data: totals });
-  const fresh = await db.cartLine.findMany({ where: { cartId: cart.id }, ...cartLineInclude });
-  return { lines: fresh, ...totals };
-}
-async function assertStock(db, store, lines) {
-  for (const line of lines) {
-    const variant = line.variant;
-    if (!variant.trackInventory || variant.allowNegativeInventory) continue;
-    if (!store.primaryInventoryLocationId) throw new Error("Store has no primary inventory location");
-    const stock = await db.stockLevel.findUnique({ where: { lookupKey: `${store.primaryInventoryLocationId}:${variant.id}` } });
-    const onHand = stock?.onHandQuantity.toString() ?? "0.0000";
-    if (compareQuantities(onHand, line.quantity.toString()) < 0) throw new Error(`${line.titleSnapshot} is out of stock`);
-  }
-}
-async function startStorefrontPickupPayment(_root, args, context) {
-  const { cartId, token } = args.input;
-  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
-  const prepared = await context.prisma.$transaction(async (db) => {
-    const userId = await currentCustomerId(db, context, true);
-    await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${cartId}`}))::text`);
-    const { business, store } = await publishedStore(db);
-    const cart2 = await db.cart.findUnique({ where: { id: cartId } });
-    if (!cart2) throw new Error("Basket unavailable");
-    assertProof(cart2, token, userId);
-    if (cart2.businessId !== business.id || cart2.storeId !== store.id || cart2.status !== "open") throw new Error("Basket unavailable");
-    const existing2 = readPickupPayment(cart2.metadata);
-    const priced = await repriceCart(db, cart2, store);
-    await assertStock(db, store, priced.lines);
-    if (priced.totalCents < 50) throw new Error("Order total is too small to pay online");
-    const provider2 = await onlineProvider(db, business.id);
-    const revision2 = pickupRevision(priced.lines, priced.totalCents);
-    return { cart: cart2, store, provider: provider2, existing: existing2, revision: revision2, totalCents: priced.totalCents, currencyCode: cart2.currencyCode };
-  });
-  const { cart, provider, existing, revision, totalCents, currencyCode } = prepared;
-  const cartMeta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
-  let retired = typeof cartMeta.pickupRetired === "string" ? cartMeta.pickupRetired : null;
-  if (existing && existing.revision !== revision) {
-    await retirePickupPayment(context, cart.id, provider, existing);
-    retired = existing.paymentId;
-  }
-  const idempotencyKey = `pickup-${cart.id}-${revision.slice(0, 24)}${retired ? `-${retired}` : ""}`;
-  const created = await createPayment({
-    provider,
-    order: { id: cart.id, orderNumber: cart.cartNumber },
-    amount: totalCents,
-    currency: currencyCode,
-    idempotencyKey
-  });
-  const paymentId = created?.paymentIntentId;
-  const clientSecret = created?.clientSecret;
-  if (typeof paymentId !== "string" || !paymentId.startsWith("pi_") || typeof clientSecret !== "string") {
-    throw new Error("Payment could not be started");
-  }
-  const config2 = getPublicPaymentProviderConfig("stripe");
-  if (!config2) throw new Error("Online pickup payment is not available");
-  const pickupPayment = { providerId: provider.id, paymentId, amountCents: totalCents, currencyCode, revision };
-  await context.prisma.cart.update({
-    where: { id: cart.id },
-    data: { metadata: { ...cartMeta, pickupPayment, ...retired ? { pickupRetired: retired } : {} } }
-  });
-  return { clientSecret, publishableKey: config2.publishableKey, paymentId, amountCents: totalCents, currencyCode };
-}
-async function retirePickupPayment(context, cartId, provider, payment) {
-  const status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
-  if (status?.status === "succeeded" || status?.status === "processing") {
-    throw new Error("This basket has already been paid; it cannot be changed");
-  }
-  if (status?.status !== "canceled") await cancelPayment({ provider, paymentId: payment.paymentId, idempotencyKey: `cancel-${cartId}-${payment.paymentId}` });
-  const cart = await context.prisma.cart.findUnique({ where: { id: cartId }, select: { metadata: true } });
-  const { pickupPayment: _removed, ...rest } = cart?.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? cart.metadata : {};
-  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: { ...rest, pickupRetired: payment.paymentId } } });
-}
-async function setStorefrontReceiptEmail(_root, args, context) {
-  const { cartId, token } = args.input;
-  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
-  const email = normalizeReceiptEmail(args.input.email);
-  const userId = await currentCustomerId(context.prisma, context);
-  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
-  if (!cart || cart.status !== "open") throw new Error("Basket unavailable");
-  assertProof(cart, token, userId);
-  const meta = cart.metadata && typeof cart.metadata === "object" && !Array.isArray(cart.metadata) ? { ...cart.metadata } : {};
-  if (email) meta.receiptEmail = email;
-  else delete meta.receiptEmail;
-  await context.prisma.cart.update({ where: { id: cartId }, data: { metadata: meta } });
-  return { ok: true };
-}
-async function releasePickupPaymentForEdit(context, cartId, token) {
-  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
-  const payment = readPickupPayment(cart?.metadata);
-  if (!cart || !payment || cart.status !== "open") return;
-  assertProof(cart, token, await currentCustomerId(context.prisma, context));
-  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0 } });
-  if (!provider) throw new Error("Basket unavailable");
-  await retirePickupPayment(context, cartId, provider, payment);
-}
-async function postPickupSale(db, input) {
-  await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`pickup-post:${input.providerId}:${input.paymentId}`}))::text`);
-  await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`customer-basket:${input.cartId}`}))::text`);
-  const lookupKey = `${input.providerId}:${input.paymentId}`;
-  const existing = await db.tender.findUnique({ where: { providerLookupKey: lookupKey }, include: { sale: true } });
-  if (existing?.sale) return { sale: existing.sale, created: false };
-  const cart = await db.cart.findUnique({ where: { id: input.cartId }, include: { store: true, lines: cartLineInclude } });
-  if (!cart || !cart.store || !cart.businessId || !cart.storeId) throw new Error("Order not found");
-  const pickup = readPickupPayment(cart.metadata);
-  if (!pickup || pickup.providerId !== input.providerId || pickup.paymentId !== input.paymentId) {
-    throw new Error("Payment does not belong to this order");
-  }
-  if (cart.status !== "open") throw new Error("Order is no longer open");
-  assertPickupEligible(cart.lines);
-  assertPaymentMatches({ amountCents: pickup.amountCents, currencyCode: pickup.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
-  assertPaymentMatches({ amountCents: cart.totalCents, currencyCode: cart.currencyCode }, { amountCents: input.amountCents, currencyCode: input.currencyCode });
-  if (pickupRevision(cart.lines, cart.totalCents) !== pickup.revision) throw new Error("Basket changed after payment began");
-  const postingAt = /* @__PURE__ */ new Date();
-  if (await db.storeDay.findFirst({ where: { businessId: cart.businessId, storeId: cart.storeId, status: "locked", periodStartedAt: { lte: postingAt }, periodEndedAt: { gt: postingAt } }, select: { id: true } })) {
-    throw new Error("Current retail posting period is locked");
-  }
-  const subtotalCents = cart.lines.reduce((t, l) => t + l.subtotalCents, 0);
-  const discountCents = cart.lines.reduce((t, l) => t + l.discountCents, 0);
-  const taxCents = cart.lines.reduce((t, l) => t + l.taxCents, 0);
-  const sale = await db.sale.create({
-    data: {
-      businessId: cart.businessId,
-      storeId: cart.storeId,
-      receiptNumber: `WEB-${(0, import_node_crypto31.randomUUID)()}`,
-      source: "storefront",
-      status: "completed",
-      pickupStatus: "ready_for_pickup",
-      currencyCode: cart.currencyCode,
-      subtotalCents,
-      discountCents,
-      taxCents,
-      roundingCents: 0,
-      totalCents: cart.totalCents,
-      refundedCents: 0,
-      customerId: cart.customerId,
-      startedAt: cart.createdAt,
-      completedAt: postingAt,
-      metadata: { onlinePickup: true, cartId: cart.id }
-    }
-  });
-  const locationId = cart.store.primaryInventoryLocationId;
-  for (const [index, line] of cart.lines.entries()) {
-    const variant = line.variant;
-    const product = variant.product;
-    const saleLine = await db.saleLine.create({
-      data: {
-        businessId: cart.businessId,
-        storeId: cart.storeId,
-        saleId: sale.id,
-        lineNumber: index + 1,
-        titleSnapshot: line.titleSnapshot,
-        variantTitleSnapshot: line.variantTitleSnapshot,
-        skuSnapshot: line.skuSnapshot,
-        barcodeSnapshot: line.barcodeSnapshot,
-        productSnapshot: { productId: product.id, productTitle: product.title, variantId: variant.id, returnable: product.returnable, discountable: product.discountable },
-        quantity: line.quantity,
-        unitOfMeasure: line.unitOfMeasure,
-        unitPriceCents: line.unitPriceCents,
-        subtotalCents: line.subtotalCents,
-        discountCents: line.discountCents,
-        taxCategorySnapshot: product.taxCategory?.name ?? "",
-        taxRate: line.taxRate,
-        taxInclusive: line.taxInclusive,
-        taxCents: line.taxCents,
-        totalCents: line.totalCents,
-        promotionSnapshot: [],
-        regulatedSaleType: "none",
-        minimumAge: null,
-        ageVerified: false,
-        productId: product.id,
-        variantId: variant.id
-      }
-    });
-    if (!variant.trackInventory || !locationId) continue;
-    const stockKey = `${locationId}:${variant.id}`;
-    const stock = await db.stockLevel.findUnique({ where: { lookupKey: stockKey } });
-    const previous = stock?.onHandQuantity.toString() ?? "0.0000";
-    const balanceAfter = addQuantities(previous, `-${line.quantity.toString()}`);
-    const updated = stock ? await db.stockLevel.update({ where: { id: stock.id }, data: { onHandQuantity: balanceAfter } }) : await db.stockLevel.create({ data: { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, lookupKey: stockKey, onHandQuantity: balanceAfter, reservedQuantity: "0.0000", parQuantity: "0.0000", reorderPoint: "0.0000", reorderQuantity: "0.0000" } });
-    if (compareQuantities(balanceAfter, "0") < 0 && !variant.allowNegativeInventory) {
-      await db.operationalAlert.upsert({
-        where: { fingerprint: `pickup-oversold:${sale.id}:${variant.id}` },
-        update: {},
-        create: {
-          businessId: cart.businessId,
-          storeId: cart.storeId,
-          alertNumber: `ALT-${(0, import_node_crypto31.randomUUID)()}`,
-          fingerprint: `pickup-oversold:${sale.id}:${variant.id}`,
-          type: "low_inventory",
-          severity: "critical",
-          status: "open",
-          title: "Online pickup order exceeded stock",
-          message: "A paid online pickup order needed more stock than was on hand; fulfil or refund it.",
-          resourceType: "Sale",
-          resourceId: sale.id,
-          detectedAt: postingAt
-        }
-      });
-    }
-    const segments = await consumeInventoryLots(db, { businessId: cart.businessId, storeId: cart.storeId, locationId, variantId: variant.id, quantity: line.quantity.toString() });
-    let running = previous;
-    for (const segment of segments) {
-      running = addQuantities(running, `-${segment.quantity}`);
-      await db.inventoryLedgerEntry.create({
-        data: {
-          businessId: cart.businessId,
-          storeId: cart.storeId,
-          stockLevelId: updated.id,
-          locationId,
-          variantId: variant.id,
-          lotId: segment.lotId,
-          type: "sale",
-          quantityDelta: `-${segment.quantity}`,
-          balanceAfter: running,
-          unitCostCents: segment.unitCostCents ?? variant.costCents,
-          reason: `Online pickup ${sale.receiptNumber}`,
-          sourceType: "Sale",
-          sourceId: sale.id,
-          saleLineId: saleLine.id,
-          occurredAt: postingAt
-        }
-      });
-    }
-  }
-  const tender = await db.tender.create({
-    data: {
-      businessId: cart.businessId,
-      storeId: cart.storeId,
-      saleId: sale.id,
-      paymentProviderId: input.providerId,
-      method: "credit_card",
-      status: "captured",
-      amountCents: input.amountCents,
-      changeCents: 0,
-      refundedCents: 0,
-      currencyCode: cart.currencyCode.toUpperCase(),
-      providerPaymentId: input.paymentId,
-      providerLookupKey: lookupKey,
-      processedAt: postingAt,
-      metadata: { onlinePickup: true, cartId: cart.id },
-      ...input.card && /^\d{4}$/.test(input.card.last4) ? { cardBrand: input.card.brand.slice(0, 40), cardLast4: input.card.last4 } : {}
-    }
-  });
-  const loyalty = cart.customerId ? await ensureCustomerLoyaltyAccount(db, cart.businessId, cart.customerId) : null;
-  if (loyalty) {
-    await db.$queryRaw(import_client19.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${loyalty.account.id}`}))::text`);
-    const account = await db.loyaltyAccount.findUniqueOrThrow({ where: { id: loyalty.account.id } });
-    const points = Math.floor(cart.totalCents * (loyalty.program.pointsPerDollar ?? 0) / 100);
-    const balanceAfter = (account.pointsBalance ?? 0) + points;
-    if (points > 0) {
-      await db.loyaltyLedgerEntry.create({
-        data: {
-          businessId: cart.businessId,
-          storeId: cart.storeId,
-          accountId: account.id,
-          type: "earned",
-          pointsDelta: points,
-          balanceAfter,
-          description: `Points earned on ${sale.receiptNumber}`,
-          saleId: sale.id,
-          occurredAt: postingAt,
-          expiresAt: loyalty.program.pointsExpireAfterDays ? new Date(postingAt.getTime() + loyalty.program.pointsExpireAfterDays * 864e5) : null
-        }
-      });
-    }
-    await db.loyaltyAccount.update({
-      where: { id: account.id },
-      data: { pointsBalance: balanceAfter, lifetimePoints: (account.lifetimePoints ?? 0) + points, firstVisitAt: account.firstVisitAt ?? postingAt, lastVisitAt: postingAt }
-    });
-    await db.sale.update({ where: { id: sale.id }, data: { loyaltyAccountId: account.id } });
-  }
-  await moveStatus(db.cart, CART_TRANSITIONS, { id: cart.id }, cart.status, "converted", { saleId: sale.id }, "Cart");
-  await db.auditEvent.create({
-    data: {
-      businessId: cart.businessId,
-      storeId: cart.storeId,
-      eventNumber: (0, import_node_crypto31.randomUUID)(),
-      action: "pickup.order.paid",
-      resourceType: "Sale",
-      resourceId: sale.id,
-      result: "succeeded",
-      actorType: "integration",
-      occurredAt: postingAt,
-      metadata: { tenderId: tender.id, providerId: input.providerId }
-    }
-  });
-  return { sale, created: true };
-}
-async function settleStorefrontPickup(_root, args, context) {
-  const { cartId, token } = args.input;
-  if (!PROOF.test(token) || !CART_ID.test(cartId)) throw new Error("Basket unavailable");
-  const userId = await currentCustomerId(context.prisma, context);
-  const cart = await context.prisma.cart.findUnique({ where: { id: cartId } });
-  if (!cart) throw new Error("Basket unavailable");
-  assertProofAllowingConverted(cart, token, userId);
-  if (cart.status === "converted" && cart.saleId) {
-    const sale = await context.prisma.sale.findUnique({ where: { id: cart.saleId }, select: { id: true, receiptNumber: true, pickupStatus: true } });
-    if (sale) return { state: "paid", saleId: sale.id, receiptNumber: sale.receiptNumber, pickupStatus: sale.pickupStatus };
-  }
-  const payment = readPickupPayment(cart.metadata);
-  if (!payment || cart.status !== "open") throw new Error("There is no payment to confirm");
-  const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? void 0, status: "active" } });
-  if (!provider) throw new Error("Online pickup payment is not available");
-  let status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
-  if (status?.status === "requires_capture") {
-    await capturePayment({ provider, paymentId: payment.paymentId, amount: payment.amountCents, idempotencyKey: `capture-${cart.id}-${payment.paymentId}` });
-    status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
-  }
-  if (status?.status === "processing") return { state: "processing" };
-  if (status?.status !== "succeeded") return { state: "unpaid", status: String(status?.status ?? "unknown") };
-  assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
-  const result = await context.prisma.$transaction(
-    (db) => postPickupSale(db, { cartId: cart.id, providerId: provider.id, paymentId: payment.paymentId, amountCents: status.amount, currencyCode: status.currencyCode, card: status.card }),
-    // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
-    { isolationLevel: import_client19.Prisma.TransactionIsolationLevel.Serializable, maxWait: 1e4, timeout: 3e4 }
-  );
-  if (result.created) {
-    const { sendConfirmationAfterCommit: sendConfirmationAfterCommit2 } = await Promise.resolve().then(() => (init_orderConfirmation(), orderConfirmation_exports));
-    await sendConfirmationAfterCommit2(context.prisma, result.sale.id, { cartId, token });
-  }
-  return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
-}
-function assertProofAllowingConverted(cart, token, userId) {
-  if (cart.status === "converted") {
-    assertProof({ ...cart, expiresAt: new Date(Date.now() + 6e4) }, token, userId);
-    return;
-  }
-  assertProof(cart, token, userId);
-}
-async function storefrontPickupOrder(_root, args, context) {
-  if (!PROOF.test(args.token) || !CART_ID.test(args.cartId)) return null;
-  const userId = await currentCustomerId(context.prisma, context);
-  const cart = await context.prisma.cart.findUnique({ where: { id: args.cartId } });
-  if (!cart) return null;
-  try {
-    assertProofAllowingConverted(cart, args.token, userId);
-  } catch {
-    return null;
-  }
-  if (!cart.saleId) return null;
-  const sale = await context.prisma.sale.findUnique({
-    where: { id: cart.saleId },
-    select: { id: true, receiptNumber: true, status: true, pickupStatus: true, currencyCode: true, totalCents: true, subtotalCents: true, refundedCents: true, taxCents: true, completedAt: true, lines: { select: { titleSnapshot: true, variantTitleSnapshot: true, quantity: true, subtotalCents: true, totalCents: true }, orderBy: { lineNumber: "asc" }, take: 100 } }
-  });
-  if (!sale) return null;
-  return { ...sale, completedAt: sale.completedAt?.toISOString() ?? null, lines: sale.lines.map((line) => ({ ...line, quantity: line.quantity.toString() })) };
-}
-async function markSalePickedUp(_root, args, context) {
-  const session = requireSession(context);
-  const sale = await context.prisma.sale.findUnique({ where: { id: args.saleId }, select: { id: true, businessId: true, storeId: true, pickupStatus: true, status: true } });
-  if (!sale?.businessId || !sale.storeId) throw new import_graphql5.GraphQLError("Sale not found");
-  assertStorePermission(session, sale.businessId, sale.storeId, "canManageSales");
-  if (sale.pickupStatus === "picked_up") return { saleId: sale.id, pickupStatus: "picked_up" };
-  if (sale.pickupStatus !== "ready_for_pickup" || sale.status !== "completed") throw new import_graphql5.GraphQLError("Only a paid order waiting for pickup can be handed over");
-  const updated = await context.prisma.sale.updateMany({ where: { id: sale.id, pickupStatus: "ready_for_pickup", status: "completed" }, data: { pickupStatus: "picked_up" } });
-  if (!updated.count) throw new import_graphql5.GraphQLError("This order changed; refresh and try again");
-  return { saleId: sale.id, pickupStatus: "picked_up" };
-}
 
 // features/keystone/mutations/index.ts
 var graphql2 = String.raw;

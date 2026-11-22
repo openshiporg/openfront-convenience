@@ -374,13 +374,27 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
   const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? undefined, status: "active" } });
   if (!provider) throw new Error("Online pickup payment is not available");
 
+  const settled = await settlePaidPickup(context, cart, provider, payment);
+  if (settled.state !== "paid") return settled;
+  if (settled.created) {
+    const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
+    await sendConfirmationAfterCommit(context.prisma, settled.sale.id, { cartId, token });
+  }
+  return { state: "paid", saleId: settled.sale.id, receiptNumber: settled.sale.receiptNumber, pickupStatus: settled.sale.pickupStatus };
+}
+
+/**
+ * Asks the provider whether the payment went through and, if it did, posts the order.
+ * The return page and the reconcile below share it, so both post the same way (idempotent on the payment id).
+ */
+async function settlePaidPickup(context: Context, cart: { id: string }, provider: any, payment: PickupPayment) {
   let status: any = await getPaymentStatus({ provider, paymentId: payment.paymentId });
   if (status?.status === "requires_capture") {
     await capturePayment({ provider, paymentId: payment.paymentId, amount: payment.amountCents, idempotencyKey: `capture-${cart.id}-${payment.paymentId}` });
     status = await getPaymentStatus({ provider, paymentId: payment.paymentId });
   }
-  if (status?.status === "processing") return { state: "processing" };
-  if (status?.status !== "succeeded") return { state: "unpaid", status: String(status?.status ?? "unknown") };
+  if (status?.status === "processing") return { state: "processing" as const };
+  if (status?.status !== "succeeded") return { state: "unpaid" as const, status: String(status?.status ?? "unknown") };
   // A provider "succeeded" is only trusted with the exact amount and currency we asked it to collect.
   assertPaymentMatches({ amountCents: payment.amountCents, currencyCode: payment.currencyCode }, { amountCents: status.amount, currencyCode: status.currencyCode });
 
@@ -389,12 +403,53 @@ export async function settleStorefrontPickup(_root: unknown, args: { input: { ca
     // Posting writes the sale, lines, tender, stock moves and audit in one go; allow for a remote database.
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 30_000 },
   );
-  // After the commit, never inside it. Lazy import keeps the mail path out of the keystone import graph.
-  if (result.created) {
-    const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
-    await sendConfirmationAfterCommit(context.prisma, result.sale.id, { cartId, token });
-  }
-  return { state: "paid", saleId: result.sale.id, receiptNumber: result.sale.receiptNumber, pickupStatus: result.sale.pickupStatus };
+  return { state: "paid" as const, ...result };
+}
+
+const RECONCILE_EVERY_MS = 60_000;
+let lastReconcile = 0;
+let reconciling: Promise<void> | null = null;
+
+/**
+ * Posts web orders that were paid but whose buyer closed the tab before the return page ran.
+ * This site has no Stripe webhook endpoint (the shared test account is full), so the check
+ * runs on the requests that read orders (shop and dashboard pages), at most once a minute.
+ * No timer or worker: nothing runs unless someone touches the site.
+ */
+export async function reconcileOpenPickupPayments(context: Context): Promise<void> {
+  if (reconciling) return reconciling;
+  if (Date.now() - lastReconcile < RECONCILE_EVERY_MS) return;
+  lastReconcile = Date.now();
+  reconciling = (async () => {
+    const carts = await context.prisma.cart.findMany({
+      where: {
+        source: "storefront",
+        status: "open",
+        saleId: null,
+        updatedAt: { gt: new Date(Date.now() - 2 * 86_400_000) },
+        metadata: { path: ["pickupPayment", "paymentId"], string_starts_with: "pi_" },
+      },
+      select: { id: true, businessId: true, metadata: true },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+    });
+    for (const cart of carts) {
+      const payment = readPickupPayment(cart.metadata);
+      if (!payment) continue;
+      try {
+        const provider = await context.prisma.paymentProvider.findFirst({ where: { id: payment.providerId, businessId: cart.businessId ?? undefined, status: "active" } });
+        if (!provider) continue;
+        const settled = await settlePaidPickup(context, cart, provider, payment);
+        if (settled.state === "paid" && settled.created) {
+          const { sendConfirmationAfterCommit } = await import("../lib/orderConfirmation");
+          await sendConfirmationAfterCommit(context.prisma, settled.sale.id);
+        }
+      } catch (error) {
+        console.error("pickup reconcile", cart.id, error instanceof Error ? error.message : error);
+      }
+    }
+  })().finally(() => { reconciling = null; });
+  return reconciling;
 }
 
 function assertProofAllowingConverted(cart: Parameters<typeof assertProof>[0] & { status: string }, token: string, userId?: string) {

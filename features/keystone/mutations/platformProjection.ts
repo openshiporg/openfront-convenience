@@ -1,5 +1,6 @@
 import type { Context } from ".keystone/types";
 
+import { reconcileOpenPickupPayments } from "./pickupOperations";
 import { storefrontHoursFromMetadata } from "../../storefront/lib/storefront-settings";
 import { effectiveTenderRefundedCents } from "../lib/refundAccounting";
 import { normalizePurchasingVariantSearch } from "../lib/purchasingSelectorSearch";
@@ -335,6 +336,8 @@ export async function conveniencePlatformProjection(
   },
   context: Context,
 ): Promise<Projection> {
+  // Staff see paid web orders even when the buyer closed the tab before the return page.
+  void reconcileOpenPickupPayments(context.sudo()).catch(() => undefined);
   const surface = args.input.surface;
   if (!platformSurfaces.includes(surface))
     throw new Error("Unsupported platform projection surface");
