@@ -310,7 +310,7 @@ export async function BasketPage({ searchParams }: { searchParams: Search }) {
   const count = lines.reduce((sum, line) => sum + Number(line.quantity), 0);
   const productFor = (title: string) => data.products.find((product) => product.title === title);
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <div className="sf-page sf-page--wide">
         <PageHead title="Your Cart">{lines.length ? <span className="sf-listhead__count sf-num">{itemCount(count)}</span> : null}</PageHead>
         <Alert message={errorMessage(search.error)} />
@@ -362,7 +362,7 @@ export async function CheckoutPage() {
   if (!current || !current.lines.length) redirect("/basket");
   const productFor = (title: string) => data.products.find((product) => product.title === title);
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <div className="sf-page sf-page--wide">
         <Link href="/basket" className="sf-back">
           <ArrowLeft aria-hidden="true" className="sf-icon" />
@@ -414,7 +414,7 @@ export async function PickupCompletePage({ searchParams }: { searchParams?: Prom
   const partlyRefunded = order.status === "partially_refunded";
   const closedLabel = order.status === "voided" ? "Order cancelled" : closed ? "Order refunded" : undefined;
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <div className="sf-page">
         <section className="sf-card sf-placed" aria-labelledby="sf-placed-title">
           <CircleCheck aria-hidden="true" className="sf-placed__mark" />
@@ -473,7 +473,7 @@ export async function AccountPage() {
   const user = await currentCustomer();
   const [orders, accounts] = await Promise.all([customerHistory(), customerRewards()]);
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <div className="sf-page">
         <PageHead title="Account" />
         {user ? (
@@ -598,7 +598,7 @@ export async function ReceiptPage({ params }: { params: Promise<{ saleId: string
   const [order] = await history(saleId);
   if (!order) notFound();
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <div className="sf-page">
         <Link href="/account" className="sf-back">
           <ArrowLeft aria-hidden="true" className="sf-icon" />
@@ -643,7 +643,7 @@ export async function AccountAuthPage({ params, searchParams }: { params: Promis
   if (await currentCustomer()) redirect("/account");
   const signup = mode === "signup";
   return (
-    <ShopShell showCategories={false}>
+    <ShopShell>
       <section className="sf-auth">
         <nav className="sf-switch" aria-label="Account">
           <Link href="/account/signin" aria-current={!signup ? "page" : undefined}>

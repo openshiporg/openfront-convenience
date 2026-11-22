@@ -48,7 +48,6 @@
 .sf :focus-visible {
   outline: 2px solid var(--sf-ring);
   outline-offset: 2px;
-  border-radius: var(--sf-r);
 }
 :where(.sf) a {
   color: inherit;
@@ -137,6 +136,7 @@
   align-items: center;
   min-width: 0;
   flex: none;
+  min-height: 44px;
 }
 .sf-logo {
   display: inline-flex;
@@ -370,9 +370,135 @@
 }
 .sf-strip,
 .sf-lead,
-.sf-tabs,
-.sf-tabbar {
+.sf-menu__open {
   display: none;
+}
+
+/* ---------- Phone menu (a native dialog) ---------- */
+.sf-menu {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sf-ink);
+}
+.sf-menu::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+html:has(.sf-menu[open]) {
+  overflow: hidden;
+}
+.sf-menu__sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(86vw, 340px);
+  height: 100%;
+  background: var(--sf-bg);
+  transition: transform 200ms var(--sf-ease);
+}
+@starting-style {
+  .sf-menu[open] .sf-menu__sheet {
+    transform: translateX(-100%);
+  }
+}
+.sf-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: none;
+  height: 56px;
+  padding: 0 6px 0 16px;
+  border-bottom: 1px solid var(--sf-line);
+}
+.sf-menu__head .sf-logo__name {
+  font-size: 1.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sf-menu__head .sf-logo__icon {
+  width: 22px;
+  height: 26px;
+}
+.sf-menu__body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sf-menu .sf-search {
+  width: 100%;
+}
+.sf-menu .sf-search input {
+  height: 48px;
+  font-size: 1rem;
+}
+.sf-menu__nav {
+  display: grid;
+}
+.sf-menu__nav + .sf-menu__nav,
+.sf-menu__store {
+  padding-top: 12px;
+  border-top: 1px solid var(--sf-line);
+}
+.sf-menu__nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 4px;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.sf-menu__nav a[aria-current="page"] {
+  color: var(--sf-accent-text);
+  font-weight: 600;
+}
+.sf-menu__nav .sf-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--sf-ink-3);
+}
+.sf-menu__label {
+  padding: 4px 4px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sf-ink-3);
+}
+.sf-menu__meta {
+  margin-left: auto;
+  font-size: 0.9rem;
+  color: var(--sf-ink-3);
+}
+.sf-menu__store {
+  display: grid;
+  font-size: 0.95rem;
+  color: var(--sf-ink-2);
+}
+.sf-menu__store > * {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 4px;
+}
+.sf-menu__store .sf-icon {
+  color: var(--sf-ink-3);
+}
+@media (min-width: 761px) {
+  .sf-menu {
+    display: none;
+  }
 }
 
 /* ---------- Layout ---------- */
@@ -1195,7 +1321,7 @@ a.sf-ctl:hover {
 .sf-switch a {
   display: grid;
   place-items: center;
-  height: 38px;
+  height: 44px;
   border-radius: 4px;
   font-weight: 500;
   color: var(--sf-ink-2);
@@ -1318,27 +1444,42 @@ a.sf-ctl:hover {
 
 /* ---------- Phone ---------- */
 @media (max-width: 760px) {
+  /* Header: menu, logo, bag. It stays at the top; the lines under it scroll away. */
   .sf-top {
-    position: static;
+    display: contents;
   }
   .sf-top__row {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 20px 20px 16px;
-    gap: 10px 12px;
-    border-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    gap: 2px;
+    height: 56px;
+    padding: 0 6px;
+    background: var(--sf-bg);
   }
   .sf-top__home {
     flex: 1 1 auto;
   }
-  .sf-logo__icon {
-    width: 24px;
-    height: 28px;
+  .sf-top__row .sf-logo__icon {
+    width: 22px;
+    height: 26px;
   }
-  .sf-logo__name {
-    font-size: clamp(1.45rem, 6.6vw, 1.9rem);
-    white-space: normal;
-    line-height: 1.1;
+  .sf-top__row .sf-logo__name {
+    font-size: clamp(1.1rem, 5.2vw, 1.4rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sf-menu__open {
+    display: inline-grid;
+  }
+  .sf-iconbtn {
+    width: 44px;
+    height: 44px;
+    flex: none;
+  }
+  .sf-bag__count {
+    top: 2px;
+    right: 2px;
   }
   .sf-cats,
   .sf-top__tools,
@@ -1350,65 +1491,30 @@ a.sf-ctl:hover {
   }
   .sf-top__phone {
     display: flex;
-    flex-wrap: wrap;
-    margin-left: auto;
-    align-items: center;
-    gap: 10px;
     flex: none;
-    font-size: 0.8rem;
-    font-weight: 500;
-  }
-  .sf-pill {
-    display: inline-flex;
-    align-items: center;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid var(--sf-line-2);
-    border-radius: 15px;
-  }
-  .sf-pill .sf-dot {
-    display: none;
-  }
-  .sf-phonepts {
-    white-space: nowrap;
-    color: var(--sf-ink-2);
   }
   .sf-strip {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-block: 1px solid var(--sf-line);
-  }
-  .sf-strip__on,
-  .sf-strip__off {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 0;
-    height: 48px;
-    padding: 0 12px;
-    font-size: 0.95rem;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 44px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--sf-line);
+    font-size: 0.9rem;
     font-weight: 500;
   }
-  .sf-strip__on {
-    background: var(--sf-accent);
-    color: var(--sf-accent-ink);
+  .sf-strip__where {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 44px;
+    color: var(--sf-ink-2);
     white-space: nowrap;
   }
-  .sf-strip__text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .sf-strip__on .sf-icon {
-    fill: currentColor;
-    stroke: var(--sf-accent);
-  }
-  .sf-strip__off {
-    color: var(--sf-ink-2);
-  }
-  .sf-strip:not(:has(.sf-strip__off)) {
-    grid-template-columns: 1fr;
+  .sf-strip__where .sf-icon {
+    color: var(--sf-accent);
   }
   .sf-lead {
     display: block;
@@ -1440,49 +1546,14 @@ a.sf-ctl:hover {
     font-weight: 500;
   }
   .sf-again__go {
-    padding: 8px 0;
+    min-height: 44px;
+    padding: 0 0 0 12px;
     border: 0;
     background: none;
     color: var(--sf-accent-text);
     font-weight: 600;
     font-size: 1.05rem;
     cursor: pointer;
-  }
-  .sf-tabs {
-    display: flex;
-    gap: 4px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--sf-line);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .sf-tabs::-webkit-scrollbar {
-    display: none;
-  }
-  .sf-tabs__link {
-    position: relative;
-    flex: none;
-    display: flex;
-    align-items: center;
-    height: 52px;
-    padding: 0 12px;
-    color: var(--sf-ink-2);
-    font-size: 1rem;
-    white-space: nowrap;
-  }
-  .sf-tabs__link[aria-current="page"] {
-    color: var(--sf-ink);
-    font-weight: 600;
-  }
-  .sf-tabs__link[aria-current="page"]::after {
-    content: "";
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 0;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--sf-accent);
   }
   .sf-layout,
   .sf-layout--panel {
@@ -1578,11 +1649,7 @@ a.sf-ctl:hover {
     font-size: 1.4rem;
   }
   .sf-banner {
-    flex-wrap: wrap;
-    padding: 14px;
-  }
-  .sf-banner .sf-btn {
-    width: 100%;
+    display: none;
   }
   .sf-product {
     grid-template-columns: 1fr;
@@ -1605,53 +1672,12 @@ a.sf-ctl:hover {
   .sf-order .sf-state {
     display: none;
   }
-  .sf-main {
-    padding-bottom: 80px;
-  }
-  .sf-foot {
-    padding-bottom: 84px;
-  }
-  .sf-foot__nav {
-    margin-left: 0;
-  }
-  .sf-tabbar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    padding: 8px 8px max(10px, env(safe-area-inset-bottom));
-    border-top: 1px solid var(--sf-line);
-    background: rgb(255 255 255 / 0.97);
-    backdrop-filter: blur(8px);
-  }
-  .sf-tabbar__link {
-    display: grid;
-    justify-items: center;
-    gap: 2px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--sf-ink);
-  }
-  .sf-tabbar__icon {
-    width: 26px;
-    height: 26px;
-  }
-  .sf-tabbar__link[aria-current="page"] {
-    color: var(--sf-accent-text);
-  }
-  .sf-tabbar__link[aria-current="page"] .sf-tabbar__icon {
-    color: var(--sf-accent);
-    fill: var(--sf-accent);
-  }
   .sf-bar {
     display: flex;
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: calc(72px + max(0px, env(safe-area-inset-bottom)));
+    bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 29;
     align-items: center;
     justify-content: space-between;
@@ -1665,8 +1691,12 @@ a.sf-ctl:hover {
     font-size: 1rem;
     box-shadow: var(--sf-shadow);
   }
-  .sf-foot {
-    padding-bottom: 140px;
+  .sf-foot__nav {
+    margin-left: 0;
+  }
+  /* The checkout bar floats over the page end: leave room for it. */
+  .sf:has(.sf-bar) .sf-foot {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }
 

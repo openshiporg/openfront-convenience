@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { MapPin, Search, ShoppingBag, UserRound } from "lucide-react";
+import { Suspense, type ReactNode } from "react";
+import { House, MapPin, Phone, Receipt, Search, ShoppingBag, UserRound } from "lucide-react";
 
 import { getPublicStorefrontProjection } from "../lib/public-storefront";
 import { addressParts } from "../lib/address";
@@ -10,7 +10,7 @@ import { ReorderButton, ReorderCard } from "./Reorder";
 import { CheckoutBar } from "./CheckoutBar";
 import { StoreLogo } from "./StoreLogo";
 import { TodayLine } from "./TodayHours";
-import { TabBar } from "./TabBar";
+import { PhoneMenu } from "./PhoneMenu";
 import { storefrontFonts } from "./fonts";
 import { categoryHref } from "./ProductRow";
 import "../shop.css";
@@ -33,20 +33,19 @@ const mapsHref = (query: string) => `https://www.google.com/maps/search/?api=1&q
 /**
  * Sirius: a white, list-first shop. The header carries the store's own logo,
  * its categories, search, points and the bag; a second bar says whether the
- * store is open and where to pick up. On a phone the categories become tabs
- * and a tab bar sits at the bottom.
+ * store is open and where to pick up. On a phone the header is the menu
+ * button, the logo and the bag; search, categories, orders and the account
+ * are in the menu.
  */
 export async function ShopShell({
   children,
   active = null,
   query = "",
-  showCategories = true,
 }: {
   children: ReactNode;
   /** The current category; "" for all products, null when no category applies. */
   active?: string | null;
   query?: string;
-  showCategories?: boolean;
 }) {
   const projection = await getPublicStorefrontProjection();
   const identity = projection.identity;
@@ -88,6 +87,54 @@ export async function ShopShell({
     <div className={`sf ${storefrontFonts}`}>
       <header className="sf-top">
         <div className="sf-top__row">
+          <Suspense fallback={null}>
+            <PhoneMenu title={<StoreLogo {...identity} />}>
+              <SearchForm id="sf-search-menu" query={query} />
+              <nav className="sf-menu__nav" aria-label="Main">
+                <Link href="/" aria-current={active === "" ? "page" : undefined}>
+                  <House aria-hidden="true" className="sf-icon" />
+                  Home
+                </Link>
+                <Link href="/account#receipts">
+                  <Receipt aria-hidden="true" className="sf-icon" />
+                  Orders
+                </Link>
+                <Link href="/account">
+                  <UserRound aria-hidden="true" className="sf-icon" />
+                  {user ? "Account" : "Sign in"}
+                  {user && hasPoints ? (
+                    <span className="sf-menu__meta">
+                      <span className="sf-num">{points}</span> pts
+                    </span>
+                  ) : null}
+                </Link>
+              </nav>
+              {categories.length ? (
+                <nav className="sf-menu__nav" aria-label="Categories">
+                  <h2 className="sf-menu__label">Shop</h2>
+                  <Link href="/shop" aria-current={active === "" ? "page" : undefined}>
+                    All products
+                  </Link>
+                  {categoryLinks("sf-menu__cat")}
+                </nav>
+              ) : null}
+              <div className="sf-menu__store">
+                {hasHours && location ? <TodayLine hours={location.hours} timeZone={location.timezone} /> : null}
+                {address?.full && mapsQuery ? (
+                  <a href={mapsHref(mapsQuery)} target="_blank" rel="noreferrer">
+                    <MapPin aria-hidden="true" className="sf-icon" />
+                    {address.full}
+                  </a>
+                ) : null}
+                {location?.phone ? (
+                  <a className="sf-num" href={`tel:${location.phone.replace(/[^\d+]/g, "")}`}>
+                    <Phone aria-hidden="true" className="sf-icon" />
+                    {location.phone}
+                  </a>
+                ) : null}
+              </div>
+            </PhoneMenu>
+          </Suspense>
           <Link href="/" className="sf-top__home" aria-label={`${identity.name} home`}>
             <StoreLogo {...identity} />
           </Link>
@@ -116,16 +163,16 @@ export async function ShopShell({
             ) : null}
           </div>
           <div className="sf-top__phone">
-            {hasHours && location ? (
-              <span className="sf-pill">
-                <TodayLine hours={location.hours} timeZone={location.timezone} />
-              </span>
-            ) : null}
-            {user && hasPoints ? (
-              <Link href="/account" className="sf-phonepts">
-                ★ <span className="sf-num">{points}</span> pts
+            {onlinePickup ? (
+              <Link href="/basket" className="sf-iconbtn sf-bag" aria-label={`Basket, ${bagCount} ${bagCount === 1 ? "item" : "items"}`}>
+                <ShoppingBag aria-hidden="true" className="sf-icon" />
+                {bagCount ? <span className="sf-bag__count sf-num">{bagCount}</span> : null}
               </Link>
-            ) : null}
+            ) : (
+              <Link href="/account" className="sf-iconbtn" aria-label={user ? "Account" : "Sign in"}>
+                <UserRound aria-hidden="true" className="sf-icon" />
+              </Link>
+            )}
           </div>
         </div>
         <div className="sf-sub">
@@ -160,31 +207,18 @@ export async function ShopShell({
           </div>
         </div>
         <div className="sf-strip">
-          <span className="sf-strip__on">
-            <MapPin aria-hidden="true" className="sf-icon" />
-            <span className="sf-strip__text">
-              {onlinePickup ? "Pickup" : "In store"}
-              {street ? ` · ${street}` : ""}
-            </span>
-          </span>
-          {mapsQuery ? (
-            <a className="sf-strip__off" href={mapsHref(mapsQuery)} target="_blank" rel="noreferrer">
-              Directions
+          {hasHours && location ? <TodayLine hours={location.hours} timeZone={location.timezone} /> : <span>{onlinePickup ? "Pickup" : "In store"}</span>}
+          {street && mapsQuery ? (
+            <a className="sf-strip__where" href={mapsHref(mapsQuery)} target="_blank" rel="noreferrer" aria-label={`Directions to ${street}`}>
+              <MapPin aria-hidden="true" className="sf-icon" />
+              {street}
             </a>
           ) : null}
         </div>
-        {lastOrder && reorderItems.length ? (
+        {active === "" && lastOrder && reorderItems.length ? (
           <div className="sf-lead">
             <ReorderCard order={lastOrder} data={data} thumb={lastThumb} />
           </div>
-        ) : null}
-        {showCategories && categories.length ? (
-          <nav className="sf-tabs" aria-label="Categories">
-            <Link href="/" className="sf-tabs__link" aria-current={active === "" ? "page" : undefined}>
-              All
-            </Link>
-            {categoryLinks("sf-tabs__link")}
-          </nav>
         ) : null}
       </header>
       <main className="sf-main">{children}</main>
@@ -204,7 +238,6 @@ export async function ShopShell({
         </div>
       </footer>
       {onlinePickup ? <CheckoutBar basket={current} /> : null}
-      <TabBar />
     </div>
   );
 }
