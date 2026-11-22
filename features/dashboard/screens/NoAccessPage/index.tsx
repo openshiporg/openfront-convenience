@@ -18,32 +18,24 @@ export function NoAccessPage() {
         </div>
 
         <div className="text-center gap-0 mt-4">
-          <h1 className="text-center text-lg font-semibold">Access Denied</h1>
+          <h1 className="text-center text-lg font-semibold">This area is for store staff</h1>
           <p className="mt-2 text-center mx-auto sm:max-w-[90%] text-sm text-muted-foreground">
-            You don't have permission to access this page. If you believe this is an error, please contact your administrator for assistance.
+            You are signed in with a customer account. Your orders, receipts and points are in your account on the shop. Staff: ask the owner to add you to the team.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 w-full mt-8">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className="size-3" />
-            Go Back
+        <div className="flex flex-col gap-2 w-full mt-8">
+          <Button variant="default" className="h-11 w-full" onClick={() => router.push('/account')}>
+            <Store className="size-4" />
+            Go to my account
           </Button>
-          <Button
-            variant="default"
-            className="flex-1"
-            onClick={() => router.push('/')}
-          >
-            <Store className="size-3" />
-            Home
+          <Button variant="outline" className="h-11 w-full" onClick={() => router.push('/')}>
+            <ArrowLeft className="size-4" />
+            Back to the shop
           </Button>
         </div>
         <form action={signOut} className="w-full mt-2">
-          <Button type="submit" variant="ghost" className="w-full">
+          <Button type="submit" variant="ghost" className="h-11 w-full">
             <LogOut className="size-3" />
             Sign out
           </Button>

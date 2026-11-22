@@ -141,7 +141,8 @@ type ScopeSource = Pick<PlatformProjection, "businessId" | "storeId" | "business
 
 export function ScopeFilter({ projection, businessOnly }: { projection: ScopeSource; businessOnly: boolean }) {
   const showBusiness = projection.businesses.length > 1;
-  const showStore = !businessOnly && projection.stores.length > 0;
+  // One store is not a choice: the page title already names it.
+  const showStore = !businessOnly && projection.stores.length > 1;
   if (!showBusiness && !showStore) return null;
   return (
     <div className="flex min-w-0 flex-wrap gap-2">
@@ -182,20 +183,16 @@ function ScopeSelect({
       <label className="sr-only" htmlFor={`scope-${name}`}>
         {label}
       </label>
+      {/* Choosing a store or business switches straight away, as every store picker does. */}
       <PlatformSelect
         id={`scope-${name}`}
         name={name}
         defaultValue={value ?? ""}
         options={options.map((option) => ({ value: option.id, label: option.label }))}
         aria-label={label}
+        submitOnChange
         className="h-8 w-auto max-w-56 rounded-[4px] text-[13px] font-medium max-sm:h-10"
       />
-      <button
-        type="submit"
-        className="inline-flex min-h-8 items-center rounded-[4px] px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-10"
-      >
-        {label === "Business" ? "Switch" : "Apply"}
-      </button>
     </form>
   );
 }

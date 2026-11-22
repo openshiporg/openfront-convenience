@@ -608,20 +608,6 @@ export async function PosPage({
                         lineSale={controls.refundLineSale ?? []}
                         tenderSale={controls.refundTenderSale ?? []}
                       />
-                      <TextField
-                        label="First allocation (cents; set for split refund)"
-                        name="refundAllocationCents"
-                        type="number"
-                        min="0"
-                        step="1"
-                      />
-                      <TextField
-                        label="Second allocation (cents)"
-                        name="refundAllocationCents2"
-                        type="number"
-                        min="0"
-                        step="1"
-                      />
                       <SelectField
                         label="Open register session"
                         name="registerSessionId"
@@ -676,6 +662,15 @@ export async function PosPage({
                           { value: "unknown", label: "Unknown" },
                         ]}
                       />
+                      {/* Only a sale paid two ways needs amounts; the usual refund goes back the way it was paid. */}
+                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
+                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Sale was paid two ways (split the refund)</summary>
+                        <p className="mt-2 text-xs text-muted-foreground">Leave blank to refund the whole line to the first payment.</p>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <TextField label="Back to first payment (cents)" name="refundAllocationCents" type="number" min="0" step="1" />
+                          <TextField label="Back to second payment (cents)" name="refundAllocationCents2" type="number" min="0" step="1" />
+                        </div>
+                      </details>
                       <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
                         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund (terminal payments)</summary>
                         <p className="mt-2 text-xs text-muted-foreground">Online orders paid by card are refunded to the card automatically. Leave these blank for them.</p>
