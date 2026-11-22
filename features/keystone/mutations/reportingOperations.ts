@@ -240,7 +240,8 @@ export async function convenienceSalesReport(
   const byMethod = new Map<string, { method: string; label: string; count: number; amountCents: number }>();
   for (const tender of tenders) {
     const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
-    row.count += 1; row.amountCents += tender.amountCents; // already net of change given byMethod.set(tender.method, row);
+    // amountCents is already net of change given.
+    row.count += 1; row.amountCents += tender.amountCents; byMethod.set(tender.method, row);
   }
   const bySource = new Map<string, { source: string; label: string; count: number; totalCents: number }>();
   for (const sale of sales) {

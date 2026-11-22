@@ -26854,6 +26854,7 @@ async function convenienceSalesReport(_root, args, context) {
     const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
     row.count += 1;
     row.amountCents += tender.amountCents;
+    byMethod.set(tender.method, row);
   }
   const bySource = /* @__PURE__ */ new Map();
   for (const sale of sales) {

@@ -114,18 +114,18 @@ export async function SaleListPage({ searchParams }: { searchParams: PlatformSea
             <Link
               href={`/dashboard/platform/sales${waitingOnly ? q : scopeQuery(scope, { pickup: "waiting" })}`}
               aria-current={waitingOnly ? "true" : undefined}
-              className="flex min-h-10 min-w-0 items-baseline justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex min-h-11 min-w-0 items-center justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
             >
               <span className="inline-flex items-baseline gap-2 font-medium text-foreground">
                 <Dot tone="warn" />
                 {waitingCount} online {waitingCount === 1 ? "order" : "orders"} paid, waiting for pickup
               </span>
-              <span className="text-[12px] text-muted-foreground">{waitingOnly ? "Show all sales" : "Show pickup queue"}</span>
+              <span className="shrink-0 whitespace-nowrap text-[12px] text-muted-foreground underline underline-offset-2">{waitingOnly ? "Show all sales" : "Show pickup queue"}</span>
             </Link>
           ) : null}
           {openCount ? <Link
             href={`/dashboard/platform/sales${scopeQuery(scope, { status: "open" })}`}
-            className="flex min-h-10 min-w-0 items-baseline justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex min-h-11 min-w-0 items-center justify-between gap-3 border-b py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
           >
             <span className="inline-flex items-baseline gap-2 font-medium text-foreground">
               <Dot tone="warn" />

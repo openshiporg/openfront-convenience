@@ -80,7 +80,7 @@ export async function CustomerListPage({ searchParams }: { searchParams: Platfor
               </Td>
               <Td align="right">
                 {account.pointsBalance ?? 0}
-                <span className="block text-[12px] text-muted-foreground">{account.lifetimePoints ?? 0} lifetime</span>
+                <span className="block whitespace-nowrap text-[12px] text-muted-foreground">{account.lifetimePoints ?? 0} lifetime</span>
               </Td>
             </Tr>
           ))}

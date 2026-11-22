@@ -94,3 +94,8 @@ test("the register takes cash over the total and shows the change", () => {
   assert.match(actions, /tenderedCents < input\.amountCents/);
   assert.match(actions, /amountCents: input\.amountCents,\s+tenderedCents,/);
 });
+
+test("the payments report keeps each method's row", () => {
+  const server = read("features/keystone/mutations/reportingOperations.ts");
+  assert.match(server, /\n\s+row\.count \+= 1; row\.amountCents \+= tender\.amountCents; byMethod\.set\(tender\.method, row\);/);
+});
