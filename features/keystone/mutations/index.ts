@@ -126,7 +126,7 @@ import {
   prepareBankDeposit,
   transitionBankDeposit,
 } from "./reconciliationOperations";
-import { convenienceReportingSummary } from "./reportingOperations";
+import { convenienceReportingSummary, convenienceSalesReport } from "./reportingOperations";
 import { refundPosSale } from "./refundOperations";
 import { revokeCurrentUserSessions } from "./sessionOperations";
 import {
@@ -163,6 +163,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         convenienceReportingSummary(
           input: ConvenienceReportingSummaryInput!
         ): ConvenienceReportingSummary!
+        convenienceSalesReport(input: ConvenienceSalesReportInput!): JSON!
         posSaleReceipt(input: PosSaleReceiptInput!): JSON!
         posOperationOutcome(
           input: PosOperationOutcomeInput!
@@ -476,6 +477,13 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         businessId: ID!
         storeId: ID!
         saleId: ID!
+      }
+
+      input ConvenienceSalesReportInput {
+        businessId: ID!
+        startDate: String!
+        endDate: String!
+        storeIds: [ID!]
       }
 
       input ConvenienceReportingSummaryInput {
@@ -1800,6 +1808,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         conveniencePlatformNavigation,
         conveniencePublicStorefront: conveniencePublicStorefrontProjection,
         convenienceReportingSummary,
+        convenienceSalesReport,
         storefrontCatalog,
         storefrontBasket,
         storefrontHistory,

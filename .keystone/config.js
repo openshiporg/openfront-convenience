@@ -12189,6 +12189,42 @@ function tradingDateAtInstant(instant, timezone) {
   const result = `${value("year")}-${value("month")}-${value("day")}`;
   return normalizeTradingDate(result);
 }
+function nextTradingDate(tradingDate) {
+  const date2 = /* @__PURE__ */ new Date(`${normalizeTradingDate(tradingDate)}T00:00:00.000Z`);
+  date2.setUTCDate(date2.getUTCDate() + 1);
+  return date2.toISOString().slice(0, 10);
+}
+function firstInstantOfTradingDate(tradingDate, timezone) {
+  const normalized = normalizeTradingDate(tradingDate);
+  const anchor = Date.parse(`${normalized}T00:00:00.000Z`);
+  let low = anchor - 36 * 60 * 60 * 1e3;
+  let high = anchor + 36 * 60 * 60 * 1e3;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (tradingDateAtInstant(new Date(middle), timezone) < normalized) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  const result = new Date(low);
+  if (tradingDateAtInstant(result, timezone) !== normalized) {
+    throw new Error(
+      `Trading date ${normalized} does not exist in store timezone ${timezone}`
+    );
+  }
+  return result;
+}
+function tradingDatePeriodBounds(tradingDate, timezone) {
+  const normalized = normalizeTradingDate(tradingDate);
+  return {
+    periodStartedAt: firstInstantOfTradingDate(normalized, timezone),
+    periodEndedAt: firstInstantOfTradingDate(
+      nextTradingDate(normalized),
+      timezone
+    )
+  };
+}
 function assertTradingDateMatchesPeriodStart(tradingDate, periodStartedAt, timezone, label) {
   const expected = tradingDateAtInstant(periodStartedAt, timezone);
   if (tradingDate !== expected) {
@@ -26720,6 +26756,135 @@ async function convenienceReportingSummary(_root, args, context) {
     stores: summary.stores.map(serializeTotals)
   };
 }
+var METHOD_LABELS = {
+  cash: "Cash",
+  credit_card: "Card",
+  debit_card: "Debit card",
+  mobile_wallet: "Mobile wallet",
+  gift_card: "Gift card",
+  ebt_snap: "EBT / SNAP",
+  fleet_card: "Fleet card",
+  house_account: "House account",
+  loyalty: "Points",
+  other: "Other"
+};
+async function convenienceSalesReport(_root, args, context) {
+  const session = requireSession(context);
+  assertBusinessPermission(session, args.input.businessId, "canReadReporting");
+  const startDate = normalizeTradingDate(args.input.startDate);
+  const endDate = normalizeTradingDate(args.input.endDate);
+  if (endDate < startDate) throw new Error("Reporting end date must not precede start date");
+  if (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`) > 366 * 864e5) {
+    throw new Error("Reporting date range cannot exceed 366 days");
+  }
+  const requested = [...new Set(args.input.storeIds?.filter(Boolean) ?? [])];
+  for (const storeId of requested) assertStorePermission(session, args.input.businessId, storeId, "canReadReporting");
+  const allowed = requested.length ? requested : hasUnrestrictedStoreAccess(session) ? null : storeIdsForPermission(session, "canReadReporting", args.input.businessId);
+  if (allowed && !allowed.length) throw new Error("Access denied for reporting stores");
+  const stores = await context.prisma.store.findMany({
+    where: { businessId: args.input.businessId, ...allowed ? { id: { in: allowed } } : {} },
+    select: { id: true, timezone: true, currencyCode: true },
+    take: 500
+  });
+  const periods = stores.map((store) => ({
+    storeId: store.id,
+    from: tradingDatePeriodBounds(startDate, store.timezone || "UTC").periodStartedAt,
+    to: tradingDatePeriodBounds(endDate, store.timezone || "UTC").periodEndedAt
+  }));
+  const inPeriod = (field) => periods.map((period) => ({ storeId: period.storeId, [field]: { gte: period.from, lt: period.to } }));
+  if (!periods.length) {
+    return { startDate, endDate, currencyCode: "USD", saleCount: 0, itemSalesCents: 0, taxCents: 0, totalCents: 0, refundCents: 0, refundCount: 0, units: 0, truncated: false, categories: [], items: [], tenders: [], sources: [] };
+  }
+  const LIMIT = 2e4;
+  const counted = { status: { in: ["completed", "partially_refunded", "refunded"] } };
+  const [sales, lines, tenders, refunds] = await Promise.all([
+    context.prisma.sale.findMany({
+      where: { businessId: args.input.businessId, ...counted, OR: inPeriod("completedAt") },
+      select: { source: true, totalCents: true, taxCents: true },
+      take: LIMIT
+    }),
+    context.prisma.saleLine.findMany({
+      where: { businessId: args.input.businessId, sale: { ...counted, OR: inPeriod("completedAt") } },
+      select: {
+        titleSnapshot: true,
+        variantTitleSnapshot: true,
+        quantity: true,
+        subtotalCents: true,
+        discountCents: true,
+        taxCents: true,
+        totalCents: true,
+        taxInclusive: true,
+        variantId: true,
+        product: { select: { categories: { select: { name: true }, orderBy: { name: "asc" }, take: 1 } } }
+      },
+      take: LIMIT
+    }),
+    context.prisma.tender.findMany({
+      where: { businessId: args.input.businessId, status: { in: ["captured", "partially_refunded", "refunded"] }, sale: { ...counted, OR: inPeriod("completedAt") } },
+      select: { method: true, amountCents: true, changeCents: true },
+      take: LIMIT
+    }),
+    context.prisma.refund.findMany({
+      where: { businessId: args.input.businessId, status: "completed", OR: inPeriod("processedAt") },
+      select: { amountCents: true },
+      take: LIMIT
+    })
+  ]);
+  const bump = (map, key, start, units2, cents) => {
+    const row = map.get(key) ?? start;
+    row.units += units2;
+    row.salesCents += cents;
+    map.set(key, row);
+  };
+  const categories = /* @__PURE__ */ new Map();
+  const items = /* @__PURE__ */ new Map();
+  let itemSalesCents = 0;
+  let units = 0;
+  for (const line of lines) {
+    const net = line.taxInclusive ? line.totalCents - line.taxCents : line.subtotalCents - line.discountCents;
+    const quantity = Number(line.quantity);
+    itemSalesCents += net;
+    units += quantity;
+    const category = line.product?.categories[0]?.name || "Uncategorized";
+    bump(categories, category, { name: category, units: 0, salesCents: 0 }, quantity, net);
+    bump(items, line.variantId ?? `${line.titleSnapshot}|${line.variantTitleSnapshot}`, { name: line.titleSnapshot, detail: line.variantTitleSnapshot ?? "", units: 0, salesCents: 0 }, quantity, net);
+  }
+  const byMethod = /* @__PURE__ */ new Map();
+  for (const tender of tenders) {
+    const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
+    row.count += 1;
+    row.amountCents += tender.amountCents - (tender.changeCents ?? 0);
+    byMethod.set(tender.method, row);
+  }
+  const bySource = /* @__PURE__ */ new Map();
+  for (const sale of sales) {
+    const online = sale.source === "storefront" || sale.source === "mobile";
+    const key = online ? "online" : "counter";
+    const row = bySource.get(key) ?? { source: key, label: online ? "Online pickup" : "At the counter", count: 0, totalCents: 0 };
+    row.count += 1;
+    row.totalCents += sale.totalCents;
+    bySource.set(key, row);
+  }
+  const round = (value) => Math.round(value * 1e4) / 1e4;
+  const bySales = (left, right) => right.salesCents - left.salesCents;
+  return {
+    startDate,
+    endDate,
+    currencyCode: stores[0]?.currencyCode || "USD",
+    saleCount: sales.length,
+    itemSalesCents,
+    taxCents: sales.reduce((total, sale) => total + sale.taxCents, 0),
+    totalCents: sales.reduce((total, sale) => total + sale.totalCents, 0),
+    refundCents: refunds.reduce((total, refund) => total + refund.amountCents, 0),
+    refundCount: refunds.length,
+    units: round(units),
+    truncated: [sales, lines, tenders, refunds].some((rows) => rows.length >= LIMIT),
+    categories: [...categories.values()].sort(bySales).map((row) => ({ ...row, units: round(row.units) })),
+    items: [...items.values()].sort(bySales).slice(0, 25).map((row) => ({ ...row, units: round(row.units) })),
+    tenders: [...byMethod.values()].sort((left, right) => right.amountCents - left.amountCents),
+    sources: [...bySource.values()].sort((left, right) => right.totalCents - left.totalCents)
+  };
+}
 
 // features/keystone/mutations/refundOperations.ts
 var import_node_crypto27 = require("node:crypto");
@@ -29237,6 +29402,7 @@ function extendGraphqlSchema(baseSchema) {
         convenienceReportingSummary(
           input: ConvenienceReportingSummaryInput!
         ): ConvenienceReportingSummary!
+        convenienceSalesReport(input: ConvenienceSalesReportInput!): JSON!
         posSaleReceipt(input: PosSaleReceiptInput!): JSON!
         posOperationOutcome(
           input: PosOperationOutcomeInput!
@@ -29550,6 +29716,13 @@ function extendGraphqlSchema(baseSchema) {
         businessId: ID!
         storeId: ID!
         saleId: ID!
+      }
+
+      input ConvenienceSalesReportInput {
+        businessId: ID!
+        startDate: String!
+        endDate: String!
+        storeIds: [ID!]
       }
 
       input ConvenienceReportingSummaryInput {
@@ -30871,6 +31044,7 @@ function extendGraphqlSchema(baseSchema) {
         conveniencePlatformNavigation,
         conveniencePublicStorefront: conveniencePublicStorefrontProjection,
         convenienceReportingSummary,
+        convenienceSalesReport,
         storefrontCatalog,
         storefrontBasket,
         storefrontHistory,

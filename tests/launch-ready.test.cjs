@@ -63,3 +63,18 @@ test("a shopper resets a password on the shop, staff on the dashboard", () => {
   const pages = read("features/storefront/screens/ShopPages.tsx");
   assert.match(pages, /href="\/account\/forgot"/);
 });
+
+test("reports show what sold from the sales themselves, not only closed store days", () => {
+  const server = read("features/keystone/mutations/reportingOperations.ts");
+  const report = server.slice(server.indexOf("export async function convenienceSalesReport"));
+  assert.match(report, /assertBusinessPermission\(session, args\.input\.businessId, "canReadReporting"\)/);
+  assert.match(report, /tradingDatePeriodBounds\(startDate, store\.timezone/, "days are the store's days");
+  assert.match(report, /line\.taxInclusive \? line\.totalCents - line\.taxCents : line\.subtotalCents - line\.discountCents/);
+  const page = read("features/platform/reports/ReportsPage.tsx");
+  for (const title of ["By category", "How customers paid", "Best sellers"]) assert.match(page, new RegExp(title));
+});
+
+test("a promotion can be archived from its row", () => {
+  assert.match(read("features/keystone/mutations/catalogOperations.ts"), /export async function archivePromotion/);
+  assert.match(read("features/platform/promotions/screens/PromotionListPage.tsx"), /action=\{archivePromotionAction\}/);
+});

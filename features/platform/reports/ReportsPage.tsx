@@ -26,6 +26,22 @@ type Summary = {
   stores: Array<{ storeId: string; storeName: string; dayCount: number; netReceiptsCents: string; cashOverShortCents: string; exceptionCount: string }>;
 };
 
+type SalesReport = {
+  currencyCode: string;
+  saleCount: number;
+  itemSalesCents: number;
+  taxCents: number;
+  totalCents: number;
+  refundCents: number;
+  refundCount: number;
+  units: number;
+  truncated: boolean;
+  categories: Array<{ name: string; units: number; salesCents: number }>;
+  items: Array<{ name: string; detail: string; units: number; salesCents: number }>;
+  tenders: Array<{ method: string; label: string; count: number; amountCents: number }>;
+  sources: Array<{ source: string; label: string; count: number; totalCents: number }>;
+};
+
 function money(cents: string, currencyCode: string) {
   const amount = Number(cents);
   return Number.isSafeInteger(amount) ? new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode }).format(amount / 100) : cents;
@@ -55,7 +71,19 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
     if (response.success) summary = response.data.convenienceReportingSummary;
     else reportError = response.error || "Report failed";
   }
+  let sales: SalesReport | null = null;
+  if (state.projection?.businessId && startDate && endDate) {
+    const response = await keystoneClient<{ convenienceSalesReport: SalesReport }>(
+      `query PlatformSalesReport($input: ConvenienceSalesReportInput!) { convenienceSalesReport(input: $input) }`,
+      { input: { businessId: state.projection.businessId, startDate, endDate, storeIds: scope === "store" && state.projection.storeId ? [state.projection.storeId] : null } },
+    );
+    if (response.success) sales = response.data.convenienceSalesReport;
+    else reportError ||= response.error || "Report failed";
+  }
   const m = (cents: string) => money(cents, summary?.currencyCode || currencyCode || "USD");
+  const sm = (cents: number) => money(String(cents), sales?.currencyCode || currencyCode || "USD");
+  const share = (cents: number) => (sales && sales.itemSalesCents > 0 ? `${Math.round((cents / sales.itemSalesCents) * 100)}%` : "–");
+  const qty = (units: number) => String(Math.round(units * 100) / 100);
   // One set of definitions: item sales → less discounts → plus tax → less refunds = net receipts.
   const statement: Array<[string, string, boolean?]> = summary
     ? [
@@ -101,9 +129,83 @@ export async function ReportsPage({ searchParams }: { searchParams: PlatformSear
         <EnumField label="Scope" name="scope" defaultValue={scope} values={[{ value: "business", label: "All stores" }, { value: "store", label: "Selected store" }]} />
         <div className="sm:col-span-2 xl:col-span-1"><button className={primaryButtonClass} type="submit">Run report</button></div>
       </form>
+      {sales ? <section className="min-w-0 space-y-6" aria-labelledby="report-sales">
+        <div className="min-w-0">
+          <SectionTitle id="report-sales" meta={startDate === endDate ? startDate : `${startDate} – ${endDate}`}>Sales</SectionTitle>
+          <CountBoxes
+            items={[
+              { label: "Item sales", value: sm(sales.itemSalesCents), note: "Before tax" },
+              { label: "Tax", value: sm(sales.taxCents) },
+              { label: "Sales", value: String(sales.saleCount), note: sales.saleCount ? `Average ${sm(Math.round(sales.totalCents / sales.saleCount))}` : "None in period" },
+              { label: "Refunds", value: sales.refundCents ? `−${sm(sales.refundCents)}` : sm(0), note: sales.refundCount ? `${sales.refundCount} issued` : "None" },
+            ]}
+          />
+          {sales.truncated ? <p role="status" className="mt-2 text-sm text-muted-foreground">This period has more sales than one report holds. Choose a shorter period for exact figures.</p> : null}
+        </div>
+        {sales.saleCount ? <>
+          <div className="grid min-w-0 items-start gap-6 lg:grid-cols-2">
+            <div className="min-w-0">
+              <SectionTitle meta={sales.categories.length}>By category</SectionTitle>
+              <DataTable aria-label="Sales by category">
+                <thead><tr><Th>Category</Th><Th align="right">Units</Th><Th align="right">Sales</Th><Th align="right" priority={2}>Share</Th></tr></thead>
+                <tbody>
+                  {sales.categories.map((row) => <Tr key={row.name}>
+                    <Td className="font-medium">{row.name}</Td>
+                    <Td align="right">{qty(row.units)}</Td>
+                    <Td align="right">{sm(row.salesCents)}</Td>
+                    <Td align="right" priority={2} className="text-muted-foreground">{share(row.salesCents)}</Td>
+                  </Tr>)}
+                </tbody>
+              </DataTable>
+            </div>
+            <div className="min-w-0 space-y-6">
+              <div className="min-w-0">
+                <SectionTitle>How customers paid</SectionTitle>
+                <DataTable aria-label="Payments by method">
+                  <thead><tr><Th>Method</Th><Th align="right">Payments</Th><Th align="right">Amount</Th></tr></thead>
+                  <tbody>
+                    {sales.tenders.map((row) => <Tr key={row.method}>
+                      <Td className="font-medium">{row.label}</Td>
+                      <Td align="right">{row.count}</Td>
+                      <Td align="right">{sm(row.amountCents)}</Td>
+                    </Tr>)}
+                  </tbody>
+                </DataTable>
+              </div>
+              <div className="min-w-0">
+                <SectionTitle>Where the sale was made</SectionTitle>
+                <DataTable aria-label="Sales by channel">
+                  <thead><tr><Th>Channel</Th><Th align="right">Sales</Th><Th align="right">Total incl. tax</Th></tr></thead>
+                  <tbody>
+                    {sales.sources.map((row) => <Tr key={row.source}>
+                      <Td className="font-medium">{row.label}</Td>
+                      <Td align="right">{row.count}</Td>
+                      <Td align="right">{sm(row.totalCents)}</Td>
+                    </Tr>)}
+                  </tbody>
+                </DataTable>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <SectionTitle meta={sales.items.length === 25 ? "Top 25" : sales.items.length}>Best sellers</SectionTitle>
+            <DataTable aria-label="Best sellers">
+              <thead><tr><Th>Item</Th><Th align="right">Units</Th><Th align="right">Sales</Th><Th align="right" priority={2}>Share</Th></tr></thead>
+              <tbody>
+                {sales.items.map((row) => <Tr key={`${row.name}|${row.detail}`}>
+                  <Td><span className="font-medium">{row.name}</span>{row.detail ? <span className="text-muted-foreground"> · {row.detail}</span> : null}</Td>
+                  <Td align="right">{qty(row.units)}</Td>
+                  <Td align="right">{sm(row.salesCents)}</Td>
+                  <Td align="right" priority={2} className="text-muted-foreground">{share(row.salesCents)}</Td>
+                </Tr>)}
+              </tbody>
+            </DataTable>
+          </div>
+        </> : null}
+      </section> : null}
       {summary ? <section className="min-w-0 space-y-6" aria-labelledby="report-results">
         <div className="min-w-0">
-          <SectionTitle id="report-results" meta={`${startDate} – ${endDate} · ${summary.dayCount} ${summary.dayCount === 1 ? "day" : "days"}`}>Cash</SectionTitle>
+          <SectionTitle id="report-results" meta={`${startDate} – ${endDate} · ${summary.dayCount} ${summary.dayCount === 1 ? "day" : "days"}`}>Closed days: cash</SectionTitle>
           {summary.dayCount === 0 ? (
             <CountBoxes
               items={[

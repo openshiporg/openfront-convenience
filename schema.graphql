@@ -9674,6 +9674,7 @@ type Query {
   conveniencePlatformNavigation: ConveniencePlatformNavigation!
   conveniencePublicStorefront: ConveniencePublicStorefrontProjection!
   convenienceReportingSummary(input: ConvenienceReportingSummaryInput!): ConvenienceReportingSummary!
+  convenienceSalesReport(input: ConvenienceSalesReportInput!): JSON!
   posSaleReceipt(input: PosSaleReceiptInput!): JSON!
   posOperationOutcome(input: PosOperationOutcomeInput!): PosOperationOutcome!
   downloadExportArtifact(input: DownloadExportArtifactInput!): ExportArtifact!
@@ -10121,6 +10122,13 @@ input PosSaleReceiptInput {
   businessId: ID!
   storeId: ID!
   saleId: ID!
+}
+
+input ConvenienceSalesReportInput {
+  businessId: ID!
+  startDate: String!
+  endDate: String!
+  storeIds: [ID!]
 }
 
 input ConvenienceReportingSummaryInput {

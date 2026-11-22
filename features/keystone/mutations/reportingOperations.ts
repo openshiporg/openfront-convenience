@@ -7,7 +7,7 @@ import {
   storeIdsForPermission,
   type Session,
 } from "../access";
-import { normalizeTradingDate } from "../lib/reconciliation";
+import { normalizeTradingDate, tradingDatePeriodBounds } from "../lib/reconciliation";
 import { summarizeStoreDays } from "../lib/reporting";
 import { requireSession } from "./operationRunner";
 
@@ -145,5 +145,127 @@ export async function convenienceReportingSummary(
     currencyCode: resolvedCurrencyCode,
     ...serializeTotals(summary),
     stores: summary.stores.map(serializeTotals),
+  };
+}
+
+
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash", credit_card: "Card", debit_card: "Debit card", mobile_wallet: "Mobile wallet", gift_card: "Gift card",
+  ebt_snap: "EBT / SNAP", fleet_card: "Fleet card", house_account: "House account", loyalty: "Points", other: "Other",
+};
+
+/**
+ * What sold, read straight from the sales in the period (store-local days), so the
+ * owner sees today's numbers before the day is closed. Money is before tax and after
+ * discounts, the way a department report reads at the incumbents.
+ */
+export async function convenienceSalesReport(
+  _root: unknown,
+  args: { input: { businessId: string; startDate: string; endDate: string; storeIds?: string[] | null } },
+  context: Context,
+) {
+  const session = requireSession(context) as Session;
+  assertBusinessPermission(session, args.input.businessId, "canReadReporting");
+  const startDate = normalizeTradingDate(args.input.startDate);
+  const endDate = normalizeTradingDate(args.input.endDate);
+  if (endDate < startDate) throw new Error("Reporting end date must not precede start date");
+  if (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`) > 366 * 86_400_000) {
+    throw new Error("Reporting date range cannot exceed 366 days");
+  }
+  const requested = [...new Set(args.input.storeIds?.filter(Boolean) ?? [])];
+  for (const storeId of requested) assertStorePermission(session, args.input.businessId, storeId, "canReadReporting");
+  const allowed = requested.length
+    ? requested
+    : hasUnrestrictedStoreAccess(session)
+      ? null
+      : storeIdsForPermission(session, "canReadReporting", args.input.businessId);
+  if (allowed && !allowed.length) throw new Error("Access denied for reporting stores");
+  const stores = await context.prisma.store.findMany({
+    where: { businessId: args.input.businessId, ...(allowed ? { id: { in: allowed } } : {}) },
+    select: { id: true, timezone: true, currencyCode: true },
+    take: 500,
+  });
+  const periods = stores.map((store) => ({
+    storeId: store.id,
+    from: tradingDatePeriodBounds(startDate, store.timezone || "UTC").periodStartedAt,
+    to: tradingDatePeriodBounds(endDate, store.timezone || "UTC").periodEndedAt,
+  }));
+  const inPeriod = (field: "completedAt" | "processedAt") => periods.map((period) => ({ storeId: period.storeId, [field]: { gte: period.from, lt: period.to } }));
+  if (!periods.length) {
+    return { startDate, endDate, currencyCode: "USD", saleCount: 0, itemSalesCents: 0, taxCents: 0, totalCents: 0, refundCents: 0, refundCount: 0, units: 0, truncated: false, categories: [], items: [], tenders: [], sources: [] };
+  }
+  const LIMIT = 20_000;
+  const counted = { status: { in: ["completed", "partially_refunded", "refunded"] as ("completed" | "partially_refunded" | "refunded")[] } };
+  const [sales, lines, tenders, refunds] = await Promise.all([
+    context.prisma.sale.findMany({
+      where: { businessId: args.input.businessId, ...counted, OR: inPeriod("completedAt") },
+      select: { source: true, totalCents: true, taxCents: true },
+      take: LIMIT,
+    }),
+    context.prisma.saleLine.findMany({
+      where: { businessId: args.input.businessId, sale: { ...counted, OR: inPeriod("completedAt") } },
+      select: {
+        titleSnapshot: true, variantTitleSnapshot: true, quantity: true, subtotalCents: true, discountCents: true, taxCents: true, totalCents: true, taxInclusive: true,
+        variantId: true, product: { select: { categories: { select: { name: true }, orderBy: { name: "asc" }, take: 1 } } },
+      },
+      take: LIMIT,
+    }),
+    context.prisma.tender.findMany({
+      where: { businessId: args.input.businessId, status: { in: ["captured", "partially_refunded", "refunded"] }, sale: { ...counted, OR: inPeriod("completedAt") } },
+      select: { method: true, amountCents: true, changeCents: true },
+      take: LIMIT,
+    }),
+    context.prisma.refund.findMany({
+      where: { businessId: args.input.businessId, status: "completed", OR: inPeriod("processedAt") },
+      select: { amountCents: true },
+      take: LIMIT,
+    }),
+  ]);
+  const bump = <T extends { units: number; salesCents: number }>(map: Map<string, T>, key: string, start: T, units: number, cents: number) => {
+    const row = map.get(key) ?? start;
+    row.units += units; row.salesCents += cents; map.set(key, row);
+  };
+  const categories = new Map<string, { name: string; units: number; salesCents: number }>();
+  const items = new Map<string, { name: string; detail: string; units: number; salesCents: number }>();
+  let itemSalesCents = 0; let units = 0;
+  for (const line of lines) {
+    // Before tax, after discount: a tax-inclusive line carries its tax inside the total.
+    const net = line.taxInclusive ? line.totalCents - line.taxCents : line.subtotalCents - line.discountCents;
+    const quantity = Number(line.quantity);
+    itemSalesCents += net; units += quantity;
+    const category = line.product?.categories[0]?.name || "Uncategorized";
+    bump(categories, category, { name: category, units: 0, salesCents: 0 }, quantity, net);
+    bump(items, line.variantId ?? `${line.titleSnapshot}|${line.variantTitleSnapshot}`, { name: line.titleSnapshot, detail: line.variantTitleSnapshot ?? "", units: 0, salesCents: 0 }, quantity, net);
+  }
+  const byMethod = new Map<string, { method: string; label: string; count: number; amountCents: number }>();
+  for (const tender of tenders) {
+    const row = byMethod.get(tender.method) ?? { method: tender.method, label: METHOD_LABELS[tender.method] ?? tender.method, count: 0, amountCents: 0 };
+    row.count += 1; row.amountCents += tender.amountCents - (tender.changeCents ?? 0); byMethod.set(tender.method, row);
+  }
+  const bySource = new Map<string, { source: string; label: string; count: number; totalCents: number }>();
+  for (const sale of sales) {
+    const online = sale.source === "storefront" || sale.source === "mobile";
+    const key = online ? "online" : "counter";
+    const row = bySource.get(key) ?? { source: key, label: online ? "Online pickup" : "At the counter", count: 0, totalCents: 0 };
+    row.count += 1; row.totalCents += sale.totalCents; bySource.set(key, row);
+  }
+  const round = (value: number) => Math.round(value * 10_000) / 10_000;
+  const bySales = <T extends { salesCents: number }>(left: T, right: T) => right.salesCents - left.salesCents;
+  return {
+    startDate,
+    endDate,
+    currencyCode: stores[0]?.currencyCode || "USD",
+    saleCount: sales.length,
+    itemSalesCents,
+    taxCents: sales.reduce((total, sale) => total + sale.taxCents, 0),
+    totalCents: sales.reduce((total, sale) => total + sale.totalCents, 0),
+    refundCents: refunds.reduce((total, refund) => total + refund.amountCents, 0),
+    refundCount: refunds.length,
+    units: round(units),
+    truncated: [sales, lines, tenders, refunds].some((rows) => rows.length >= LIMIT),
+    categories: [...categories.values()].sort(bySales).map((row) => ({ ...row, units: round(row.units) })),
+    items: [...items.values()].sort(bySales).slice(0, 25).map((row) => ({ ...row, units: round(row.units) })),
+    tenders: [...byMethod.values()].sort((left, right) => right.amountCents - left.amountCents),
+    sources: [...bySource.values()].sort((left, right) => right.totalCents - left.totalCents),
   };
 }
