@@ -17827,6 +17827,31 @@ function resolveLogo(input) {
 function metadataObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
+var CASHIER_PERMISSIONS = [
+  "canAccessDashboard",
+  "canReadSales",
+  "canManageSales",
+  "canReadCash",
+  "canManageCash",
+  "canReadCatalog",
+  "canReadPricing",
+  "canReadPromotions",
+  "canReadLoyalty",
+  "canManageLoyalty",
+  "canReadCompliance",
+  "canManageCompliance",
+  "canReadPeople",
+  "canReadPreparedFood",
+  "canReadLottery",
+  "canManageLottery",
+  "canReadMoneyServices",
+  "canManageMoneyServices"
+];
+var OWNER_ONLY = ["canManageOnboarding", "canManageBusiness", "canManageRoles", "canManageIntegrations", "canManageApiKeys"];
+var STAFF_ROLE_PRESETS = [
+  { name: "Cashier", description: "Rings sales, takes cash, checks ID and serves members", permissions: CASHIER_PERMISSIONS },
+  { name: "Manager", description: "Runs the store day to day: refunds, stock, prices, staff and the day close", permissions: permissionKeys.filter((permission) => !OWNER_ONLY.includes(permission)) }
+];
 async function onboardConvenienceBusiness(_root, args, context) {
   const session = requireSession(context);
   if (session.apiKeyId) throw new Error("Machine sessions cannot run onboarding");
@@ -17979,6 +18004,16 @@ async function onboardConvenienceBusiness(_root, args, context) {
     const role = await transaction.role.create({
       data: { businessId: business.id, name: "Owner", description: "Full business owner permissions", ...rolePermissions }
     });
+    for (const preset of STAFF_ROLE_PRESETS) {
+      await transaction.role.create({
+        data: {
+          businessId: business.id,
+          name: preset.name,
+          description: preset.description,
+          ...Object.fromEntries(preset.permissions.map((permission) => [permission, true]))
+        }
+      });
+    }
     const employee = await transaction.employee.create({
       data: {
         businessId: business.id,

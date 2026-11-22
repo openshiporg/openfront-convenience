@@ -99,3 +99,11 @@ test("the payments report keeps each method's row", () => {
   const server = read("features/keystone/mutations/reportingOperations.ts");
   assert.match(server, /\n\s+row\.count \+= 1; row\.amountCents \+= tender\.amountCents; byMethod\.set\(tender\.method, row\);/);
 });
+
+test("a new store starts with Cashier and Manager roles that can open the register", () => {
+  const source = read("features/keystone/mutations/onboardConvenienceBusiness.ts");
+  assert.match(source, /for \(const preset of STAFF_ROLE_PRESETS\)/);
+  const cashier = source.slice(source.indexOf("const CASHIER_PERMISSIONS"), source.indexOf("const OWNER_ONLY"));
+  for (const permission of ["canAccessDashboard", "canReadSales", "canManageSales", "canReadCash", "canManageCash"]) assert.match(cashier, new RegExp(`"${permission}"`));
+  for (const permission of ["canManageBusiness", "canManageRoles", "canManagePayments"]) assert.doesNotMatch(cashier, new RegExp(`"${permission}"`));
+});

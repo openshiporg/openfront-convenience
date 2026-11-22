@@ -14,6 +14,7 @@ import {
   canAccessBusiness,
   isHumanPlatformAdmin,
   permissionKeys,
+  type PermissionKey,
   type Session,
 } from "../access";
 import {
@@ -169,6 +170,21 @@ function metadataObject(value: Prisma.JsonValue | null): Record<string, Prisma.J
     ? value as Record<string, Prisma.JsonValue>
     : {};
 }
+
+/** Rings sales, takes cash, looks up items and members, checks ID. No refunds to card, no settings. */
+const CASHIER_PERMISSIONS = [
+  "canAccessDashboard", "canReadSales", "canManageSales", "canReadCash", "canManageCash", "canReadCatalog",
+  "canReadPricing", "canReadPromotions", "canReadLoyalty", "canManageLoyalty", "canReadCompliance", "canManageCompliance",
+  "canReadPeople", "canReadPreparedFood", "canReadLottery", "canManageLottery", "canReadMoneyServices", "canManageMoneyServices",
+] as const satisfies readonly PermissionKey[];
+
+/** Runs the store day to day. Everything but ownership: business settings, roles, API keys and integrations. */
+const OWNER_ONLY: readonly PermissionKey[] = ["canManageOnboarding", "canManageBusiness", "canManageRoles", "canManageIntegrations", "canManageApiKeys"];
+
+export const STAFF_ROLE_PRESETS: ReadonlyArray<{ name: string; description: string; permissions: readonly PermissionKey[] }> = [
+  { name: "Cashier", description: "Rings sales, takes cash, checks ID and serves members", permissions: CASHIER_PERMISSIONS },
+  { name: "Manager", description: "Runs the store day to day: refunds, stock, prices, staff and the day close", permissions: permissionKeys.filter((permission) => !OWNER_ONLY.includes(permission)) },
+];
 
 export default async function onboardConvenienceBusiness(
   _root: unknown,
@@ -334,6 +350,19 @@ export default async function onboardConvenienceBusiness(
     const role = await transaction.role.create({
       data: { businessId: business.id, name: "Owner", description: "Full business owner permissions", ...rolePermissions },
     });
+    // A new store gets the two roles every counter needs, so the owner can add a
+    // cashier on day one (Square and NRS ship Cashier and Manager roles the same way).
+    // The owner can change either under Models > Roles.
+    for (const preset of STAFF_ROLE_PRESETS) {
+      await transaction.role.create({
+        data: {
+          businessId: business.id,
+          name: preset.name,
+          description: preset.description,
+          ...Object.fromEntries(preset.permissions.map((permission) => [permission, true])),
+        },
+      });
+    }
     const employee = await transaction.employee.create({
       data: {
         businessId: business.id,
