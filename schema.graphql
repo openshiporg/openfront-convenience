@@ -9293,6 +9293,7 @@ type Mutation {
   configureCatalogItem(input: ConfigureCatalogItemInput!): OperationResult!
   configureStoreTaxRate(input: ConfigureStoreTaxRateInput!): OperationResult!
   configurePromotion(input: ConfigurePromotionInput!): OperationResult!
+  archivePromotion(input: ArchivePromotionInput!): OperationResult!
   configureVendor(input: ConfigureVendorInput!): OperationResult!
   configureRegister(input: ConfigureRegisterInput!): OperationResult!
   configureInventoryLocation(input: ConfigureInventoryLocationInput!): OperationResult!
@@ -10503,6 +10504,12 @@ input ConfigureStoreTaxRateInput {
   jurisdiction: String!
   rate: Float!
   inclusive: Boolean
+  idempotencyKey: String!
+}
+
+input ArchivePromotionInput {
+  businessId: ID!
+  promotionId: ID!
   idempotencyKey: String!
 }
 

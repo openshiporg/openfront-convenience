@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
+
+import { archivePromotionAction } from "../../actions";
 
 import { DataTable, SectionTitle, StatusText, Td, Th, Tr, type DotTone } from "../../components/cv-ui";
 import { QueueClear, ToneText } from "../../fuel/ops-kit";
@@ -149,6 +152,9 @@ export async function PromotionListPage({ searchParams }: { searchParams: Platfo
             <Th align="right" priority={2}>
               Limit
             </Th>
+            <Th align="right">
+              <span className="sr-only">Actions</span>
+            </Th>
           </tr>
         </thead>
         <tbody>
@@ -176,6 +182,24 @@ export async function PromotionListPage({ searchParams }: { searchParams: Platfo
               <Td align="right">{promotion.redemptionsCount}</Td>
               <Td align="right" priority={2}>
                 {promotion.usageLimit ?? "—"}
+              </Td>
+              <Td align="right">
+                {promotion.status === "archived" ? null : (
+                  <form action={archivePromotionAction}>
+                    <input type="hidden" name="idempotencyKey" value={`platform-${randomUUID()}`} />
+                    <input type="hidden" name="returnPath" value="/dashboard/platform/promotions" />
+                    <input type="hidden" name="businessId" value={scope.businessId ?? ""} />
+                    <input type="hidden" name="storeId" value={scope.storeId ?? ""} />
+                    <input type="hidden" name="promotionId" value={promotion.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Archive ${promotion.name}`}
+                      className="inline-flex min-h-9 items-center rounded-[4px] px-2 text-[13px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring max-sm:min-h-11"
+                    >
+                      Archive
+                    </button>
+                  </form>
+                )}
               </Td>
             </Tr>
           ))}

@@ -102,6 +102,7 @@ const OPERATION_NOTICES: Record<string, string> = {
   configurePaymentProvider: "Provider saved",
   configurePreparedFoodRecipe: "Recipe saved",
   configurePromotion: "Promotion saved",
+  archivePromotion: "Promotion archived",
   configureStoreTaxRate: "Tax rate saved",
   configureRegister: "Register saved",
   configureInventoryLocation: "Location saved",
@@ -1080,6 +1081,19 @@ export async function configureStoreTaxRateAction(formData: FormData) {
       rate: percentToRate(field(formData, "ratePercent")),
       inclusive: field(formData, "inclusive") === "true",
     },
+  );
+}
+
+export async function archivePromotionAction(formData: FormData) {
+  return executeOperation(
+    formData,
+    `
+    mutation PlatformArchivePromotion($input: ArchivePromotionInput!) {
+      archivePromotion(input: $input) { id status replayed reference }
+    }
+  `,
+    "archivePromotion",
+    { businessId: field(formData, "businessId"), promotionId: field(formData, "promotionId") },
   );
 }
 

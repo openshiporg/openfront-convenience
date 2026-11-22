@@ -492,6 +492,41 @@ export async function configureStoreTaxRate(
   });
 }
 
+/** Retires a promotion: it stops applying and leaves the working lists. Past redemptions keep their record. */
+export async function archivePromotion(
+  _root: unknown,
+  args: { input: { businessId: string; promotionId: string; idempotencyKey: string } },
+  context: Context,
+): Promise<OperationResult> {
+  return runIdempotentOperation({
+    context,
+    businessId: args.input.businessId,
+    permission: "canManagePromotions",
+    scope: "archivePromotion",
+    idempotencyKey: args.input.idempotencyKey,
+    input: args.input,
+    resourceType: "Promotion",
+    action: "promotion.archive",
+    execute: async (transaction) => {
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`checkout-policy:${args.input.businessId}`}))::text AS "locked"`,
+      );
+      const promotion = await transaction.promotion.findFirst({
+        where: { id: args.input.promotionId, businessId: args.input.businessId },
+      });
+      if (!promotion) throw new Error("Promotion not found");
+      if (promotion.status !== "archived") {
+        // The lookup key is freed so the same name or code can be used again.
+        await transaction.promotion.update({
+          where: { id: promotion.id },
+          data: { status: "archived", lookupKey: `${promotion.lookupKey}:archived:${promotion.id}` },
+        });
+      }
+      return { id: promotion.id, status: "archived", reference: promotion.code || promotion.name };
+    },
+  });
+}
+
 export async function configurePromotion(
   _root: unknown,
   args: {

@@ -19,6 +19,7 @@ import {
 } from "./cashOperations";
 import {
   configureCatalogItem,
+  archivePromotion,
   configurePromotion,
   configureStoreTaxRate,
 } from "./catalogOperations";
@@ -861,6 +862,12 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         idempotencyKey: String!
       }
 
+      input ArchivePromotionInput {
+        businessId: ID!
+        promotionId: ID!
+        idempotencyKey: String!
+      }
+
       input ConfigurePromotionInput {
         businessId: ID!
         storeIds: [ID!]!
@@ -1638,6 +1645,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           input: ConfigureStoreTaxRateInput!
         ): OperationResult!
         configurePromotion(input: ConfigurePromotionInput!): OperationResult!
+        archivePromotion(input: ArchivePromotionInput!): OperationResult!
         configureVendor(input: ConfigureVendorInput!): OperationResult!
         configureRegister(input: ConfigureRegisterInput!): OperationResult!
         configureInventoryLocation(input: ConfigureInventoryLocationInput!): OperationResult!
@@ -1837,6 +1845,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         expireLoyaltyPoints,
         configureCatalogItem,
         configureStoreTaxRate,
+        archivePromotion,
         configurePromotion,
         configureVendor,
         configureVendorItem,

@@ -9952,6 +9952,34 @@ async function configureStoreTaxRate(_root, args, context) {
     }
   });
 }
+async function archivePromotion(_root, args, context) {
+  return runIdempotentOperation({
+    context,
+    businessId: args.input.businessId,
+    permission: "canManagePromotions",
+    scope: "archivePromotion",
+    idempotencyKey: args.input.idempotencyKey,
+    input: args.input,
+    resourceType: "Promotion",
+    action: "promotion.archive",
+    execute: async (transaction) => {
+      await transaction.$queryRaw(
+        import_client3.Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`checkout-policy:${args.input.businessId}`}))::text AS "locked"`
+      );
+      const promotion = await transaction.promotion.findFirst({
+        where: { id: args.input.promotionId, businessId: args.input.businessId }
+      });
+      if (!promotion) throw new Error("Promotion not found");
+      if (promotion.status !== "archived") {
+        await transaction.promotion.update({
+          where: { id: promotion.id },
+          data: { status: "archived", lookupKey: `${promotion.lookupKey}:archived:${promotion.id}` }
+        });
+      }
+      return { id: promotion.id, status: "archived", reference: promotion.code || promotion.name };
+    }
+  });
+}
 async function configurePromotion(_root, args, context) {
   if (!["draft", "scheduled", "active", "paused"].includes(args.input.status)) {
     throw new Error(
@@ -29908,6 +29936,12 @@ function extendGraphqlSchema(baseSchema) {
         idempotencyKey: String!
       }
 
+      input ArchivePromotionInput {
+        businessId: ID!
+        promotionId: ID!
+        idempotencyKey: String!
+      }
+
       input ConfigurePromotionInput {
         businessId: ID!
         storeIds: [ID!]!
@@ -30685,6 +30719,7 @@ function extendGraphqlSchema(baseSchema) {
           input: ConfigureStoreTaxRateInput!
         ): OperationResult!
         configurePromotion(input: ConfigurePromotionInput!): OperationResult!
+        archivePromotion(input: ArchivePromotionInput!): OperationResult!
         configureVendor(input: ConfigureVendorInput!): OperationResult!
         configureRegister(input: ConfigureRegisterInput!): OperationResult!
         configureInventoryLocation(input: ConfigureInventoryLocationInput!): OperationResult!
@@ -30881,6 +30916,7 @@ function extendGraphqlSchema(baseSchema) {
         expireLoyaltyPoints,
         configureCatalogItem,
         configureStoreTaxRate,
+        archivePromotion,
         configurePromotion,
         configureVendor,
         configureVendorItem,
