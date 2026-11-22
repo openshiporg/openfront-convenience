@@ -78,3 +78,10 @@ test("a promotion can be archived from its row", () => {
   assert.match(read("features/keystone/mutations/catalogOperations.ts"), /export async function archivePromotion/);
   assert.match(read("features/platform/promotions/screens/PromotionListPage.tsx"), /action=\{archivePromotionAction\}/);
 });
+
+test("web baskets past their expiry are marked abandoned, never deleted", () => {
+  const source = read("features/keystone/mutations/storefrontOperations.ts");
+  assert.match(source, /cart\.updateMany\(\{ where: \{ storeId: store\.id, source: "storefront", status: "open", saleId: null, id: \{ not: cart\.id \}, expiresAt: \{ lt: /);
+  assert.match(source, /data: \{ status: "abandoned" \} \}\)/);
+  assert.doesNotMatch(source, /cart\.deleteMany/);
+});

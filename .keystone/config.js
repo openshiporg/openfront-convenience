@@ -28736,6 +28736,7 @@ function assertPaymentMatches(expected, actual) {
 var import_graphql4 = require("graphql");
 var import_node_crypto30 = require("node:crypto");
 var import_client18 = require("@prisma/client");
+var ABANDON_AFTER_EXPIRY_MS = 864e5;
 async function publishedStore(db) {
   const businesses = await db.business.findMany({ where: { status: "active", storefrontStatus: "published" }, include: { storefrontStore: true }, take: 2 });
   const business = businesses.length === 1 ? businesses[0] : null;
@@ -28883,6 +28884,7 @@ async function updateStorefrontBasket(_root, args, context) {
       if (input.lineId) await db.cartLine.update({ where: { id: input.lineId }, data });
       else await db.cartLine.create({ data });
     }
+    await db.cart.updateMany({ where: { storeId: store.id, source: "storefront", status: "open", saleId: null, id: { not: cart.id }, expiresAt: { lt: new Date(Date.now() - ABANDON_AFTER_EXPIRY_MS) } }, data: { status: "abandoned" } });
     const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
     await db.cart.update({ where: { id: cart.id }, data: { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0, expiresAt: new Date(Date.now() + 864e5) } });
     const result = await readBasket(db, cart.id);

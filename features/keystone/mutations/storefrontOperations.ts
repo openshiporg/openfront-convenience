@@ -9,6 +9,8 @@ import { isPaymentProviderConfigured } from "../utils/paymentProviderConfig";
 import { releasePickupPaymentForEdit } from "./pickupOperations";
 import { plainDocumentText } from "./publicStorefrontProjection";
 
+const ABANDON_AFTER_EXPIRY_MS = 86_400_000;
+
 // Adapted from canonical security/cart-access: raw Cart/CartLine stay locked.
 // Public reads are explicit DTOs; customer IDs and prices never come from input.
 export async function publishedStore(db: Prisma.TransactionClient) {
@@ -162,6 +164,10 @@ export async function updateStorefrontBasket(_root: unknown, args: { input: { ca
       const data = { businessId: business.id, storeId: store.id, cartId: cart.id, variantId: variant.id, titleSnapshot: variant.product.title, variantTitleSnapshot: variant.title, skuSnapshot: variant.sku, quantity, unitOfMeasure: variant.unitOfMeasure, unitPriceCents, subtotalCents: amounts.subtotalCents, discountCents: amounts.discountCents, taxCents: amounts.taxCents, totalCents: amounts.totalCents, taxRate: tax?.rate ?? 0, taxInclusive: tax?.inclusive ?? false, priceBookEntryId: price?.id ?? null, priceSource: price ? "price_book" as const : "variant_default" as const };
       if (input.lineId) await db.cartLine.update({ where: { id: input.lineId }, data }); else await db.cartLine.create({ data });
     }
+    // Web baskets nobody can reach any more (the cookie died with expiresAt) are marked
+    // abandoned here, on a request that already touches baskets. A day of grace covers a
+    // payment still confirming. Nothing is deleted; open -> abandoned is the cart's own status.
+    await db.cart.updateMany({ where: { storeId: store.id, source: "storefront", status: "open", saleId: null, id: { not: cart.id }, expiresAt: { lt: new Date(Date.now() - ABANDON_AFTER_EXPIRY_MS) } }, data: { status: "abandoned" } });
     const sums = await db.cartLine.aggregate({ where: { cartId: cart.id }, _sum: { subtotalCents: true, taxCents: true, totalCents: true } });
     // Each basket change keeps the basket alive for another day, matching the cookie.
     await db.cart.update({ where: { id: cart.id }, data: { subtotalCents: sums._sum.subtotalCents ?? 0, taxCents: sums._sum.taxCents ?? 0, totalCents: sums._sum.totalCents ?? 0, expiresAt: new Date(Date.now() + 86400000) } });
