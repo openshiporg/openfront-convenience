@@ -69,6 +69,7 @@ type PendingPosIntent =
       idempotencyKey: string;
       cartId: string;
       amountCents: number;
+      tenderedCents?: number;
     };
 
 function parsePendingIntent(value: string): PendingPosIntent | null {
@@ -100,7 +101,8 @@ function parsePendingIntent(value: string): PendingPosIntent | null {
       parsed.scope === "completePosSale" &&
       typeof parsed.cartId === "string" &&
       Number.isSafeInteger(parsed.amountCents) &&
-      Number(parsed.amountCents) >= 0
+      Number(parsed.amountCents) >= 0 &&
+      (parsed.tenderedCents === undefined || Number.isSafeInteger(parsed.tenderedCents))
     ) {
       return parsed as PendingPosIntent;
     }
@@ -163,6 +165,8 @@ export function FastCheckoutStation({
     "Ready",
   );
   const [saleId, setSaleId] = useState<string | null>(null);
+  const [cashGiven, setCashGiven] = useState("");
+  const [changeDue, setChangeDue] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
 
@@ -318,6 +322,7 @@ export function FastCheckoutStation({
     } else {
       const completedSaleId = result?.saleId || outcome?.id || null;
       setSaleId(completedSaleId);
+      setChangeDue(intent.tenderedCents != null ? intent.tenderedCents - intent.amountCents : null);
       setSummary(null);
       setCarts((current) =>
         current.filter((cart) => cart.id !== intent.cartId),
@@ -371,6 +376,7 @@ export function FastCheckoutStation({
             storeId,
             cartId: intent.cartId,
             amountCents: intent.amountCents,
+            tenderedCents: intent.tenderedCents,
             idempotencyKey: intent.idempotencyKey,
           });
         }
@@ -470,15 +476,22 @@ export function FastCheckoutStation({
     });
   };
 
+  // Cash handed over, in dollars. Empty means the customer paid the exact total.
+  const cashGivenCents = /^\d{1,6}(\.\d{0,2})?$/.test(cashGiven.trim()) ? Math.round(Number(cashGiven) * 100) : null;
+  const cashTotal = summary?.totalCents ?? 0;
+  const cashShort = cashGiven.trim() !== "" && (cashGivenCents === null || cashGivenCents < cashTotal);
   const completeExactCash = () => {
     if (!cartId || !summary || summary.id !== cartId || !summary.linesLoaded)
       return;
+    if (cashShort) return;
     beginIntent({
       scope: "completePosSale",
       cartId,
       amountCents: summary.totalCents,
+      ...(cashGivenCents !== null && cashGivenCents > summary.totalCents ? { tenderedCents: cashGivenCents } : {}),
       idempotencyKey: operationKey("exact-cash"),
     });
+    setCashGiven("");
   };
 
   useEffect(() => {
@@ -697,10 +710,30 @@ export function FastCheckoutStation({
           </div>
         </div>
         <div className="space-y-3 border-t px-4 py-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+            <label className={field}>
+              Cash given
+              <input
+                value={cashGiven}
+                onChange={(event) => setCashGiven(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); completeExactCash(); } }}
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder={money(cashTotal)}
+                aria-invalid={cashShort || undefined}
+                aria-describedby="fast-pos-change"
+                className={`${inputClass} h-11 text-base tabular-nums`}
+              />
+            </label>
+            <p id="fast-pos-change" className="pb-2 text-right text-xs text-muted-foreground" aria-live="polite">
+              {cashShort ? "Less than the total" : <>Change <span className="block font-mono text-lg font-medium tabular-nums text-foreground">{money(Math.max(0, (cashGivenCents ?? cashTotal) - cashTotal))}</span></>}
+            </p>
+          </div>
           <button
             type="button"
             onClick={completeExactCash}
             disabled={
+              cashShort ||
               pending ||
               Boolean(pendingIntent) ||
               !cartId ||
@@ -710,8 +743,14 @@ export function FastCheckoutStation({
             }
             className={`${primaryButtonClass} h-12 w-full`}
           >
-            Exact cash
+            {cashGivenCents !== null && cashGivenCents > cashTotal ? "Take cash" : "Exact cash"}
           </button>
+          {saleId && changeDue ? (
+            <p className="flex items-baseline justify-between gap-3 border-y border-foreground/70 py-2" role="status">
+              <span className="text-sm font-medium">Change due</span>
+              <span className="font-mono text-3xl font-medium tabular-nums">{money(changeDue)}</span>
+            </p>
+          ) : null}
           {saleId ? (
             <a
               href={`/dashboard/platform/pos/receipt/${encodeURIComponent(saleId)}?businessId=${encodeURIComponent(businessId)}&storeId=${encodeURIComponent(storeId)}`}

@@ -85,3 +85,12 @@ test("web baskets past their expiry are marked abandoned, never deleted", () => 
   assert.match(source, /data: \{ status: "abandoned" \} \}\)/);
   assert.doesNotMatch(source, /cart\.deleteMany/);
 });
+
+test("the register takes cash over the total and shows the change", () => {
+  const station = read("features/platform/pos/FastCheckoutStation.tsx");
+  assert.match(station, /Cash given/);
+  assert.match(station, /Change due/);
+  const actions = read("features/platform/pos/fast-pos-actions.ts");
+  assert.match(actions, /tenderedCents < input\.amountCents/);
+  assert.match(actions, /amountCents: input\.amountCents,\s+tenderedCents,/);
+});

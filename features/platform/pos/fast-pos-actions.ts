@@ -311,8 +311,14 @@ export async function fastCompleteExactCash(input: {
   storeId: string;
   cartId: string;
   amountCents: number;
+  /** Cash handed over; the drawer gives the difference back as change. */
+  tenderedCents?: number;
   idempotencyKey: string;
 }): Promise<FastPosResult> {
+  const tenderedCents = input.tenderedCents ?? input.amountCents;
+  if (!Number.isSafeInteger(tenderedCents) || tenderedCents < input.amountCents) {
+    return { ok: false, message: "Cash given is less than the total.", cart: null };
+  }
   if (
     !validScope(input) ||
     !input.cartId ||
@@ -359,7 +365,7 @@ export async function fastCompleteExactCash(input: {
           {
             method: "cash",
             amountCents: input.amountCents,
-            tenderedCents: input.amountCents,
+            tenderedCents,
           },
         ],
       },
@@ -374,7 +380,9 @@ export async function fastCompleteExactCash(input: {
   }
   return {
     ok: true,
-    message: `Sale completed · ${shortRef(response.data.completePosSale.reference) || "receipt ready"}`,
+    message: `Sale completed · ${shortRef(response.data.completePosSale.reference) || "receipt ready"}${
+      tenderedCents > input.amountCents ? ` · Change due $${((tenderedCents - input.amountCents) / 100).toFixed(2)}` : ""
+    }`,
     cart: null,
     saleId: response.data.completePosSale.id,
   };
