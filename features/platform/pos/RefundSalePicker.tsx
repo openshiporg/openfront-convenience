@@ -69,9 +69,9 @@ export function RefundSalePicker({
       {select("Sale line", "saleLineId", saleLines, true, "No refundable lines")}
       {select("Original tender", "originalTenderId", saleTenders, true, "No refundable tender")}
       {/* Most sales are paid one way and the refund goes back that way; two-way sales open this. */}
-      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2" open={saleTenders.length > 1 || undefined}>
-        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Sale was paid two ways (split the refund)</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <details className="rounded-md border border-dashed px-3 py-1 sm:col-span-2" open={saleTenders.length > 1 || undefined}>
+        <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-muted-foreground sm:min-h-9 sm:py-2">Sale was paid two ways (split the refund)</summary>
+        <div className="mt-1 mb-3 grid gap-3 sm:grid-cols-2">
           {select("Second payment", "originalTenderId2", saleTenders, false, "No second payment")}
           {split}
         </div>

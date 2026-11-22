@@ -670,10 +670,10 @@ export async function PosPage({
                           { value: "unknown", label: "Unknown" },
                         ]}
                       />
-                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
-                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Card or wallet refund (terminal payments)</summary>
+                      <details className="rounded-md border border-dashed px-3 py-1 sm:col-span-2">
+                        <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-muted-foreground sm:min-h-9 sm:py-2">Card or wallet refund (terminal payments)</summary>
                         <p className="mt-2 text-xs text-muted-foreground">Online orders paid by card are refunded to the card automatically. Leave these blank for them.</p>
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div className="mt-1 mb-3 grid gap-3 sm:grid-cols-2">
                           <TextField
                             label="Provider refund reference"
                             name="providerRefundId"
@@ -696,9 +696,9 @@ export async function PosPage({
                       </details>
                       <TextField label="Notes" name="notes" required={false} />
                       {/* Only an item marked non-returnable needs a manager; the server says so when it does. */}
-                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
-                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Item can't be returned (manager override)</summary>
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <details className="rounded-md border border-dashed px-3 py-1 sm:col-span-2">
+                        <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-muted-foreground sm:min-h-9 sm:py-2">Item can't be returned (manager override)</summary>
+                        <div className="mt-1 mb-3 grid gap-3 sm:grid-cols-2">
                           <EnumField
                             label="Override"
                             name="overrideNonReturnable"
