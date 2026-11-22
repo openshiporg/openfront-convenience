@@ -28,7 +28,13 @@ export async function POST(
       return NextResponse.json({ accepted: false }, { status: error.status });
     }
     const message = error instanceof Error ? error.message : "";
-    const rejected = /signature|timestamp|valid JSON|unsupported webhook|payment provider is invalid|active payment provider not found|does not accept webhooks/i.test(message);
+    // The Stripe test account is shared by many sites. An event this site cannot verify
+    // (another site's endpoint secret, or no secret here) is acknowledged and ignored, so
+    // Stripe never retries or disables it. Nothing is posted from an unverified event.
+    if (/signature|secret is not configured|timestamp/i.test(message)) {
+      return NextResponse.json({ accepted: false, ignored: true }, { status: 200 });
+    }
+    const rejected = /valid JSON|unsupported webhook|payment provider is invalid|active payment provider not found|does not accept webhooks/i.test(message);
     return NextResponse.json({ accepted: false }, { status: rejected ? 401 : 503 });
   }
 }

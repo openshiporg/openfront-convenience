@@ -116,3 +116,8 @@ test("paid web orders post without a webhook: shop and dashboard reads reconcile
   assert.match(read("features/storefront/lib/public-storefront.ts"), /reconcileOpenPickupPayments\(keystoneContext\.sudo\(\)\)/);
   assert.match(read("features/keystone/mutations/platformProjection.ts"), /reconcileOpenPickupPayments\(context\.sudo\(\)\)/);
 });
+
+test("the payment webhook acknowledges events it cannot verify (shared Stripe account) without posting anything", () => {
+  const route = read("app/api/payment-webhooks/[providerId]/route.ts");
+  assert.match(route, /ignored: true \}, \{ status: 200 \}/);
+});
