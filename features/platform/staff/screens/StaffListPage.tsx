@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PlatformListShell } from "../../components/PlatformListShell";
 import { ActionPanel, HiddenScope, SelectField, TextField } from "../../components/PlatformPage";
 import { RetainedForm } from "../../components/RetainedForm";
-import { StatusText, Td, Th, Tr, primaryButtonClass } from "../../components/cv-ui";
+import { StatusText, Td, Th, Tr, buttonClass, primaryButtonClass } from "../../components/cv-ui";
 import { BareTable } from "../../reconciliation/ledger-ui";
 import { loadPlatformList } from "../../lib/list-query";
 import { searchValue, type PlatformSearch } from "../../lib/projection";
@@ -61,6 +61,8 @@ export async function StaffListPage({ searchParams }: { searchParams: PlatformSe
       entity={{ singular: "employee", plural: "employees" }}
       empty="No staff"
       actions={
+        <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto">
+        <Link href={`/dashboard/platform/staff/roles${scopeQuery(scope)}`} className={buttonClass}>Roles</Link>
         <details className="group w-full sm:w-auto">
           <summary className={`${primaryButtonClass} cursor-pointer list-none`}>Add staff</summary>
           <div className="mt-3 w-full sm:absolute sm:right-6 sm:z-20 sm:w-[32rem]">
@@ -81,6 +83,7 @@ export async function StaffListPage({ searchParams }: { searchParams: PlatformSe
             </ActionPanel>
           </div>
         </details>
+        </div>
       }
     >
       <BareTable label="Staff">

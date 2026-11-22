@@ -28,12 +28,12 @@ export async function sendOrderConfirmationEmail(order: OrderConfirmationEmail):
     const info = await transport().sendMail({
       to: order.to,
       from: process.env.SMTP_FROM,
-      subject: `Your pickup order ${order.orderNumber} at ${order.storeName}`,
+      subject: `Your pickup order ${orderCode(order.orderNumber)} at ${order.storeName}`,
       html: emailLayout({
         storeName: order.storeName,
-        preheader: `Order ${order.orderNumber}`,
+        preheader: `Order ${orderCode(order.orderNumber)}`,
         title: "Your order is placed",
-        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(order.orderNumber)}</strong> at ${escapeHtml(order.storeName)}. Show this number at the counter when you pick it up.`)}
+        body: `${emailParagraph(`Thanks ${escapeHtml(order.name)}. Order <strong>${escapeHtml(orderCode(order.orderNumber))}</strong> at ${escapeHtml(order.storeName)}. Show this number at the counter when you pick it up.`)}
 ${emailItems(order.lines.map((line) => ({ title: line.title, quantity: line.quantity as unknown as number, amount: line.total })))}
 ${emailTotals([{ label: "Paid", value: order.total }])}
 ${emailButton("View your receipt", order.link)}`,
@@ -43,4 +43,10 @@ ${emailButton("View your receipt", order.link)}`,
   } catch (error) {
     return { sent: false, error: error instanceof Error ? error.message : "send_failed" };
   }
+}
+
+/** "WEB-76673b88-…" → "76673B": the code the receipt and the counter show ("Order 76673B"). */
+function orderCode(receiptNumber: string) {
+  const match = /^[A-Z]+-([0-9a-f]{6})[0-9a-f]{2}-[0-9a-f-]{20,}$/i.exec(receiptNumber.trim());
+  return match ? match[1].toUpperCase() : receiptNumber;
 }

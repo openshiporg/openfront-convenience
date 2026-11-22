@@ -60,16 +60,17 @@ export function AdminMetaProvider({
   children: ReactNode
   initialData?: AdminMeta
 }) {
+  // The layout passes a slim copy (names and visibility only). Full metadata is fetched only when a
+  // component asks for a list's fields (useList), so ordinary pages never download it.
   const { data, error, isLoading, refetch } = useAdminMetaQuery(undefined, {
-    // IMPORTANT: Use placeholderData instead of initialData for SSR
-    // This allows the query to be invalidated and refetched properly
     placeholderData: initialData,
+    enabled: !initialData?.isSlim,
   })
 
   return (
     <AdminMetaContext.Provider
       value={{
-        adminMeta: data || null,
+        adminMeta: data || initialData || null,
         error: error as Error | null,
         isLoading,
         refetch
@@ -97,7 +98,12 @@ export function useAdminMeta() {
  * Similar to Keystone's useList hook
  */
 export function useList(listKeyOrPath: string) {
-  const { adminMeta, error, isLoading } = useAdminMeta()
+  const context = useAdminMeta()
+  const slim = Boolean(context.adminMeta?.isSlim)
+  const full = useAdminMetaQuery(undefined, { enabled: slim })
+  const adminMeta = slim ? (full.data as AdminMeta | undefined) ?? null : context.adminMeta
+  const error = slim ? (full.error as Error | null) : context.error
+  const isLoading = slim ? full.isLoading : context.isLoading
   
   if (!adminMeta?.lists) {
     return { list: null, error, isLoading }

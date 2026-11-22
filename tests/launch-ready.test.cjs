@@ -147,3 +147,25 @@ test("Models sit behind the set-up roles; a cashier's Dashboard link goes to the
   assert.match(read("features/dashboard/components/Sidebar.tsx"), /modelLinks\.length > 0 &&/);
   assert.match(read("features/dashboard/screens/HomePage/index.tsx"), /redirect\(home\)/);
 });
+
+test("roles page: every permission appears once, in an owner's words, and Change brings View", () => {
+  const src = read("features/platform/staff/permissionAreas.ts");
+  const keys = [...src.matchAll(/(?:read|manage|key): "(can[A-Za-z]+)"/g)].map((m) => m[1]);
+  const access = read("features/keystone/access.ts");
+  const all = [...access.split("export const permissionKeys = [")[1].split("] as const")[0].matchAll(/"(can[A-Za-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...keys].sort(), [...all].sort());
+  assert.equal(new Set(keys).size, keys.length);
+  const actions = read("features/platform/staff/actions.ts");
+  assert.match(actions, /if \(area\.manage && area\.read && data\[area\.manage\]\) data\[area\.read\] = true/);
+  assert.match(actions, /updateRole\(where/);
+  assert.match(read("features/platform/staff/screens/StaffListPage.tsx"), /staff\/roles/);
+});
+
+test("dashboard pages carry list names only; field metadata loads when an editor needs it", () => {
+  const layout = read("app/dashboard/(admin)/layout.tsx");
+  assert.match(layout, /isSlim: true/);
+  assert.match(layout, /fields: \[\]/);
+  const hook = read("features/dashboard/hooks/useAdminMeta.tsx");
+  assert.match(hook, /enabled: !initialData\?\.isSlim/);
+  assert.match(hook, /useAdminMetaQuery\(undefined, \{ enabled: slim \}\)/);
+});

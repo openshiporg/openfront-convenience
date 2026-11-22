@@ -185,7 +185,7 @@ export async function StaffDetailPage({ params, searchParams }: { params: Promis
         )}
       </DetailSection>
       <p className="text-sm">
-        <Link className="underline underline-offset-4" href="/dashboard/roles">
+        <Link className="inline-flex min-h-11 items-center underline underline-offset-4 sm:min-h-8" href={`/dashboard/platform/staff/roles${q}`}>
           Roles and permissions
         </Link>
       </p>

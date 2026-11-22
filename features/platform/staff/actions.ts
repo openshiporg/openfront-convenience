@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { keystoneClient } from "@/features/dashboard/lib/keystoneClient";
 import { isCommonPassword } from "@/features/storefront/lib/password-rules";
 
+import { ALL_PERMISSION_KEYS, PERMISSION_AREAS } from "./permissionAreas";
+
 const value = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 function back(path: string, form: FormData, params: Record<string, string>): never {
@@ -87,4 +89,60 @@ export async function updateStaffAction(form: FormData) {
     back(path, form, { error: "Not saved. A role change needs role-management permission and can't grant more than you hold." });
   }
   back(path, form, { notice: "Saved" });
+}
+
+const ROLE_PATH = /^\/dashboard\/platform\/staff\/roles(\/[a-z0-9]{10,40})?$/;
+
+/** The checked boxes become the role's permissions; "Change" always brings "View" with it. */
+function permissionData(form: FormData) {
+  const data: Record<string, boolean> = {};
+  for (const key of ALL_PERMISSION_KEYS) data[key] = form.get(key) === "on";
+  for (const area of PERMISSION_AREAS) if (area.manage && area.read && data[area.manage]) data[area.read] = true;
+  return data;
+}
+
+function roleError(errors: unknown): string {
+  const text = JSON.stringify(errors ?? "");
+  if (/beyond the role manager/.test(text)) return "You can't give a role more than your own role allows";
+  if (/Reassign this role/.test(text)) return "Move this role's staff to another role first";
+  return "Not saved. Roles can only be changed by someone allowed to manage roles.";
+}
+
+export async function createRoleAction(form: FormData) {
+  const path = "/dashboard/platform/staff/roles";
+  const name = value(form, "name");
+  const businessId = value(form, "businessId");
+  if (!name || !businessId) back(path, form, { error: "Give the role a name" });
+  const response = await keystoneClient<{ createRole: { id: string } | null }>(
+    `mutation PlatformCreateRole($data: RoleCreateInput!) { createRole(data: $data) { id } }`,
+    { data: { name, description: value(form, "description"), business: { connect: { id: businessId } }, ...permissionData(form) } },
+  );
+  if (!response.success || !response.data.createRole?.id) back(path, form, { error: roleError(response.success ? null : response.error) });
+  revalidatePath(path);
+  back(`${path}/${response.data.createRole!.id}`, form, { notice: "Role created" });
+}
+
+export async function updateRoleAction(form: FormData) {
+  const path = ROLE_PATH.test(value(form, "returnPath")) ? value(form, "returnPath") : "/dashboard/platform/staff/roles";
+  const name = value(form, "name");
+  if (!name) back(path, form, { error: "Give the role a name" });
+  const response = await keystoneClient<{ updateRole: { id: string } | null }>(
+    `mutation PlatformUpdateRole($id: ID!, $data: RoleUpdateInput!) { updateRole(where: { id: $id }, data: $data) { id } }`,
+    { id: value(form, "roleId"), data: { name, description: value(form, "description"), ...permissionData(form) } },
+  );
+  revalidatePath(path);
+  if (!response.success || !response.data.updateRole?.id) back(path, form, { error: roleError(response.success ? null : response.error) });
+  back(path, form, { notice: "Saved. Staff with this role get the change at their next page." });
+}
+
+export async function deleteRoleAction(form: FormData) {
+  const path = "/dashboard/platform/staff/roles";
+  const self = `${path}/${value(form, "roleId")}`;
+  const response = await keystoneClient<{ deleteRole: { id: string } | null }>(
+    `mutation PlatformDeleteRole($id: ID!) { deleteRole(where: { id: $id }) { id } }`,
+    { id: value(form, "roleId") },
+  );
+  if (!response.success || !response.data.deleteRole?.id) back(self, form, { error: roleError(response.success ? null : response.error) });
+  revalidatePath(path);
+  back(path, form, { notice: "Role deleted" });
 }
