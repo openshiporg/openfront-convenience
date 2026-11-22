@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { inputClass, labelClass } from "../components/cv-ui";
 import type { PlatformOption } from "../lib/projection";
@@ -18,12 +18,15 @@ export function RefundSalePicker({
   tenders,
   lineSale,
   tenderSale,
+  split,
 }: {
   sales: PlatformOption[];
   lines: PlatformOption[];
   tenders: PlatformOption[];
   lineSale: PlatformOption[];
   tenderSale: PlatformOption[];
+  /** Amount fields for a sale paid two ways; shown folded with the second payment. */
+  split?: ReactNode;
 }) {
   const [saleId, setSaleId] = useState(sales.length === 1 ? sales[0].id : "");
   const saleOf = (map: PlatformOption[], id: string) => map.find((entry) => entry.id === id)?.label ?? "";
@@ -65,7 +68,14 @@ export function RefundSalePicker({
       </label>
       {select("Sale line", "saleLineId", saleLines, true, "No refundable lines")}
       {select("Original tender", "originalTenderId", saleTenders, true, "No refundable tender")}
-      {select("Second original tender (optional)", "originalTenderId2", saleTenders, false, "No second tender")}
+      {/* Most sales are paid one way and the refund goes back that way; two-way sales open this. */}
+      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2" open={saleTenders.length > 1 || undefined}>
+        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Sale was paid two ways (split the refund)</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {select("Second payment", "originalTenderId2", saleTenders, false, "No second payment")}
+          {split}
+        </div>
+      </details>
     </>
   );
 }

@@ -607,11 +607,19 @@ export async function PosPage({
                         tenders={controls.refundTenders ?? []}
                         lineSale={controls.refundLineSale ?? []}
                         tenderSale={controls.refundTenderSale ?? []}
+                        split={
+                          <>
+                            <p className="text-xs text-muted-foreground sm:col-span-2">Leave the amounts blank to refund the whole line to the first payment.</p>
+                            <TextField label="Back to first payment" name="refundAllocationCents" type="number" min="0" step="1" />
+                            <TextField label="Back to second payment" name="refundAllocationCents2" type="number" min="0" step="1" />
+                          </>
+                        }
                       />
                       <SelectField
-                        label="Open register session"
+                        label="Till"
                         name="registerSessionId"
                         options={controls.registerSessions ?? []}
+                        defaultValue={controls.registerSessions?.length === 1 ? controls.registerSessions[0].id : undefined}
                       />
                       <SelectField
                         label="Processor"
@@ -662,17 +670,8 @@ export async function PosPage({
                           { value: "unknown", label: "Unknown" },
                         ]}
                       />
-                      {/* Only a sale paid two ways needs amounts; the usual refund goes back the way it was paid. */}
                       <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
-                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Sale was paid two ways (split the refund)</summary>
-                        <p className="mt-2 text-xs text-muted-foreground">Leave blank to refund the whole line to the first payment.</p>
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                          <TextField label="Back to first payment (cents)" name="refundAllocationCents" type="number" min="0" step="1" />
-                          <TextField label="Back to second payment (cents)" name="refundAllocationCents2" type="number" min="0" step="1" />
-                        </div>
-                      </details>
-                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
-                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Card or wallet refund (terminal payments)</summary>
+                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Card or wallet refund (terminal payments)</summary>
                         <p className="mt-2 text-xs text-muted-foreground">Online orders paid by card are refunded to the card automatically. Leave these blank for them.</p>
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           <TextField
@@ -695,22 +694,28 @@ export async function PosPage({
                           />
                         </div>
                       </details>
-                      <EnumField
-                        label="Override non-returnable product"
-                        name="overrideNonReturnable"
-                        values={[
-                          { value: "false", label: "No" },
-                          { value: "true", label: "Manager override" },
-                        ]}
-                      />
-                      <TextField label="Override reason" name="overrideReason" />
-                      <TextField
-                        label="Manager PIN for override"
-                        name="managerPin"
-                        type="password"
-                        inputMode="numeric"
-                      />
-                      <TextField label="Notes" name="notes" />
+                      <TextField label="Notes" name="notes" required={false} />
+                      {/* Only an item marked non-returnable needs a manager; the server says so when it does. */}
+                      <details className="grid gap-3 rounded-md border border-dashed p-3 sm:col-span-2">
+                        <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-muted-foreground">Item can't be returned (manager override)</summary>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <EnumField
+                            label="Override"
+                            name="overrideNonReturnable"
+                            values={[
+                              { value: "false", label: "No" },
+                              { value: "true", label: "Manager override" },
+                            ]}
+                          />
+                          <TextField label="Override reason" name="overrideReason" />
+                          <TextField
+                            label="Manager PIN"
+                            name="managerPin"
+                            type="password"
+                            inputMode="numeric"
+                          />
+                        </div>
+                      </details>
                     </DurableRetailForm>
                   </ActionPanel>
                   <LookupForm

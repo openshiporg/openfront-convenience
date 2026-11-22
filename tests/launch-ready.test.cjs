@@ -121,3 +121,13 @@ test("the payment webhook acknowledges events it cannot verify (shared Stripe ac
   const route = read("app/api/payment-webhooks/[providerId]/route.ts");
   assert.match(route, /ignored: true \}, \{ status: 200 \}/);
 });
+
+test("refund form: second payment, split amounts and manager override are folded away; one till is chosen for you", () => {
+  const picker = read("features/platform/pos/RefundSalePicker.tsx");
+  assert.match(picker, /<details[^>]*open=\{saleTenders\.length > 1/);
+  assert.match(picker, /"originalTenderId2"/);
+  const pos = read("features/platform/pos/PosPage.tsx");
+  assert.match(pos, /Item can't be returned \(manager override\)/);
+  assert.match(pos, /label="Till"\s+name="registerSessionId"/);
+  assert.match(pos, /label="Back to first payment" name="refundAllocationCents"/);
+});
