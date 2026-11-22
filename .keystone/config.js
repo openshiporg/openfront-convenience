@@ -22783,6 +22783,12 @@ var surfacePermissions = {
   ],
   exceptions: ["canReadAlerts", "canReadPeople"]
 };
+function receiptNumberMatch(search) {
+  const short = /^(?:(sale|order|receipt)\s*)?#?([0-9a-f]{6})$/i.exec(search.trim());
+  if (!short) return { equals: search, mode: "insensitive" };
+  const prefix = short[1]?.toLowerCase() === "order" ? "WEB" : short[1] ? "SALE" : "";
+  return prefix ? { startsWith: `${prefix}-${short[2]}`, mode: "insensitive" } : { contains: `-${short[2]}`, mode: "insensitive" };
+}
 function formatCents(cents, currency) {
   const value = Number(cents);
   if (!Number.isFinite(value)) return String(cents);
@@ -23292,10 +23298,7 @@ async function conveniencePlatformProjection(_root, args, context) {
     const refundHistorySale = refundHistorySearch ? await context.prisma.sale.findFirst({
       where: {
         ...scope,
-        receiptNumber: {
-          equals: refundHistorySearch,
-          mode: "insensitive"
-        }
+        receiptNumber: receiptNumberMatch(refundHistorySearch)
       },
       select: {
         id: true,
@@ -23308,10 +23311,7 @@ async function conveniencePlatformProjection(_root, args, context) {
     const voidReceiptSaleCandidate = voidReceiptSearch && canAccessStore(session, businessId, storeId ?? "", "canManagePayments") ? await context.prisma.sale.findFirst({
       where: {
         ...scope,
-        receiptNumber: {
-          equals: voidReceiptSearch,
-          mode: "insensitive"
-        },
+        receiptNumber: receiptNumberMatch(voidReceiptSearch),
         status: "completed",
         refundedCents: 0,
         registerSession: {

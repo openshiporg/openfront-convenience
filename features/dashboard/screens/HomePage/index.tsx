@@ -9,7 +9,9 @@ import { PlusIcon, Database } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '../../components/PageContainer'
-import { getAdminMetaAction, getListCounts } from '../../actions'
+import { redirect } from 'next/navigation'
+import { getAdminMetaAction, getAuthenticatedUser, getListCounts } from '../../actions'
+import { homePathFor } from '../../lib/sidebarAccess'
 import { cn } from '@/lib/utils'
 
 interface ListCardProps {
@@ -75,6 +77,10 @@ function EmptyState() {
 }
 
 export async function HomePage() {
+  // Cashiers and key holders start on their own pages, not the raw model lists.
+  const me = await getAuthenticatedUser()
+  const home = homePathFor(me.success ? me.data?.authenticatedItem : undefined)
+  if (home !== '/dashboard') redirect(home)
   // Fetch admin meta server-side
   const adminMetaResponse = await getAdminMetaAction()
   

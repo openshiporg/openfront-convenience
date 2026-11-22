@@ -62,7 +62,6 @@ export async function SaleReceiptPage({ saleId, businessId, storeId }: { saleId:
         <header className="border-b border-dashed border-black/30 pb-4 text-center">
           <h1 id="receipt-title" className="font-sans text-lg font-bold">{receipt.store.name}</h1>
           <p className="text-sm">Receipt {shortRef(receipt.receiptNumber)}</p>
-          <p className="text-[12px] text-black/60 [overflow-wrap:anywhere]">{receipt.receiptNumber}</p>
           <p className="text-xs">{receipt.completedAt ? new Date(receipt.completedAt).toLocaleString("en-US", { timeZone: receipt.store.timezone }) : "Not completed"} · {receipt.status.replaceAll("_", " ")}</p>
         </header>
         <div className="divide-y divide-dashed divide-black/20">
@@ -73,7 +72,7 @@ export async function SaleReceiptPage({ saleId, businessId, storeId }: { saleId:
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-x-5 gap-y-1 border-t border-dashed border-black/30 pt-4 text-sm tabular-nums">
           <dt>Subtotal</dt><dd className="text-right">{money(receipt.subtotalCents, receipt.currencyCode)}</dd>
-          <dt>Discount</dt><dd className="text-right">−{money(receipt.discountCents, receipt.currencyCode)}</dd>
+          {receipt.discountCents ? <><dt>Discount</dt><dd className="text-right">−{money(receipt.discountCents, receipt.currencyCode)}</dd></> : null}
           <dt>Tax</dt><dd className="text-right">{money(receipt.taxCents, receipt.currencyCode)}</dd>
           <dt className="pt-1 text-base font-bold">Total</dt><dd className="pt-1 text-right text-base font-bold">{money(receipt.totalCents, receipt.currencyCode)}</dd>
           {receipt.refundedCents ? <><dt>Refunded</dt><dd className="text-right">−{money(receipt.refundedCents, receipt.currencyCode)}</dd></> : null}

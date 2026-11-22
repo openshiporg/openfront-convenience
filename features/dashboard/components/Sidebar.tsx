@@ -43,7 +43,7 @@ import { OnboardingCards } from '@/features/platform/onboarding/components/Onboa
 import { dismissOnboarding } from '@/features/platform/onboarding/actions/onboarding'
 import { platformNavGroups, platformStandaloneItems, getPlatformNavItemsWithBasePath } from '@/features/platform/lib/navigation'
 import { useDashboard } from '../context/DashboardProvider'
-import { visiblePlatformItems, visibleSidebarLists } from '../lib/sidebarAccess'
+import { homePathFor, visiblePlatformItems, visibleSidebarLists } from '../lib/sidebarAccess'
 
 interface User {
   id: string;
@@ -141,7 +141,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isLinkActive('/dashboard')}>
-                <Link href="/dashboard" onClick={() => setOpenMobile(false)}>
+                <Link href={homePathFor(user)} onClick={() => setOpenMobile(false)}>
                   <Home className="h-4 w-4" />
                   <span>Dashboard</span>
                 </Link>
@@ -269,7 +269,8 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Models */}
+        {/* Models: set-up roles only (see canSeeModels) */}
+        {modelLinks.length > 0 && (
         <SidebarGroup>
           <SidebarGroupLabel>Models</SidebarGroupLabel>
           <SidebarMenu className="group-has-[[data-collapsible=icon]]/sidebar-wrapper:hidden">
@@ -357,6 +358,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
             </DropdownMenu>
           </SidebarMenu>
         </SidebarGroup>
+        )}
       </SidebarContent>
       
       <SidebarFooter>

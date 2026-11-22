@@ -153,6 +153,19 @@ const surfacePermissions: Record<PlatformSurface, readonly PermissionKey[]> = {
 };
 
 /** "Whole Milk — 1 quart": the product name first, so cashiers can tell items apart. */
+/**
+ * A receipt is found by what is printed on it: "Sale C296B3", "Order F707A5", "C296B3",
+ * or the full number. The six-character code is the start of the id after the prefix.
+ */
+function receiptNumberMatch(search: string) {
+  const short = /^(?:(sale|order|receipt)\s*)?#?([0-9a-f]{6})$/i.exec(search.trim());
+  if (!short) return { equals: search, mode: "insensitive" as const };
+  const prefix = short[1]?.toLowerCase() === "order" ? "WEB" : short[1] ? "SALE" : "";
+  return prefix
+    ? { startsWith: `${prefix}-${short[2]}`, mode: "insensitive" as const }
+    : { contains: `-${short[2]}`, mode: "insensitive" as const };
+}
+
 function formatCents(cents: number | bigint | string, currency: string): string {
   const value = Number(cents);
   if (!Number.isFinite(value)) return String(cents);
@@ -809,10 +822,7 @@ export async function conveniencePlatformProjection(
       ? await context.prisma.sale.findFirst({
           where: {
             ...scope,
-            receiptNumber: {
-              equals: refundHistorySearch,
-              mode: "insensitive" as const,
-            },
+            receiptNumber: receiptNumberMatch(refundHistorySearch),
           },
           select: {
             id: true,
@@ -829,10 +839,7 @@ export async function conveniencePlatformProjection(
         ? await context.prisma.sale.findFirst({
             where: {
               ...scope,
-              receiptNumber: {
-                equals: voidReceiptSearch,
-                mode: "insensitive" as const,
-              },
+              receiptNumber: receiptNumberMatch(voidReceiptSearch),
               status: "completed",
               refundedCents: 0,
               registerSession: {

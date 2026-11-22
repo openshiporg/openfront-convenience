@@ -593,7 +593,7 @@ export async function PosPage({
                     keep={{ businessId: projection.businessId, storeId: projection.storeId, receiptSearch: state.receiptSearch }}
                     name="refundHistorySearch"
                     label="Find a sale to refund"
-                    placeholder="Full receipt number"
+                    placeholder="Receipt, e.g. Sale C296B3"
                     defaultValue={state.refundHistorySearch}
                     submit="Find sale"
                     empty={state.refundHistorySearch && !controls.refundSales?.length ? "No receipt with that number" : false}
@@ -723,7 +723,7 @@ export async function PosPage({
                     keep={{ businessId: projection.businessId, storeId: projection.storeId, receiptSearch: state.receiptSearch, refundHistorySearch: state.refundHistorySearch }}
                     name="voidReceiptSearch"
                     label="Find a cash sale to void"
-                    placeholder="Full receipt number"
+                    placeholder="Receipt, e.g. Sale C296B3"
                     defaultValue={state.voidReceiptSearch}
                     submit="Find sale"
                     empty={state.voidReceiptSearch && !controls.posVoidHistorySales?.length ? "No voidable cash sale with that number" : false}

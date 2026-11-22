@@ -106,8 +106,7 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
       state={{ tone: statusTone(sale.status), label: stateLabel }}
       meta={
         <>
-          {formatWhen(sale.completedAt ?? sale.startedAt, scope.timezone)} · {employeeName(sale.cashier)} ·{" "}
-          <span className="font-mono text-[12px]">{sale.receiptNumber}</span>
+          {formatWhen(sale.completedAt ?? sale.startedAt, scope.timezone)} · {employeeName(sale.cashier)}
         </>
       }
       notice={searchValue(search, "notice")}
@@ -117,7 +116,7 @@ export async function SaleDetailPage({ params, searchParams }: { params: Promise
           <dl className="space-y-1 px-4 py-3 font-mono text-[13px] tabular-nums">
             {[
               ["Subtotal", money(sale.subtotalCents)],
-              ["Discount", sale.discountCents ? `−${money(sale.discountCents)}` : money(0)],
+              ...(sale.discountCents ? [["Discount", `−${money(sale.discountCents)}`]] : []),
               ["Tax", money(sale.taxCents)],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3 text-muted-foreground">

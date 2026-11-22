@@ -12,8 +12,17 @@ export function canUseDashboardNav(user: SidebarUser) {
   return user?.role?.canAccessDashboard !== false
 }
 
+/**
+ * The raw model lists are for the people who set the system up (owner, admin, developer).
+ * A cashier or key holder works from the platform pages only. Unknown permissions show them.
+ */
+export function canSeeModels(user: SidebarUser) {
+  const held = user?.role?.permissions
+  return !held || held.includes('canManageRoles')
+}
+
 export function visibleSidebarLists<T extends SidebarList>(lists: T[], user: SidebarUser): T[] {
-  if (!canUseDashboardNav(user)) return []
+  if (!canUseDashboardNav(user) || !canSeeModels(user)) return []
   return lists.filter((list) => !list.isHidden)
 }
 
@@ -79,4 +88,11 @@ export function visiblePlatformItems<T extends { href: string }>(
     const needed = platformPagePermissions[slug]
     return !held || !needed || needed.every((permission) => held.includes(permission))
   })
+}
+
+/** Where "Dashboard" takes a role without the model lists: the overview, else the first page it can open. */
+export function homePathFor(user: SidebarUser): string {
+  if (canSeeModels(user)) return '/dashboard'
+  const first = ['', 'pos', 'sales', 'tills', 'products'].find((slug) => canOpenPlatformPath(`/dashboard/platform${slug ? `/${slug}` : ''}`, user))
+  return first === undefined ? '/dashboard/no-access' : `/dashboard/platform${first ? `/${first}` : ''}`
 }

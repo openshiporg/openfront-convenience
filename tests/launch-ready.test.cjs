@@ -131,3 +131,19 @@ test("refund form: second payment, split amounts and manager override are folded
   assert.match(pos, /label="Till"\s+name="registerSessionId"/);
   assert.match(pos, /label="Back to first payment" name="refundAllocationCents"/);
 });
+
+test("receipts show the short reference only and hide a zero discount; refunds find a sale by that short reference", () => {
+  const receipt = read("features/platform/pos/SaleReceiptPage.tsx");
+  assert.doesNotMatch(receipt, /\{receipt\.receiptNumber\}<\/p>/);
+  assert.match(receipt, /\{receipt\.discountCents \? <><dt>Discount/);
+  assert.doesNotMatch(read("features/platform/sales/screens/SaleDetailPage.tsx"), /: money\(0\)\]/);
+  assert.match(read("features/keystone/mutations/platformProjection.ts"), /receiptNumber: receiptNumberMatch\(refundHistorySearch\)/);
+});
+
+test("Models sit behind the set-up roles; a cashier's Dashboard link goes to their own pages", () => {
+  const access = read("features/dashboard/lib/sidebarAccess.ts");
+  assert.match(access, /held\.includes\('canManageRoles'\)/);
+  assert.match(access, /!canSeeModels\(user\)\) return \[\]/);
+  assert.match(read("features/dashboard/components/Sidebar.tsx"), /modelLinks\.length > 0 &&/);
+  assert.match(read("features/dashboard/screens/HomePage/index.tsx"), /redirect\(home\)/);
+});
