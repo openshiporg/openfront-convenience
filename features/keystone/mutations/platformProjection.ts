@@ -975,13 +975,14 @@ export async function conveniencePlatformProjection(
         where: { ...scope, status: { in: ["clocked_in", "on_break"] } },
       }),
       context.prisma.cart.findMany({
-        where: { ...scope, status: { in: ["open", "held"] } },
+        // The register lists register baskets only; a shopper's online basket is theirs.
+        where: { ...scope, status: { in: ["open", "held"] }, source: { in: ["pos", "kiosk"] } },
         select: { id: true, cartNumber: true, status: true, totalCents: true },
         orderBy: { updatedAt: "desc" },
         take: 50,
       }),
       context.prisma.cartLine.findMany({
-        where: { ...scope, cart: { status: { in: ["open", "held"] } } },
+        where: { ...scope, cart: { status: { in: ["open", "held"] }, source: { in: ["pos", "kiosk"] } } },
         select: {
           id: true,
           titleSnapshot: true,

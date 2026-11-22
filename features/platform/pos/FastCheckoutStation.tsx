@@ -119,7 +119,8 @@ export function FastCheckoutStation({
   storeId,
   carts: initialCarts,
   registerSessions,
-  employees,
+  employees: allEmployees,
+  selfEmployeeId = "",
   variants,
   currencyCode,
 }: {
@@ -129,8 +130,14 @@ export function FastCheckoutStation({
   carts: PlatformOption[];
   registerSessions: PlatformOption[];
   employees: PlatformOption[];
+  selfEmployeeId?: string;
   variants: PlatformOption[];
 }) {
+  // The server accepts only the signed-in employee as cashier, so offer no one else.
+  const employees = useMemo(() => {
+    const own = allEmployees.filter((option) => option.id === selfEmployeeId);
+    return own.length ? own : allEmployees;
+  }, [allEmployees, selfEmployeeId]);
   const storageKey = `openfront-fast-pos:${businessId}:${storeId}:cart`;
   const pendingStorageKey = `${storageKey}:pending-operation`;
   const [pendingIntent, setPendingIntent] = useState<PendingPosIntent | null>(
@@ -248,6 +255,14 @@ export function FastCheckoutStation({
     outcome?: FastPosOperationOutcome,
   ) => {
     if (!result?.ok && outcome?.state !== "succeeded") {
+      if (result && outcome?.state === "not_found") {
+        // The server answered with a refusal and holds no result for this key:
+        // nothing is in doubt, so show the reason and free the register.
+        clearPendingIntent();
+        setMessage(result.message || "Not committed");
+        focusScanner();
+        return;
+      }
       setPendingOutcome(outcome?.state ?? "unknown");
       setPendingCanRetry(Boolean(outcome?.retryable));
       setMessage(

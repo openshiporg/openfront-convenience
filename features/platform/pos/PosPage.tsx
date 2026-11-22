@@ -112,6 +112,7 @@ export async function PosPage({
                     carts={cartActionOptions}
                     registerSessions={controls.registerSessions ?? []}
                     employees={controls.employees ?? []}
+                    selfEmployeeId={controls.selfEmployee?.[0]?.id ?? ""}
                     variants={controls.productVariants ?? []}
                     currencyCode={projection.currencyCode ?? "USD"}
                   />
